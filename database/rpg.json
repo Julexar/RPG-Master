@@ -1,0 +1,851 @@
+{
+	"DND": {
+		"races": [
+			{
+				"name": "Aarakocra",
+				"id": "aaraleg"
+			},
+			{
+				"name": "Aarakocra",
+				"id": "aaranew"
+			},
+			{
+				"name": "Aasimar",
+				"id": "aasimleg",
+				"sub": [
+					{
+						"name": "Fallen",
+						"id": "fall"
+					},
+					{
+						"name": "Protector",
+						"id": "prot"
+					},
+					{
+						"name": "Scourge",
+						"id": "scour"
+					}
+				]
+			},
+			{
+				"name": "Aasimar",
+				"id": "aasimnew"
+			},
+			{
+				"name": "Air Genasi",
+				"id": "airgen"
+			},
+			{
+				"name": "Autognome",
+				"id": "auto"
+			},
+			{
+				"name": "Bugbear",
+				"id": "bugleg"
+			},
+			{
+				"name": "Bugbear",
+				"id": "bugnew"
+			},
+			{
+				"name": "Centaur",
+				"id": "cenleg"
+			},
+			{
+				"name": "Centaur",
+				"id": "cennew"
+			},
+			{
+				"name": "Changeling",
+				"id": "changeleg"
+			},
+			{
+				"name": "Changeling",
+				"id": "changenew"
+			},
+			{
+				"name": "Deep Gnome",
+				"id": "deepgnome"
+			},
+			{
+				"name": "Dragonborn",
+				"id": "dragborn",
+				"sub": [
+					{
+						"name": "Chromatic",
+						"id": "chrom"
+					},
+					{
+						"name": "Draconblood",
+						"id": "dracon"
+					},
+					{
+						"name": "Gem",
+						"id": "gem"
+					},
+					{
+						"name": "Metallic",
+						"id": "metal"
+					},
+					{
+						"name": "Ravenite",
+						"id": "rave"
+					}
+				]
+			},
+			{
+				"name": "Duergar",
+				"id": "duergar"
+			},
+			{
+				"name": "Dwarf",
+				"id": "dwarf",
+				"sub": [
+					{
+						"name": "Gray",
+						"id": "gray"
+					},
+					{
+						"name": "Hill",
+						"id": "hill"
+					},
+					{
+						"name": "Mark of Warding",
+						"id": "ward"
+					},
+					{
+						"name": "Mountain",
+						"id": "mount"
+					}
+				]
+			},
+			{
+				"name": "Earth Genasi",
+				"id": "earthgen"
+			},
+			{
+				"name": "Eladrin",
+				"id": "eladrin"
+			},
+			{
+				"name": "Elf",
+				"id": "elf",
+				"sub": [
+					{
+						"name": "Aereni High",
+						"id": "aerenhigh"
+					},
+					{
+						"name": "Aereni Wood",
+						"id": "aerenwood"
+					},
+					{
+						"name": "Astral",
+						"id": "astral"
+					},
+					{
+						"name": "Dark",
+						"id": "dark"
+					},
+					{
+						"name": "Eladrin",
+						"id": "eladleg"
+					},
+					{
+						"name": "Eladrin (Variant)",
+						"id": "eladvar"
+					},
+					{
+						"name": "High",
+						"id": "high"
+					},
+					{
+						"name": "Mark of Shadow",
+						"id": "shadow"
+					},
+					{
+						"name": "Pallid",
+						"id": "pall"
+					},
+					{
+						"name": "Sea",
+						"id": "sea"
+					},
+					{
+						"name": "Shadar-kai",
+						"id": "shadar"
+					},
+					{
+						"name": "Valenar High",
+						"id": "valenhigh"
+					},
+					{
+						"name": "Valenar Wood",
+						"id": "valenwood"
+					},
+					{
+						"name": "Wood",
+						"id": "wood"
+					}
+				]
+			},
+			{
+				"name": "Fairy",
+				"id": "fairy"
+			},
+			{
+				"name": "Firbolg",
+				"id": "firbleg"
+			},
+			{
+				"name": "Firbolg",
+				"id": "firbnew"
+			},
+			{
+				"name": "Fire Genasi",
+				"id": "firegen"
+			},
+			{
+				"name": "Genasi",
+				"id": "genasi",
+				"sub": [
+					{
+						"name": "Air",
+						"id": "air"
+					},
+					{
+						"name": "Earth",
+						"id": "earth"
+					},
+					{
+						"name": "Fire",
+						"id": "fire"
+					},
+					{
+						"name": "Water",
+						"id": "water"
+					}
+				]
+			},
+			{
+				"name": "Giff",
+				"id": "giff"
+			},
+			{
+				"name": "Gith",
+				"id": "gith",
+				"sub": [
+					{
+						"name": "Githyanki",
+						"id": "yanki"
+					},
+					{
+						"name": "Githzerai",
+						"id": "zerai"
+					}
+				]
+			},
+			{
+				"name": "Githyanki",
+				"id": "githyanki"
+			},
+			{
+				"name": "Githzerai",
+				"id": "githzerai"
+			},
+			{
+				"name": "Gnome",
+				"id": "gnome",
+				"sub": [
+					{
+						"name": "Deep",
+						"id": "deep"
+					},
+					{
+						"name": "Forest",
+						"id": "forest"
+					},
+					{
+						"name": "Mark of Scribing",
+						"id": "scribing"
+					},
+					{
+						"name": "Rock",
+						"id": "rock"
+					}
+				]
+			},
+			{
+				"name": "Goblin",
+				"id": "gobleg"
+			},
+			{
+				"name": "Goblin",
+				"id": "gobnew"
+			},
+			{
+				"name": "Goliath",
+				"id": "golleg"
+			},
+			{
+				"name": "Goliath",
+				"id": "golnew"
+			},
+			{
+				"name": "Grung",
+				"id": "grung"
+			},
+			{
+				"name": "Hadozee",
+				"id": "hadozee"
+			},
+			{
+				"name": "Half-Elf",
+				"id": "half-elf",
+				"sub": [
+					{
+						"name": "Aquatic",
+						"id": "aqua"
+					},
+					{
+						"name": "Drow",
+						"id": "drow"
+					},
+					{
+						"name": "High",
+						"id": "high"
+					},
+					{
+						"name": "Mark of Detection",
+						"id": "detect"
+					},
+					{
+						"name": "Mark of Storm",
+						"id": "storm"
+					},
+					{
+						"name": "Wood",
+						"id": "wood"
+					}
+				]
+			},
+			{
+				"name": "Half-Orc",
+				"id": "half-orc",
+				"sub": [
+					{
+						"name": "Mark of Finding",
+						"id": "find"
+					}
+				]
+			},
+			{
+				"name": "Halfling",
+				"id": "halfling",
+				"sub": [
+					{
+						"name": "Ghostwise",
+						"id": "ghost"
+					},
+					{
+						"name": "Lightfoot",
+						"id": "light"
+					},
+					{
+						"name": "Lotusden",
+						"id": "lotus"
+					},
+					{
+						"name": "Mark of Healing",
+						"id": "heal"
+					},
+					{
+						"name": "Mark of Hospitality",
+						"id": "hospital"
+					},
+					{
+						"name": "Stout",
+						"id": "stout"
+					}
+				]
+			},
+			{
+				"name": "Harengon",
+				"id": "hare"
+			},
+			{
+				"name": "Hobgoblin",
+				"id": "hobleg"
+			},
+			{
+				"name": "Hobgoblin",
+				"id": "hobnew"
+			},
+			{
+				"name": "Human",
+				"id": "human",
+				"sub": [
+					{
+						"name": "Mark of Finding",
+						"id": "find"
+					},
+					{
+						"name": "Mark of Handling",
+						"id": "handling"
+					},
+					{
+						"name": "Mark of Making",
+						"id": "making"
+					},
+					{
+						"name": "Mark of Passage",
+						"id": "pass"
+					},
+					{
+						"name": "Mark of Sentinel",
+						"id": "sent"
+					},
+					{
+						"name": "Variant",
+						"id": "var"
+					}
+				]
+			},
+			{
+				"name": "Kalashtar",
+				"id": "kalash"
+			},
+			{
+				"name": "Kender",
+				"id": "kender"
+			},
+			{
+				"name": "Kenku",
+				"id": "kenleg"
+			},
+			{
+				"name": "Kenku",
+				"id": "kennew"
+			},
+			{
+				"name": "Kobold",
+				"id": "kobleg"
+			},
+			{
+				"name": "Kobold",
+				"id": "kobnew"
+			},
+			{
+				"name": "Leonin",
+				"id": "leo"
+			},
+			{
+				"name": "Dhampir",
+				"id": "dhamp"
+			},
+			{
+				"name": "Hexblood",
+				"id": "hexblood"
+			},
+			{
+				"name": "Reborn",
+				"id": "reborn"
+			},
+			{
+				"name": "Lizardfolk",
+				"id": "lizleg"
+			},
+			{
+				"name": "Lizardfolk",
+				"id": "liznew"
+			},
+			{
+				"name": "Locathah",
+				"id": "loca"
+			},
+			{
+				"name": "Loxodon",
+				"id": "lox"
+			},
+			{
+				"name": "Minotaur",
+				"id": "minoleg"
+			},
+			{
+				"name": "Minotaur",
+				"id": "minonew"
+			},
+			{
+				"name": "Orc",
+				"id": "orcleg"
+			},
+			{
+				"name": "Orc",
+				"id": "orcnew"
+			},
+			{
+				"name": "Owlin",
+				"id": "owl"
+			},
+			{
+				"name": "Plasmoid",
+				"id": "plas"
+			},
+			{
+				"name": "Satyr",
+				"id": "satyrleg"
+			},
+			{
+				"name": "Satyr",
+				"id": "satyrnew"
+			},
+			{
+				"name": "Sea Elf",
+				"id": "seaelf"
+			},
+			{
+				"name": "Shadar-kai",
+				"id": "shadar-kai"
+			},
+			{
+				"name": "Shifter",
+				"id": "shiftleg"
+			},
+			{
+				"name": "Shifter",
+				"id": "shiftnew"
+			},
+			{
+				"name": "Simic Hybrid",
+				"id": "simic"
+			},
+			{
+				"name": "Tabaxi",
+				"id": "tableg"
+			},
+			{
+				"name": "Tabaxi",
+				"id": "tableg"
+			},
+			{
+				"name": "Tabaxi",
+				"id": "tabnew"
+			},
+			{
+				"name": "Thri-kreen",
+				"id": "thri"
+			},
+			{
+				"name": "Tiefling",
+				"id": "tief",
+				"sub": [
+					{
+						"name": "Baalzebub",
+						"id": "baal"
+					},
+					{
+						"name": "Dispater",
+						"id": "disp"
+					},
+					{
+						"name": "Feral",
+						"id": "feral"
+					},
+					{
+						"name": "Fierna",
+						"id": "fierna"
+					},
+					{
+						"name": "Glasya",
+						"id": "glas"
+					},
+					{
+						"name": "Levistus",
+						"id": "levi"
+					},
+					{
+						"name": "Mammon",
+						"id": "mam"
+					},
+					{
+						"name": "Mephistopheles",
+						"id": "meph"
+					},
+					{
+						"name": "Variant",
+						"id": "var"
+					},
+					{
+						"name": "Zariel",
+						"id": "zar"
+					}
+				]
+			},
+			{
+				"name": "Tortle",
+				"id": "torleg"
+			},
+			{
+				"name": "Tortle",
+				"id": "tornew"
+			},
+			{
+				"name": "Triton",
+				"id": "trileg"
+			},
+			{
+				"name": "Triton",
+				"id": "trinew"
+			},
+			{
+				"name": "Veldaken",
+				"id": "veld"
+			},
+			{
+				"name": "Verdan",
+				"id": "verd"
+			},
+			{
+				"name": "Warforged",
+				"id": "war"
+			},
+			{
+				"name": "Water Genasi",
+				"id": "watergen"
+			},
+			{
+				"name": "Yuan-Ti",
+				"id": "yuan"
+			},
+			{
+				"name": "Yuan-Ti Pureblood",
+				"id": "yuanpure"
+			}
+		],
+		"classes": [
+			{
+				"name": "Artificer",
+				"id": "art",
+				"sub": [
+					{
+						"name": "Alchemist",
+						"id": "alch"
+					},
+					{
+						"name": "Armorer",
+						"id": "arm"
+					},
+					{
+						"name": "Artillerist",
+						"id": "artil"
+					},
+					{
+						"name": "Battle Smith",
+						"id": "battle"
+					}
+				]
+			},
+			{
+				"name": "Barbarian",
+				"id": "barb",
+				"sub": [
+					{
+						"name": "Path of Wild Magic",
+						"id": "powm"
+					},
+					{
+						"name": "Path of the Ancestral Guardian",
+						"id": "potag"
+					},
+					{
+						"name": "Path of the Battlerager",
+						"id": "potbr"
+					},
+					{
+						"name": "Path of the Beast",
+						"id": "potb"
+					},
+					{
+						"name": "Path of the Berserker",
+						"id": "potber"
+					},
+					{
+						"name": "Path of the Storm Herald",
+						"id": "potsh"
+					},
+					{
+						"name": "Path of the Totem Warrior",
+						"id": "pottw"
+					},
+					{
+						"name": "Path of the Zealot",
+						"id": "potz"
+					}
+				]
+			},
+			{
+				"name": "Bard",
+				"id": "bard",
+				"sub": [
+					{
+						"name": "College of Creation",
+						"id": "coc"
+					},
+					{
+						"name": "College of Eloquence",
+						"id": "coe"
+					},
+					{
+						"name": "College of Glamour",
+						"id": "cog"
+					},
+					{
+						"name": "College of Lore",
+						"id": "col"
+					},
+					{
+						"name": "College of Spirits",
+						"id": "cosp"
+					},
+					{
+						"name": "College of Swords",
+						"id": "cosw"
+					},
+					{
+						"name": "College of Valor",
+						"id": "cov"
+					},
+					{
+						"name": "College of Whispers",
+						"id": "cow"
+					}
+				]
+			},
+			{
+				"name": "Cleric",
+				"id": "cleric",
+				"sub": [
+					{
+						"name": "Arcana Domain",
+						"id": "ad"
+					},
+					{
+						"name": "Death Domain",
+						"id": "dd"
+					},
+					{
+						"name": "Forge Domain",
+						"id": "fd"
+					},
+					{
+						"name": "Grave Domain",
+						"id": "gd"
+					},
+					{
+						"name": "Knowledge Domain",
+						"id": "kd"
+					},
+					{
+						"name": "Life Domain",
+						"id": "lifd"
+					},
+					{
+						"name": "Light Domain",
+						"id": "ligd"
+					},
+					{
+						"name": "Nature Domain",
+						"id": "nd"
+					},
+					{
+						"name": "Order Domain",
+						"id": "od"
+					},
+					{
+						"name": "Peace Domain",
+						"id": "pd"
+					},
+					{
+						"name": "Tempest Domain",
+						"id": "temd"
+					},
+					{
+						"name": "Trickery Domain",
+						"id": "trickd"
+					},
+					{
+						"name": "Twilight Domain",
+						"id": "twid"
+					},
+					{
+						"name": "War Domain",
+						"id": "wd"
+					}
+				]
+			},
+			{
+				"name": "Druid",
+				"id": "druid",
+				"sub": [
+					{
+						"name": "Circle of Dreams",
+						"id": "cod"
+					},
+					{
+						"name": "Circle of Spores",
+						"id": "cosp"
+					},
+					{
+						"name": "Circle of Stars",
+						"id": "cost"
+					},
+					{
+						"name": "Circle of Wildfire",
+						"id": "cowf"
+					},
+					{
+						"name": "Circle of the Land (Arctic)",
+						"id": "cotla"
+					},
+					{
+						"name": "Circle of the Land (Coast)",
+						"id": "cotlc"
+					},
+					{
+						"name": "Circle of the Land (Desert)",
+						"id": "cotld"
+					},
+					{
+						"name": "Circle of the Land (Forest)",
+						"id": "cotlf"
+					},
+					{
+						"name": "Circle of the Land (Grassland)",
+						"id": "cotlg"
+					},
+					{
+						"name": "Circle of the Land (Mountain)",
+						"id": "cotlm"
+					},
+					{
+						"name": "Circle of the Land (Swamp)",
+						"id": "cotls"
+					},
+					{
+						"name": "Circle of the Land (Underdark)",
+						"id": "cotlu"
+					},
+					{
+						"name": "Circle of the Moon",
+						"id": "cotm"
+					},
+					{
+						"name": "Circle of the Shepherd",
+						"id": "cots"
+					}
+				]
+			}
+		],
+		"players": []
+	}
+}
