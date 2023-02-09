@@ -1,5 +1,5 @@
 module.exports = {
-    token: 'MTA0NjQyMjMyNTMyNDY4OTQyOA.GZjtSA.Q7aw_kXASkJDQpquepGqDKlu6buNdL76H91IIM',
+    token: 'Your Token here',
     default_prefix: 'r!',
     owners: ['676518256282042393'],
     presence: {
