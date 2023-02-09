@@ -1,0 +1,1170 @@
+{
+	"DND": {
+		"races": [
+			{
+				"name": "Aarakocra",
+				"id": "aaraleg"
+			},
+			{
+				"name": "Aarakocra",
+				"id": "aaranew"
+			},
+			{
+				"name": "Aasimar",
+				"id": "aasimleg",
+				"sub": [
+					{
+						"name": "Fallen",
+						"id": "fall"
+					},
+					{
+						"name": "Protector",
+						"id": "prot"
+					},
+					{
+						"name": "Scourge",
+						"id": "scour"
+					}
+				]
+			},
+			{
+				"name": "Aasimar",
+				"id": "aasimnew"
+			},
+			{
+				"name": "Air Genasi",
+				"id": "airgen"
+			},
+			{
+				"name": "Autognome",
+				"id": "auto"
+			},
+			{
+				"name": "Bugbear",
+				"id": "bugleg"
+			},
+			{
+				"name": "Bugbear",
+				"id": "bugnew"
+			},
+			{
+				"name": "Centaur",
+				"id": "cenleg"
+			},
+			{
+				"name": "Centaur",
+				"id": "cennew"
+			},
+			{
+				"name": "Changeling",
+				"id": "changeleg"
+			},
+			{
+				"name": "Changeling",
+				"id": "changenew"
+			},
+			{
+				"name": "Deep Gnome",
+				"id": "deepgnome"
+			},
+			{
+				"name": "Dragonborn",
+				"id": "dragborn",
+				"sub": [
+					{
+						"name": "Chromatic",
+						"id": "chrom"
+					},
+					{
+						"name": "Draconblood",
+						"id": "dracon"
+					},
+					{
+						"name": "Gem",
+						"id": "gem"
+					},
+					{
+						"name": "Metallic",
+						"id": "metal"
+					},
+					{
+						"name": "Ravenite",
+						"id": "rave"
+					}
+				]
+			},
+			{
+				"name": "Duergar",
+				"id": "duergar"
+			},
+			{
+				"name": "Dwarf",
+				"id": "dwarf",
+				"sub": [
+					{
+						"name": "Gray",
+						"id": "gray"
+					},
+					{
+						"name": "Hill",
+						"id": "hill"
+					},
+					{
+						"name": "Mark of Warding",
+						"id": "ward"
+					},
+					{
+						"name": "Mountain",
+						"id": "mount"
+					}
+				]
+			},
+			{
+				"name": "Earth Genasi",
+				"id": "earthgen"
+			},
+			{
+				"name": "Eladrin",
+				"id": "eladrin"
+			},
+			{
+				"name": "Elf",
+				"id": "elf",
+				"sub": [
+					{
+						"name": "Aereni High",
+						"id": "aerenhigh"
+					},
+					{
+						"name": "Aereni Wood",
+						"id": "aerenwood"
+					},
+					{
+						"name": "Astral",
+						"id": "astral"
+					},
+					{
+						"name": "Dark",
+						"id": "dark"
+					},
+					{
+						"name": "Eladrin",
+						"id": "eladleg"
+					},
+					{
+						"name": "Eladrin (Variant)",
+						"id": "eladvar"
+					},
+					{
+						"name": "High",
+						"id": "high"
+					},
+					{
+						"name": "Mark of Shadow",
+						"id": "shadow"
+					},
+					{
+						"name": "Pallid",
+						"id": "pall"
+					},
+					{
+						"name": "Sea",
+						"id": "sea"
+					},
+					{
+						"name": "Shadar-kai",
+						"id": "shadar"
+					},
+					{
+						"name": "Valenar High",
+						"id": "valenhigh"
+					},
+					{
+						"name": "Valenar Wood",
+						"id": "valenwood"
+					},
+					{
+						"name": "Wood",
+						"id": "wood"
+					}
+				]
+			},
+			{
+				"name": "Fairy",
+				"id": "fairy"
+			},
+			{
+				"name": "Firbolg",
+				"id": "firbleg"
+			},
+			{
+				"name": "Firbolg",
+				"id": "firbnew"
+			},
+			{
+				"name": "Fire Genasi",
+				"id": "firegen"
+			},
+			{
+				"name": "Genasi",
+				"id": "genasi",
+				"sub": [
+					{
+						"name": "Air",
+						"id": "air"
+					},
+					{
+						"name": "Earth",
+						"id": "earth"
+					},
+					{
+						"name": "Fire",
+						"id": "fire"
+					},
+					{
+						"name": "Water",
+						"id": "water"
+					}
+				]
+			},
+			{
+				"name": "Giff",
+				"id": "giff"
+			},
+			{
+				"name": "Gith",
+				"id": "gith",
+				"sub": [
+					{
+						"name": "Githyanki",
+						"id": "yanki"
+					},
+					{
+						"name": "Githzerai",
+						"id": "zerai"
+					}
+				]
+			},
+			{
+				"name": "Githyanki",
+				"id": "githyanki"
+			},
+			{
+				"name": "Githzerai",
+				"id": "githzerai"
+			},
+			{
+				"name": "Gnome",
+				"id": "gnome",
+				"sub": [
+					{
+						"name": "Deep",
+						"id": "deep"
+					},
+					{
+						"name": "Forest",
+						"id": "forest"
+					},
+					{
+						"name": "Mark of Scribing",
+						"id": "scribing"
+					},
+					{
+						"name": "Rock",
+						"id": "rock"
+					}
+				]
+			},
+			{
+				"name": "Goblin",
+				"id": "gobleg"
+			},
+			{
+				"name": "Goblin",
+				"id": "gobnew"
+			},
+			{
+				"name": "Goliath",
+				"id": "golleg"
+			},
+			{
+				"name": "Goliath",
+				"id": "golnew"
+			},
+			{
+				"name": "Grung",
+				"id": "grung"
+			},
+			{
+				"name": "Hadozee",
+				"id": "hadozee"
+			},
+			{
+				"name": "Half-Elf",
+				"id": "half-elf",
+				"sub": [
+					{
+						"name": "Aquatic",
+						"id": "aqua"
+					},
+					{
+						"name": "Drow",
+						"id": "drow"
+					},
+					{
+						"name": "High",
+						"id": "high"
+					},
+					{
+						"name": "Mark of Detection",
+						"id": "detect"
+					},
+					{
+						"name": "Mark of Storm",
+						"id": "storm"
+					},
+					{
+						"name": "Wood",
+						"id": "wood"
+					}
+				]
+			},
+			{
+				"name": "Half-Orc",
+				"id": "half-orc",
+				"sub": [
+					{
+						"name": "Mark of Finding",
+						"id": "find"
+					}
+				]
+			},
+			{
+				"name": "Halfling",
+				"id": "halfling",
+				"sub": [
+					{
+						"name": "Ghostwise",
+						"id": "ghost"
+					},
+					{
+						"name": "Lightfoot",
+						"id": "light"
+					},
+					{
+						"name": "Lotusden",
+						"id": "lotus"
+					},
+					{
+						"name": "Mark of Healing",
+						"id": "heal"
+					},
+					{
+						"name": "Mark of Hospitality",
+						"id": "hospital"
+					},
+					{
+						"name": "Stout",
+						"id": "stout"
+					}
+				]
+			},
+			{
+				"name": "Harengon",
+				"id": "hare"
+			},
+			{
+				"name": "Hobgoblin",
+				"id": "hobleg"
+			},
+			{
+				"name": "Hobgoblin",
+				"id": "hobnew"
+			},
+			{
+				"name": "Human",
+				"id": "human",
+				"sub": [
+					{
+						"name": "Mark of Finding",
+						"id": "find"
+					},
+					{
+						"name": "Mark of Handling",
+						"id": "handling"
+					},
+					{
+						"name": "Mark of Making",
+						"id": "making"
+					},
+					{
+						"name": "Mark of Passage",
+						"id": "pass"
+					},
+					{
+						"name": "Mark of Sentinel",
+						"id": "sent"
+					},
+					{
+						"name": "Variant",
+						"id": "var"
+					}
+				]
+			},
+			{
+				"name": "Kalashtar",
+				"id": "kalash"
+			},
+			{
+				"name": "Kender",
+				"id": "kender"
+			},
+			{
+				"name": "Kenku",
+				"id": "kenleg"
+			},
+			{
+				"name": "Kenku",
+				"id": "kennew"
+			},
+			{
+				"name": "Kobold",
+				"id": "kobleg"
+			},
+			{
+				"name": "Kobold",
+				"id": "kobnew"
+			},
+			{
+				"name": "Leonin",
+				"id": "leo"
+			},
+			{
+				"name": "Dhampir",
+				"id": "dhamp"
+			},
+			{
+				"name": "Hexblood",
+				"id": "hexblood"
+			},
+			{
+				"name": "Reborn",
+				"id": "reborn"
+			},
+			{
+				"name": "Lizardfolk",
+				"id": "lizleg"
+			},
+			{
+				"name": "Lizardfolk",
+				"id": "liznew"
+			},
+			{
+				"name": "Locathah",
+				"id": "loca"
+			},
+			{
+				"name": "Loxodon",
+				"id": "lox"
+			},
+			{
+				"name": "Minotaur",
+				"id": "minoleg"
+			},
+			{
+				"name": "Minotaur",
+				"id": "minonew"
+			},
+			{
+				"name": "Orc",
+				"id": "orcleg"
+			},
+			{
+				"name": "Orc",
+				"id": "orcnew"
+			},
+			{
+				"name": "Owlin",
+				"id": "owl"
+			},
+			{
+				"name": "Plasmoid",
+				"id": "plas"
+			},
+			{
+				"name": "Satyr",
+				"id": "satyrleg"
+			},
+			{
+				"name": "Satyr",
+				"id": "satyrnew"
+			},
+			{
+				"name": "Sea Elf",
+				"id": "seaelf"
+			},
+			{
+				"name": "Shadar-kai",
+				"id": "shadar-kai"
+			},
+			{
+				"name": "Shifter",
+				"id": "shiftleg"
+			},
+			{
+				"name": "Shifter",
+				"id": "shiftnew"
+			},
+			{
+				"name": "Simic Hybrid",
+				"id": "simic"
+			},
+			{
+				"name": "Tabaxi",
+				"id": "tableg"
+			},
+			{
+				"name": "Tabaxi",
+				"id": "tableg"
+			},
+			{
+				"name": "Tabaxi",
+				"id": "tabnew"
+			},
+			{
+				"name": "Thri-kreen",
+				"id": "thri"
+			},
+			{
+				"name": "Tiefling",
+				"id": "tief",
+				"sub": [
+					{
+						"name": "Baalzebub",
+						"id": "baal"
+					},
+					{
+						"name": "Dispater",
+						"id": "disp"
+					},
+					{
+						"name": "Feral",
+						"id": "feral"
+					},
+					{
+						"name": "Fierna",
+						"id": "fierna"
+					},
+					{
+						"name": "Glasya",
+						"id": "glas"
+					},
+					{
+						"name": "Levistus",
+						"id": "levi"
+					},
+					{
+						"name": "Mammon",
+						"id": "mam"
+					},
+					{
+						"name": "Mephistopheles",
+						"id": "meph"
+					},
+					{
+						"name": "Variant",
+						"id": "var"
+					},
+					{
+						"name": "Zariel",
+						"id": "zar"
+					}
+				]
+			},
+			{
+				"name": "Tortle",
+				"id": "torleg"
+			},
+			{
+				"name": "Tortle",
+				"id": "tornew"
+			},
+			{
+				"name": "Triton",
+				"id": "trileg"
+			},
+			{
+				"name": "Triton",
+				"id": "trinew"
+			},
+			{
+				"name": "Veldaken",
+				"id": "veld"
+			},
+			{
+				"name": "Verdan",
+				"id": "verd"
+			},
+			{
+				"name": "Warforged",
+				"id": "war"
+			},
+			{
+				"name": "Water Genasi",
+				"id": "watergen"
+			},
+			{
+				"name": "Yuan-Ti",
+				"id": "yuan"
+			},
+			{
+				"name": "Yuan-Ti Pureblood",
+				"id": "yuanpure"
+			}
+		],
+		"classes": [
+			{
+				"name": "Artificer",
+				"id": "art",
+				"sub": [
+					{
+						"name": "Alchemist",
+						"id": "alch"
+					},
+					{
+						"name": "Armorer",
+						"id": "arm"
+					},
+					{
+						"name": "Artillerist",
+						"id": "artil"
+					},
+					{
+						"name": "Battle Smith",
+						"id": "battle"
+					}
+				]
+			},
+			{
+				"name": "Barbarian",
+				"id": "barb",
+				"sub": [
+					{
+						"name": "Path of Wild Magic",
+						"id": "powm"
+					},
+					{
+						"name": "Path of the Ancestral Guardian",
+						"id": "potag"
+					},
+					{
+						"name": "Path of the Battlerager",
+						"id": "potbr"
+					},
+					{
+						"name": "Path of the Beast",
+						"id": "potb"
+					},
+					{
+						"name": "Path of the Berserker",
+						"id": "potber"
+					},
+					{
+						"name": "Path of the Storm Herald",
+						"id": "potsh"
+					},
+					{
+						"name": "Path of the Totem Warrior",
+						"id": "pottw"
+					},
+					{
+						"name": "Path of the Zealot",
+						"id": "potz"
+					}
+				]
+			},
+			{
+				"name": "Bard",
+				"id": "bard",
+				"sub": [
+					{
+						"name": "College of Creation",
+						"id": "coc"
+					},
+					{
+						"name": "College of Eloquence",
+						"id": "coe"
+					},
+					{
+						"name": "College of Glamour",
+						"id": "cog"
+					},
+					{
+						"name": "College of Lore",
+						"id": "col"
+					},
+					{
+						"name": "College of Spirits",
+						"id": "cosp"
+					},
+					{
+						"name": "College of Swords",
+						"id": "cosw"
+					},
+					{
+						"name": "College of Valor",
+						"id": "cov"
+					},
+					{
+						"name": "College of Whispers",
+						"id": "cow"
+					}
+				]
+			},
+			{
+				"name": "Cleric",
+				"id": "cleric",
+				"sub": [
+					{
+						"name": "Arcana Domain",
+						"id": "ad"
+					},
+					{
+						"name": "Death Domain",
+						"id": "dd"
+					},
+					{
+						"name": "Forge Domain",
+						"id": "fd"
+					},
+					{
+						"name": "Grave Domain",
+						"id": "gd"
+					},
+					{
+						"name": "Knowledge Domain",
+						"id": "kd"
+					},
+					{
+						"name": "Life Domain",
+						"id": "lifd"
+					},
+					{
+						"name": "Light Domain",
+						"id": "ligd"
+					},
+					{
+						"name": "Nature Domain",
+						"id": "nd"
+					},
+					{
+						"name": "Order Domain",
+						"id": "od"
+					},
+					{
+						"name": "Peace Domain",
+						"id": "pd"
+					},
+					{
+						"name": "Tempest Domain",
+						"id": "temd"
+					},
+					{
+						"name": "Trickery Domain",
+						"id": "trickd"
+					},
+					{
+						"name": "Twilight Domain",
+						"id": "twid"
+					},
+					{
+						"name": "War Domain",
+						"id": "wd"
+					}
+				]
+			},
+			{
+				"name": "Druid",
+				"id": "druid",
+				"sub": [
+					{
+						"name": "Circle of Dreams",
+						"id": "cod"
+					},
+					{
+						"name": "Circle of Spores",
+						"id": "cosp"
+					},
+					{
+						"name": "Circle of Stars",
+						"id": "cost"
+					},
+					{
+						"name": "Circle of Wildfire",
+						"id": "cowf"
+					},
+					{
+						"name": "Circle of the Land (Arctic)",
+						"id": "cotla"
+					},
+					{
+						"name": "Circle of the Land (Coast)",
+						"id": "cotlc"
+					},
+					{
+						"name": "Circle of the Land (Desert)",
+						"id": "cotld"
+					},
+					{
+						"name": "Circle of the Land (Forest)",
+						"id": "cotlf"
+					},
+					{
+						"name": "Circle of the Land (Grassland)",
+						"id": "cotlg"
+					},
+					{
+						"name": "Circle of the Land (Mountain)",
+						"id": "cotlm"
+					},
+					{
+						"name": "Circle of the Land (Swamp)",
+						"id": "cotls"
+					},
+					{
+						"name": "Circle of the Land (Underdark)",
+						"id": "cotlu"
+					},
+					{
+						"name": "Circle of the Moon",
+						"id": "cotm"
+					},
+					{
+						"name": "Circle of the Shepherd",
+						"id": "cots"
+					}
+				]
+			}
+		],
+		"players": [
+			{
+				"name": "Julexar#9746",
+				"id": "676518256282042393",
+				"characters": []
+			},
+			{
+				"name": "ToastTheBurntCat#7345",
+				"id": "447218245645107210",
+				"characters": [
+					{
+						"active": false,
+						"name": "Maddie Brimstone",
+						"race": "Succubus",
+						"image": "https://www.dndbeyond.com/avatars/31455/382/1581111423-88133198.jpeg?width=150&height=150&fit=crop&quality=95&auto=webp",
+						"type": "Fiend",
+						"racefeats": [
+							{
+								"name": "Darkvision",
+								"desc": "You have Darkvision out to a range of 60 feet."
+							},
+							{
+								"name": "Infernal Legacy",
+								"desc": "You know the Thaumaturgy cantrip. When you reach 3rd level, you can cast the Hellish Rebuke spell as a 2nd-level spell once with this trait and regain the ability to do so when you finish a long rest. When you reach 5th level, you can cast the Darkness spell once with this trait and regain the ability to do so when you finish a long rest. Charisma is your spellcasting ability for these spells."
+							},
+							{
+								"name": "Hellish Resistance",
+								"desc": "You have resistance to Fire, Lighting, Poison and Nonmagical Bludgeoning, Piercing and Slashing damage."
+							},
+							{
+								"name": "Shapechanger",
+								"time": "1 Action",
+								"uses": 1,
+								"reset": "Long Rest",
+								"desc": "As an action, you can polymorph into a medium sized creature with a CR equal to half your level. You gain temporary hit points equal to half the hit points of the chosen creature. Any equipment you are wearing or carrying isn’t transformed. You revert back to your true form if your temporary hit points are reduced to 0."
+							},
+							{
+								"name": "Telepathy",
+								"desc": "You gain telepathy out to a range of 60 feet. You ignore the range restriction when you are communicating with a creature you have charmed."
+							},
+							{
+								"name": "Beautiful Corruptor",
+								"time": "1 Action",
+								"uses": 5,
+								"reset": "Long Rest",
+								"save": "Wisdom",
+								"dc": 18,
+								"effect": "charmed",
+								"desc": "As an action you can force one creature you can see within 30 feet to make a Wisdom saving throw or be magically charmed for 1 day."
+							},
+							{
+								"name": "Absorption",
+								"desc": "You can absorb the energy of a Creature you have intercourse with. Whenever a creature cums on or inside you, you can absorb their energy. To do so, roll a 3d6. You can choose to regain an amount of hit points equal to the roll, or instead regain 3 spell slots of your choice. The maximum level of the slot you can regain is equal to half your level (rounded up) and can't exceed 5th level."
+							},
+							{
+								"name": "Claws",
+								"time": "1 Action",
+								"attack": true,
+								"damage": "1d6+4 slashing damage",
+								"desc": "Your claws are natural weapons. You can use them to make a melee attack instead of an unarmed strike. If you hit with them, you deal slashing damage equal to 1d6 + your Dexterity modifier."
+							}
+						],
+						"resistances": [
+							"Bludgeoning, Piercing, and Slashing from Nonmagical Attacks",
+							"Fire",
+							"Lightning",
+							"Poison"
+						],
+						"stats": {
+							"str": 8,
+							"dex": 18,
+							"con": 18,
+							"int": 12,
+							"wis": 16,
+							"cha": 20
+						},
+						"pb": 5,
+						"hp": {
+							"current": 126,
+							"max": 129,
+							"temp": 0
+						},
+						"ac": 18,
+						"init": 6,
+						"class": [
+							{
+								"name": "Bard",
+								"level": 14,
+								"sub": "College of Lore",
+								"feats": [
+									{
+										"name": "Bardic Inspiration",
+										"time": "1 Bonus Action",
+										"uses": 5,
+										"reset": "Short Rest",
+										"desc": "As a bonus action, a creature (other than you) within 60 ft. that can hear you gains an inspiration die (d10). For 10 minutes, the creature can add it to one ability check, attack roll, or saving throw. This can be added after seeing the roll, but before knowing the outcome."
+									},
+									{
+										"name": "Magical Inspiration",
+										"time": "Special",
+										"desc": "If a creature has a Bardic Inspiration die from you and casts a spell that restores hit points or deals damage, the creature can roll that die and choose a target affected by the spell. Add the number rolled as a bonus to the hit points regained or the damage dealt. The Bardic Inspiration die is then lost."
+									},
+									{
+										"name": "Song of Rest",
+										"time": "Special",
+										"desc": "If you or any friendly creatures who can hear your performance regain hit points at the end of the short rest by spending one or more Hit Dice, each of those creatures regains an extra 1d10 hit points."
+									},
+									{
+										"name": "Cutting Words",
+										"time": "1 Reaction, that you take when a creature you can see within 60 ft. makes an attack roll, ability check, or damage roll",
+										"desc": "You can expend one use of Bardic Inspiration, roll the die, and subtract the number from the creature's roll. You can do so after the roll but before knowing the result."
+									},
+									{
+										"name": "Countercharm",
+										"time": "1 Action",
+										"desc": "As an action, you can perform until the end of your next turn. During that time, you and any friendly creatures within 30 ft. that can hear you gain advantage on saving throws against being frightened or charmed."
+									},
+									{
+										"name": "Peerless Skill",
+										"time": "Special",
+										"desc": "When you make an ability check, you can expend one use of Bardic Inspiration, roll the die, and add the number to the check. You can do so after you roll but before knowing the result."
+									}
+								],
+								"profs": {
+									"skills": [
+										"Acrobatics",
+										"Arcana",
+										"Deception",
+										"Investigation",
+										"Persuasion",
+										"Stealth"
+									],
+									"saves": [
+										"Dexterity",
+										"Charisma"
+									],
+									"armor": [
+										"Light Armor"
+									],
+									"weapons": [
+										"Hand Crossbow",
+										"Longsword",
+										"Rapier",
+										"Shortsword",
+										"Simple Weapons"
+									],
+									"tools": [
+										"Flute",
+										"Horn",
+										"Lyre",
+										"Playing Card Set"
+									],
+									"languages": [
+										"Abyssal",
+										"Common",
+										"Infernal",
+										"Primordial",
+										"Telepathy 60 ft."
+									]
+								},
+								"expertise": [
+									"Arcana",
+									"Insight",
+									"Perception",
+									"Persuasion"
+								],
+								"jack": true
+							}
+						],
+						"speed": {
+							"walk": 30,
+							"fly": 30
+						},
+						"inventory": [],
+						"notes": [],
+						"gmnotes": []
+					},
+					{
+						"active": false,
+						"name": "Bella La Fauna",
+						"race": "Pallid Elf",
+						"image": "https://www.dndbeyond.com/avatars/30661/249/1581111423-89194157.jpeg?width=150&height=150&fit=crop&quality=95&auto=webp",
+						"type": "Humanoid",
+						"racefeats": [
+							{
+								"name": "Darkvision",
+								"desc": "You can see in darkness (shades of gray) up to 60 ft."
+							},
+							{
+								"name": "Keen Senses",
+								"desc": "You have proficiency in the Perception skill."
+							},
+							{
+								"name": "Fey Ancestry",
+								"desc": "You have advantage on saves against being charmed, and magic can’t put you to sleep."
+							},
+							{
+								"name": "Trance",
+								"time": "Special",
+								"desc": "You don't need to sleep, but meditate semiconsciously for 4 hours a day. While meditating, you can dream after a fashion; such dreams are actually mental exercises that have become reflexive through years of practice. After resting in this way, you gain the same benefit that a human does from 8 hours of sleep."
+							},
+							{
+								"name": "Incisive Sense",
+								"desc": "You have advantage on Intelligence (Investigation) and Wisdom (Insight) checks."
+							},
+							{
+								"name": "Blessing of the Moon Weaver",
+								"desc": "You know the light cantrip. [3rd] You can cast the sleep spell once per long rest. [5th] You can cast the invisibility spell (targeting yourself only) once per long rest. Casting these spells with this trait doesn’t require material components. Wisdom is your spellcasting ability for these spells."
+							}
+						],
+						"resistances": [
+							"Fire",
+							"Magical Sleep"
+						],
+						"stats": {
+							"str": 12,
+							"dex": 20,
+							"con": 18,
+							"int": 10,
+							"wis": 16,
+							"cha": 10
+						},
+						"pb": 3,
+						"hp": {
+							"current": 84,
+							"max": 84,
+							"temp": 0
+						},
+						"ac": 17,
+						"init": 5,
+						"class": [
+							{
+								"name": "Ranger",
+								"level": 8,
+								"sub": "Drakewarden",
+								"feats": [
+									{
+										"name": "Favored Foe",
+										"time": "Special",
+										"uses": 3,
+										"reset": "Long Rest",
+										"desc": "When you hit a creature with an attack roll, you can mark the target as your favored enemy for 1 minute or until you lose your concentration (as if you were concentrating on a spell).\n\nThe first time on each of your turns that you hit the favored enemy and deal damage to it, including when you mark it, you can increase that damage by 1d6."
+									},
+									{
+										"name": "Drake Companion",
+										"time": "1 Action",
+										"uses": 1,
+										"reset": "Long Rest",
+										"desc": "You can magically summon the drake that is bound to you in an unoccupied space of your choice within 30 ft. of you. Whenever you summon the drake, you choose a damage type from its Draconic Essence trait, and can determine any cosmetic characteristics of the drake. In combat it shares your initiative count and takes its turn immediately after yours. You must take a bonus action on your turn to command it to take an action (either one from its statblock or some other action), or it will take the Dodge action, though it can move and take reactions on its own. If you are incapacitated, it can take any action of its choice, not just the Dodge action.\n\nAnything the drake was wearing or carrying anything is left behind when it vanishes. Once you summon the drake, you can't do so again until you finish a long rest or expend a spell slot of 1st level or higher."
+									},
+									{
+										"name": "Extra Attack",
+										"time": "Special",
+										"desc": "You can attack twice whenever you take the Attack action on your turn."
+									},
+									{
+										"name": "Bond of Fang and Scale",
+										"desc": "When you summon your drake, it grows wings on its back, gaining a flying speed equal to its walking speed. In addition, when your drake is summoned, you and the drake gain the following benefits:\n\n**• Drake Mount.** Your drake grows to medium and you can now ride it as a mount if your size is Medium or smaller. While riding your drake it can’t use its flying speed (until you reach 15th level in this class).\n**• Magic Fang.** The drake’s Bite attack deals an extra 1d6 damage of the type chosen for the drake’s Draconic Essence.\n**• Resistance.** You gain resistance to the damage type chosen for the drake’s Draconic Essence."
+									},
+									{
+										"name": "Land's Stride",
+										"desc": "Moving through nonmagical difficult terrain costs you no extra movement and you can also pass through nonmagical plants without being slowed by them and without taking damage from them. You have advantage on saving throws against plants that are magically created or manipulated to impede movement."
+									}
+								]
+							}
+						],
+						"profs": {
+							"skills": [
+								"Animal Handling",
+								"Insight",
+								"Investigation",
+								"Perception",
+								"Stealth",
+								"Survival"
+							],
+							"saves": [
+								"Strength",
+								"Dexterity"
+							],
+							"armor": [
+								"Light Armor",
+								"Medium Armor",
+								"Shields"
+							],
+							"weapons": [
+								"Martial Weapons",
+								"Simple Weapons"
+							],
+							"tools": [
+								"Brewer's Supplies",
+								"Vehicles (Land)"
+							],
+							"languages": [
+								"Celestial",
+								"Common",
+								"Deep Speech",
+								"Draconic",
+								"Elvish"
+							]
+						},
+						"expertise": [
+							"Survival"
+						],
+						"jack": false,
+						"speed": {
+							"walk": 35,
+							"climb": 35,
+							"swimm": 35
+						},
+						"notes": [
+							{
+								"title": "Gifts Received",
+								"content": "Truffles from Bullywug-Guard at Hut"
+							}
+						],
+						"gmnotes": []
+					}
+				]
+			}
+		]
+	}
+}
