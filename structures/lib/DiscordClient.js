@@ -3,7 +3,7 @@ const { CommandInteraction } = require('discord.js');
 const { Message } = require('discord.js');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const Jsoning = require('jsoning');
-
+const fs = require("fs");
 class DiscordClient extends Client {
     constructor() {
         super({intents: [
@@ -19,9 +19,6 @@ class DiscordClient extends Client {
         this.prefixCommands = new Collection();
         this.contextCommands = new Collection();
         this.config = require('../../config');
-        this.database = {
-            prefix: new Jsoning('./database/prefix.json')
-        };
     };
 
     start() {
