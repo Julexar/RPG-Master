@@ -1,5 +1,5 @@
-const { ApplicationCommandOptionType } = require('discord.js');
-
+const { ApplicationCommandOptionType, EmbedBuilder } = require('discord.js');
+const fs = require("fs");
 module.exports = {
   name: 'prefix',
   description: 'Prefix command.',
@@ -40,50 +40,68 @@ module.exports = {
     },
   ],
   run: async (client, interaction) => {
-    let prefix;
-    let prefixes = await client.database.prefix.get(interaction.guild.id);
+    const servers = JSON.parse(fs.readFileSync("./database/servers.json"));
+    let server = servers.list.find(i => i.id==interaction.guild.id);
+    console.log(server);
+    let prefixes = server.prefixes;
     if (!prefixes) {
-      await client.database.prefix.set(interaction.guild.id, [',']);
-      prefixes = await client.database.prefix.get(interaction.guild.id);
-    };
-    switch (interaction.options.getSubcommand()) {
-      case "add":
-        prefix = interaction.options.getString('prefix');
-
-        if (prefixes.includes(prefix))
-          return await interaction.reply({
-            content: 'This prefix is already saved in database.',
-            ephemeral: true,
-          });
-
-        const newPrefix = [...prefixes, prefix];
-        await client.database.prefix.set(interaction.guild.id, newPrefix);
-        interaction.reply({
-          content: 'Done',
-          ephemeral: true,
-        })
+      servers.list.push({
+        name: interaction.guild.name,
+        id: interaction.guild.id,
+        prefixes: ["r!"]
+      });
+      await interaction.reply({content: "Your Server has been added to the list.", ephemeral: true});
+    } else if (prefixes) {
+      let prefix;
+      switch (interaction.options.getSubcommand()) {
+        case 'add':
+          prefix=interaction.options.getString("prefix");
+          if (prefixes.includes(prefix)) {
+            return await interaction.reply({
+              content: "This prefix already exists in the Database!",
+              ephemeral: true,
+            });
+          } else {
+            const newPrefix = [...prefixes, prefix];
+            server.prefixes=newPrefix;
+            for (let i=0;i<servers.list.length;i++) {
+             if (servers.list[i].id==interaction.guild.id) {
+               servers.list[i]=server;
+             }
+            }
+            await interaction.reply({
+              content: `The prefix \"${prefix}\" has been added to the Database.`,
+              ephemeral: true,
+            });
+          }
         break;
-      case "remove":
-        prefix = interaction.options.getString('prefix');
-
-        if (!prefixes.includes(prefix))
-          return await interaction.reply({
-            content: 'This prefix is not exist in the database.',
-            ephemeral: true
-          });
-
-
-        const array = [...prefixes.filter(p => !p.includes(prefix))];
-        await client.database.prefix.set(interaction.guild.id, array);
+        case 'remove':
+          prefix=interaction.options.getString("prefix");
+          if (!prefixes.includes(prefix)) {
+            return await interaction.reply({
+              content: "This prefix does not exist in the Database!",
+              ephemeral: true,
+            });
+          } else {
+            const array = [...prefixes.filter(p => !p.includes(prefix))];
+            server.prefixes=array;
+            for (let i=0;i<servers.list.length;i++) {
+              if (servers.list[i].id==interaction.guild.id) {
+                servers.list[i]=server;
+              }
+            }
+          }
         break;
-      case "list":
-        await interaction.reply({
-          embeds: [{
-            title: 'Prefix list:',
-            description: prefixes.join('\n')
-          }]
-        })
+        case 'list':
+          const embed = new EmbedBuilder()
+            .setColor("#00ffff")
+            .setTitle("Prefix List")
+            .setDescription(prefixes.join('\n'))
+            .setTimestamp();
+          await interaction.reply({embeds: [embed]});
         break;
-    };
+      }
+      fs.writeFileSync("./database/servers.json", JSON.stringify(servers, null, "\t"));
+    }
   },
 };
