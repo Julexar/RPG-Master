@@ -89,6 +89,10 @@ module.exports = {
                 servers.list[i]=server;
               }
             }
+            await interaction.reply({
+              content: `The Prefix \"${prefix}\" has been successfully removed from the Database.`,
+              ephemeral: true
+            });
           }
         break;
         case 'list':
