@@ -1,3 +1,4 @@
+const fs = require("fs");
 module.exports = {
     name: 'messageCreate',
     nick: 'Prefix',
@@ -7,9 +8,15 @@ module.exports = {
      * @param {import('../../index')} client 
      */
     run: async (message, client) => {
-        let prefixes = await client.database.prefix.get(message.guild.id);
+        let servers = JSON.parse(fs.readFileSync("./database/servers.json"));
+        let server = servers.list.find(m => m.id==message.guild.id);
+        let prefixes = server.prefixes;
         if(!prefixes) {
-            const newPrefixes = await client.database.prefix.set(message.guild.id, [client.config.default_prefix]);
+            servers.list.push({
+              name: message.guild.name,
+              id: message.guild.id,
+              prefixes: [client.config.default_prefix]
+            });
             prefixes = newPrefixes;
         };
         let c_prefix;
