@@ -42,7 +42,6 @@ module.exports = {
   run: async (client, interaction) => {
     const servers = JSON.parse(fs.readFileSync("./database/servers.json"));
     let server = servers.list.find(i => i.id==interaction.guild.id);
-    console.log(server);
     let prefixes = server.prefixes;
     if (!prefixes) {
       servers.list.push({
