@@ -1,5 +1,5 @@
 import "dotenv/config";
-return {
+const config = {
     token: process.env.BOT_TOKEN,
     default_prefix: "r!",
     owners: ["676518256282042393"],
@@ -13,3 +13,4 @@ return {
         status: 'online',
     }
 }
+export default config;
