@@ -6,30 +6,30 @@ import slashCommandsHandler from '../handlers/slashCommands.js';
 import prefixCommandsHandler from '../handlers/prefixCommands.js';
 import contextCommandsHandler from '../handlers/contextCommands.js';
 class DiscordClient extends Client {
-    constructor() {
-        super({
-            intents: [
-                GatewayIntentBits.Guilds,
-                GatewayIntentBits.GuildMembers,
-                GatewayIntentBits.GuildMessages,
-                GatewayIntentBits.MessageContent,
-                GatewayIntentBits.GuildVoiceStates
-            ]
-        });
+  constructor() {
+    super({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates
+      ]
+    });
 
-        this.slashCommands = new Collection();
-        this.prefixCommands = new Collection();
-        this.contextCommands = new Collection();
-        this.config = config;
-        this.database = psql;
-    };
+    this.slashCommands = new Collection();
+    this.prefixCommands = new Collection();
+    this.contextCommands = new Collection();
+    this.config = config;
+    this.database = psql;
+  };
 
-    start() {
-        const handlers = [eventsHandler, slashCommandsHandler, prefixCommandsHandler, contextCommandsHandler];
-        handlers.forEach(handler => handler(this));
+  start() {
+    const handlers = [eventsHandler, slashCommandsHandler, prefixCommandsHandler, contextCommandsHandler];
+    handlers.forEach(handler => handler(this));
 
-        this.login(this.config.token);
-    };
+    this.login(this.config.token);
+  };
 };
 
 export default DiscordClient;
