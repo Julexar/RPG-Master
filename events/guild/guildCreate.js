@@ -201,7 +201,7 @@ class Event {
         await client.database.writeLog(server, "Attempting to register Server Commands...")
           .then(msg1 => client.database.writeDevLog(msg1))
           .catch(err1 => client.database.writeDevLog(`${err1}`));
-        await server.commands.set(commandArray)
+        await guild.commands.set(commandArray)
           .then(async (commands) => {
             await client.database.writeLog(server, "Successfully registered Server Commands, attempting to write Server Commands to Database...")
               .then(msg1 => client.database.writeDevLog(msg1))
@@ -576,3 +576,4 @@ class Event {
       });
   }
 }
+export default new Event();
