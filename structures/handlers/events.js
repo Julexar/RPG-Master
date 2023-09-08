@@ -8,9 +8,10 @@ import Ascii from 'ascii-table';
  * @param {import('../index')} client 
  */
 export default async (client) => {
+  console.log("Loading Events");
   const eventsTable = new Ascii('Events').setHeading('Name', 'Status', 'Reason');
   (await promiseGlob(`${process.cwd().replace(/\\/g, '/')}/events/*/*.js`)).map(async (file) => {
-    const event = require(file);
+    const event = await import(file);
     const P = file.split('/');
     let name;
 

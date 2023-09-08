@@ -8,9 +8,10 @@ import Ascii from 'ascii-table';
  * @param {import('../../index')} client 
  */
 export default async (client) => {
+  console.log("Slash Handler loaded");
   const slashCommandsTable = new Ascii('Slash Commands').setHeading('Name', 'Status', 'Reason');
   (await promiseGlob(`${process.cwd().replace(/\\/g, '/')}/commands/slash/*/*.js`)).map(async (file) => {
-    const command = require(file);
+    const command = await import(file);
     const P = file.split('/');
     let name;
 

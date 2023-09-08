@@ -10,7 +10,7 @@ import Ascii from 'ascii-table';
 export default async (client) => {
   const contextCommandsTable = new Ascii('Context Commands').setHeading('Name', 'Status', 'Reason');
   (await promiseGlob(`${process.cwd().replace(/\\/g, '/')}/commands/context/*/*.js`)).map(async (file) => {
-    const command = require(file);
+    const command = await import(file);
     const P = file.split('/');
     let name;
 

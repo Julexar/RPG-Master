@@ -1,10 +1,6 @@
 import { Client, Collection, GatewayIntentBits } from "discord.js";
 import config from "../../config.js";
 import psql from "../../database/psql.js";
-import eventsHandler from '../handlers/events.js';
-import slashCommandsHandler from '../handlers/slashCommands.js';
-import prefixCommandsHandler from '../handlers/prefixCommands.js';
-import contextCommandsHandler from '../handlers/contextCommands.js';
 class DiscordClient extends Client {
   constructor() {
     super({
@@ -24,9 +20,13 @@ class DiscordClient extends Client {
     this.database = psql;
   };
 
-  start() {
-    const handlers = [eventsHandler, slashCommandsHandler, prefixCommandsHandler, contextCommandsHandler];
-    handlers.forEach(handler => handler(this));
+  async start() {
+    ['events', 'slashCommands', 'prefixCommands', 'contextCommands'].forEach(async (handler) => {
+      const module = await import(`../handlers/${handler}.js`);
+      return module.default;
+    });
+
+    const handlers = await Promise.all(handlerModules);
 
     this.login(this.config.token);
   };

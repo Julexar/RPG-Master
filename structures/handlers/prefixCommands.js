@@ -8,9 +8,10 @@ import Ascii from 'ascii-table';
  * @param {import('../../index')} client 
  */
 export default async (client) => {
+  
   const prefixCommandsTable = new Ascii('Prefix Commands').setHeading('Name', 'Status', 'Reason');
   (await promiseGlob(`${process.cwd().replace(/\\/g, '/')}/commands/prefix/*/*.js`)).map(async (file) => {
-    const command = require(file);
+    const command = await import(file);
     const P = file.split('/');
     let name;
 
