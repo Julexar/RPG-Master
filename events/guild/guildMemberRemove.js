@@ -1,3 +1,4 @@
+import { client } from "../../index.js";
 class Event {
   constructor() {
     this.name = "guildMemberRemove";
@@ -5,9 +6,8 @@ class Event {
   /**
    * 
    * @param {import("discord.js").GuildMember} member 
-   * @param {import("../../index")} client 
    */
-  async run(member, client) {
+  async run(member) {
     const server = client.guilds.cache.get(member.guild.id);
     await client.database.remMember(server, member.user)
       .then(async (msg) => {

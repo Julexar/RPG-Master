@@ -1,13 +1,13 @@
+import { client } from "../../index.js";
 class Event {
   constructor() {
     this.name = "guildUpdate";
   };
   /**
    * 
-   * @param {import("discord.js").Guild} newGuild 
-   * @param {import("../../index")} client 
+   * @param {import("discord.js").Guild} newGuild  
    */
-  async run(newGuild, client) {
+  async run(newGuild) {
     const server = client.guilds.cache.get(newGuild.id);
     await client.database.updateServer(server)
       .then(async (msg) => {

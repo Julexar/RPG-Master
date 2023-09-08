@@ -4,4 +4,4 @@ const client = new DiscordClient();
 client.start();
 console.log("Client started");
 
-export default client;
+export { client };

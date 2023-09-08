@@ -1,5 +1,5 @@
-import fs from "fs";
 import { EmbedBuilder } from "discord.js";
+import { client } from "../../index.js";
 class prefixHandler {
   constructor() {
     this.name = "messageCreate";
@@ -8,9 +8,8 @@ class prefixHandler {
   /**
    * 
    * @param {import("discord.js").Message} message 
-   * @param {import("../../index")} client 
    */
-  async run(message, client) {
+  async run(message) {
     client.database.getPrefixes(message.guild)
       .then(prefixes => {
         if (prefixes) {

@@ -1,4 +1,5 @@
 import { EmbedBuilder } from "discord.js";
+import { client } from "../../index.js";
 class slashHandler {
   constructor() {
     this.name = "interactionCreate";
@@ -7,9 +8,8 @@ class slashHandler {
   /**
    * 
    * @param {import("discord.js").CommandInteraction} interaction 
-   * @param {import("../../index")} client 
    */
-  async run(interaction, client) {
+  async run(interaction) {
     if (interaction.isChatInputCommand()) {
       const command = client.slashCommands.get(interaction.commandName);
       if (!command) {

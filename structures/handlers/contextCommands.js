@@ -1,29 +1,35 @@
-import { glob } from 'glob';
-import { promisify } from 'node:util';
-const promiseGlob = promisify(glob);
 import Ascii from 'ascii-table';
+import fs from 'fs/promises';
+import { client } from "../../index.js";
+class contextHandler {
+  constructor() {};
 
-/**
- * 
- * @param {import('../../index')} client 
- */
-export default async (client) => {
-  const contextCommandsTable = new Ascii('Context Commands').setHeading('Name', 'Status', 'Reason');
-  (await promiseGlob(`${process.cwd().replace(/\\/g, '/')}/commands/context/*/*.js`)).map(async (file) => {
-    const command = await import(file);
-    const P = file.split('/');
-    let name;
-
-    if (!command.name || !command.run)
-      return contextCommandsTable.addRow(`${command.name || `${P[P.length - 1]}/${P[P.length - 2]}`}`, 'Failed', 'Missing Name/Run');
-
-    if (command.nick)
-      name = `${command.name} (${command.nick})`
-    else
-      name = command.name;
-
-    client.contextCommands.set(command.name, command);
-    contextCommandsTable.addRow(name, 'Success');
-  });
-  console.log(contextCommandsTable.toString());
-};
+  async run() {
+    const contextCommandsTable = new Ascii('Context Commands').setHeading('Name', 'Status', 'Reason');
+    fs.readdir("./commands/context")
+      .then(dirs => {
+        dirs.forEach(dir => {
+          const files = fs.readdir(`./commands/context/${dir}`);
+          files.forEach(async (file) => {
+            const module = await import(`../../commands/context/${dir}/${file}`);
+            const command = module.default;
+            let name;
+            if (!command.name || !command.run) {
+              return contextCommandsTable.addRow(`${command.name || file}`, "Failed", "Missing Name/Run");
+            }
+            name = command.name;
+            if (command.nick) {
+              name += ` (${command.nick})`;
+            }
+    
+            client.contextCommands.set(contextCommandsTable);
+            console.log(contextCommandsTable.toString());
+          });
+        });
+      })
+      .catch(err => {
+        let idc = err;
+      });
+  }
+}
+export default new contextHandler();

@@ -1,3 +1,4 @@
+import { client } from "../../index.js";
 class Event {
   constructor() {
     this.name = "guildCreate";
@@ -5,9 +6,8 @@ class Event {
   /**
    * 
    * @param {import("discord.js").Guild} guild
-   * @param {import("../../index")} client 
    */
-  async run(guild, client) {
+  async run(guild) {
     const commandArray = client.slashCommands;
     const server = {
       id: guild.id,

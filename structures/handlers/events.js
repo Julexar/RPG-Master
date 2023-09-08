@@ -1,34 +1,39 @@
-import { glob } from 'glob';
-import { promisify } from 'node:util';
-const promiseGlob = promisify(glob);
 import Ascii from 'ascii-table';
+import fs from 'fs';
+import { client } from "../../index.js";
 
-/**
- * 
- * @param {import('../index')} client 
- */
-export default async (client) => {
-  console.log("Loading Events");
-  const eventsTable = new Ascii('Events').setHeading('Name', 'Status', 'Reason');
-  (await promiseGlob(`${process.cwd().replace(/\\/g, '/')}/events/*/*.js`)).map(async (file) => {
-    const event = await import(file);
-    const P = file.split('/');
-    let name;
+class eventHandler {
+  constructor() {};
 
-    if (!event.name || !event.run)
-      return eventsTable.addRow(`${event.name || `${P[P.length - 1]}/${P[P.length - 2]}`}`, 'Failed', 'Missing Name/Run');
+  async run() {
+    const eventsTable = new Ascii('Events').setHeading('Name', 'Status', 'Reason');
+    const dirs = fs.readdirSync("./events");
+    dirs.forEach(dir => {
+      const files = fs.readdirSync(`./events/${dir}`);
+      files.forEach(async (file) => {
+        const module = await import(`../../events/${dir}/${file}`);
+        const event = module.default;
+        let name;
+        if (!event.name || !event.run) {
+          return eventsTable.addRow(`${event.name || file}`, "Failed", "Missing Name/Run");
+        }
 
-    if (event.nick)
-      name = `${event.name} (${event.nick})`
-    else
-      name = event.name;
+        name = event.name;
+        if (event.nick) {
+          name += ` (${event.nick})`;
+        }
 
-    if (event.once)
-      client.once(event.name, (...args) => event.run(...args, client))
-    else
-      client.on(event.name, (...args) => event.run(...args, client));
-
-    eventsTable.addRow(name, 'Success');
-  });
-  console.log(eventsTable.toString());
-};
+        if (event.once) {
+          client.once(event.name, (...args) => event.run(...args, client));
+        } else {
+          client.on(event.name, (...args) => event.run(...args, client));
+        }
+        eventsTable.addRow(name, "Success");
+        if (file=="slashHandler.js") {
+          console.log(eventsTable.toString());
+        }
+      });
+    });
+  }
+}
+export default new eventHandler();

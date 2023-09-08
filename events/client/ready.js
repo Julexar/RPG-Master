@@ -1,13 +1,10 @@
+import { client } from "../../index.js";
 class Event {
   constructor() {
     this.name = "ready";
   };
 
-  /**
-   * 
-   * @param {import("../../structures/lib/DiscordClient")} client
-   */
-  async run(client) {
+  async run() {
     const commandArray = client.slashCommands;
     commandArray.forEach(cmd => {
       client.database.writeDevLog(`Attemtping to register Command /${cmd.name} in Database...`);

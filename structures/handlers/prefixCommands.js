@@ -1,30 +1,32 @@
-import { glob } from 'glob';
-import { promisify } from 'node:util';
-const promiseGlob = promisify(glob);
 import Ascii from 'ascii-table';
+import fs from 'fs';
+import { client } from "../../index.js";
+class prefixHandler {
+  constructor() {};
 
-/**
- * 
- * @param {import('../../index')} client 
- */
-export default async (client) => {
-  
-  const prefixCommandsTable = new Ascii('Prefix Commands').setHeading('Name', 'Status', 'Reason');
-  (await promiseGlob(`${process.cwd().replace(/\\/g, '/')}/commands/prefix/*/*.js`)).map(async (file) => {
-    const command = await import(file);
-    const P = file.split('/');
-    let name;
-
-    if (!command.name || !command.run)
-      return prefixCommandsTable.addRow(`${command.name || `${P[P.length - 1]}/${P[P.length - 2]}`}`, 'Failed', 'Missing Name/Run');
-
-    if (command.nick)
-      name = `${command.name} (${command.nick})`
-    else
-      name = command.name;
-
-    client.prefixCommands.set(command.name, command);
-    prefixCommandsTable.addRow(name, 'Success');
-  });
-  console.log(prefixCommandsTable.toString());
-};
+  async run() {
+    const prefixCommandsTable = new Ascii('Prefix Commands').setHeading('Name', 'Status', 'Reason');
+    const dirs = fs.readdirSync("./commands/prefix");
+    dirs.forEach(dir => {
+      const files = fs.readdirSync(`./commands/prefix/${dir}`);
+      files.forEach(async (file) => {
+        const module = await import(`../../commands/prefix/${dir}/${file}`);
+        const command = module.default;
+        let name;
+        if (!command.name || !command.run) {
+          return prefixCommandsTable.addRow(`${command.name || file}`, "Failed", "Missing Name/Run");
+        }
+        name = command.name;
+        if (command.nick) {
+          name += ` (${command.nick})`;
+        }
+        client.prefixCommands.set(command.name, command);
+        prefixCommandsTable.addRow(name, "Success");
+        if (file=="br.js") {
+          console.log(prefixCommandsTable.toString());
+        }
+      });
+    });
+  }
+}
+export default new prefixHandler();
