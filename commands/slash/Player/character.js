@@ -3,7 +3,7 @@ class Command {
     constructor() {
         this.name = "character";
         this.description = "Character related Commands";
-        this.enabled = true;
+        this.enabled = false;
         this.options = [
             {
                 name: "select",
