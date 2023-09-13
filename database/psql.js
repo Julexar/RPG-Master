@@ -509,8 +509,8 @@ class PSQL {
         .then(reject("Error 409: Duplicate Command"))
         .catch(err => {
           if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO commands VALUES($1, $2, $3, $4)";
-            this.query(sql, [cmd.id, type, cmd.name, cmd.enabled])
+            const sql = "INSERT INTO commands (type, name, enabled) VALUES($1, $2, $3)";
+            this.query(sql, [type, cmd.name, cmd.enabled])
               .then(resolve(`Successfully added ${type} Command \"${cmd.name}\" to Database!`))
               .catch(err1 => reject(err1));
           } else {
