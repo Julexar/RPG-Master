@@ -128,7 +128,7 @@ class Event {
                         .then(msg => client.database.writeDevLog(msg))
                         .catch(err1 => client.database.writeDevLog(`${err1}`));
                       await users.forEach(async (user) => {
-                        if (!guild.members.cache.get(user.id)) {
+                        if (!guild.members.cache.get(user.user_id)) {
                           await client.database.writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
                             .then(msg => client.database.writeDevLog(msg))
                             .catch(err1 => client.database.writeDevLog(`${err1}`));
@@ -923,7 +923,7 @@ class Event {
                           .then(msg2 => client.database.writeDevLog(msg2))
                           .catch(err1 => client.database.writeDevLog(`${err1}`));
                         await users.forEach(async (user) => {
-                          if (!guild.members.cache.get(user.id)) {
+                          if (!guild.members.cache.get(user.user_id)) {
                             await client.database.writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
                               .then(msg2 => client.database.writeDevLog(msg2))
                               .catch(err1 => client.database.writeDevLog(`${err1}`));
