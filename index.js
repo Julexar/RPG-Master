@@ -1,4 +1,4 @@
-import DiscordClient from "./structures/lib/DiscordClient.js";
+import { DiscordClient } from "./structures/lib/DiscordClient.js";
 const client = new DiscordClient();
 
 client.start();

@@ -31,4 +31,4 @@ class DiscordClient extends Client {
   };
 };
 
-export default DiscordClient;
+export { DiscordClient };
