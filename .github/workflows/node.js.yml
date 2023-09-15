@@ -25,5 +25,5 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
-    - run: npm stop --if-present
+    - run: killall -s KILL node
     - run: npm start --if-present
