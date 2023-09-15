@@ -34,6 +34,7 @@ class Event {
     await client.database.getServer()
       .then(servers => {
         servers.forEach(async (server) => {
+          client.database.writeDevLog(`Found Server \"${server.name}\" in Database, checking if it still exists...`);
           if (!client.guilds.cache.has(server.id)) {
             client.database.writeDevLog(`Removing Server \"${server.name}\" from Database because it no longer exists...`);
             await client.database.remServer(server)
@@ -41,7 +42,7 @@ class Event {
               .catch(err => client.database.writeDevLog(`${err}`));
           } else {
             const guild = client.guilds.cache.get(server.id);
-            client.database.writeDevLog("Error 409: This Server already exists in the Database");
+            client.database.writeDevLog("Error 409: This Server already exists");
             client.database.writeDevLog(`Attempting to create new Logfile for Server \"${server.name}\"`);
             await client.database.addLog(guild)
               .then(async (msg) => {
@@ -317,8 +318,9 @@ class Event {
               })
               .catch(err => client.database.writeDevLog(`${err}`));
           }
-          client.database.writeDevLog("Attempting to register new Servers...")
+          client.database.writeDevLog("Beginning registration of existing Servers...")
           client.guilds.cache.forEach(async (server) => {
+            client.database.writeDevLog(`Attempting to register Server \"${server.name}\" in Database...`)
             await client.database.getServer(server)
               .then(client.database.writeDevLog("Error 409: Duplicate Server"))
               .catch(async (err) => {
@@ -894,7 +896,7 @@ class Event {
         });
       })
       .catch(async (err) => {
-        client.database.writeDevLog(`${err} - Attempting to register new Servers...`);
+        client.database.writeDevLog(`${err} - Attempting to register existing Servers...`);
         if (client.guilds.cache.size === 0) {
           client.database.writeDevLog("Error 404: No Servers found");
         } else {
