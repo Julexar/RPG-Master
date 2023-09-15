@@ -1,4 +1,6 @@
 {
+  "name": "rpg-master",
+  "version": "0.5",
   "type": "module",
   "dependencies": {
     "ascii-table": "^0.0.9",
@@ -9,5 +11,9 @@
     "path": "^0.12.7",
     "pg": "^8.11.3",
     "util": "^0.12.5"
+  },
+  "scripts": {
+    "start": "node ./index.js",
+    "stop": "killall node"
   }
 }
