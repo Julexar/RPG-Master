@@ -26,4 +26,3 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: (killall -s KILL node >/dev/null 2>&1) || true
-    - run: npm start --if-present
