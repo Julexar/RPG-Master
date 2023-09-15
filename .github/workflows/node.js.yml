@@ -6,8 +6,6 @@ name: Node.js AutoRun
 on:
   push:
     branches: [ "root" ]
-  pull_request:
-    branches: [ "root" ]
 
 jobs:
   build:
@@ -27,4 +25,5 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
+    - run: npm stop --if-present
     - run: npm start --if-present
