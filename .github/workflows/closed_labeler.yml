@@ -1,0 +1,14 @@
+name: Issue Labeler
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  label_issue:
+    runs-on: ubuntu-latest
+    name: Label closed Issue
+    steps:
+      - uses: logerfo/close-label@0.0.4
+        with:
+          repo-token: ${{ secrets.WORKFLOW_TOKEN }}
