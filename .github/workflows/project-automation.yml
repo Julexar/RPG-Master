@@ -16,7 +16,7 @@ jobs:
         with:
           github-token: ${{ secrets.WORKFLOW_TOKEN }}
           project-url: https://github.com/users/Julexar/projects/7/views/1
-          column-fiwld: Scrapped
+          column-field: Status
           label-to-column-map: |
             {
               "wontfix": "Scrapped",
