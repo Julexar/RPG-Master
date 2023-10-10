@@ -10,7 +10,7 @@ jobs:
   move_issues:
     name: Move Issues in Project
     runs-on: ubuntu-latest
-    if: ${{ github.event.label.name == 'wontfix' }}
+    if: ${{ github.event.label.name == 'wontfix' || github.event.label.name == 'duplicate' || github.event.label.name == 'in progress' }}
     steps:
       - uses: PaperMC/update-projects-action@v0.2.0
         with:
