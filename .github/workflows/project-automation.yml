@@ -1,0 +1,25 @@
+name: Project Automation
+
+on:
+  issues:
+    types: [labeled]
+  pull_request:
+    types: [labeled]
+
+jobs:
+  move_issues:
+    name: Move Issues in Project
+    runs-on: ubuntu-latest
+    if: ${{ github.event.label.name == 'wontfix' || github.event.label.name == 'duplicate' || github.event.label.name == 'in progress' }}
+    steps:
+      - uses: PaperMC/update-projects-action@v0.2.0
+        with:
+          github-token: ${{ secrets.WORKFLOW_TOKEN }}
+          project-url: https://github.com/users/Julexar/projects/7/views/1
+          column-field: Status
+          label-to-column-map: |
+            {
+              "wontfix": "Scrapped",
+              "duplicate": "Scrapped",
+              "in progress": "In Progress"
+            }
