@@ -1,0 +1,16 @@
+name: Label Automation
+
+on:
+  issues:
+    types: [closed]
+  pull_request:
+    types: [closed]
+
+jobs:
+  label_issues:
+    name: Label closed Issues
+    runs-on: ubuntu-latest
+    steps:
+      - uses: RebeccaStevens/issue-closed-labeler-action@v1.0.1
+        with:
+          rules: '[{"condition": ["some", ["bug", "enhancement", "custom"]], "add": "done", "remove": "in progress"}]'
