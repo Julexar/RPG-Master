@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } from "discord.js";
+import { ActionRowBuilder, ApplicationCommandOptionType, ApplicationCommandPermissionType, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } from "discord.js";
 class Command {
     constructor() {
         this.name = "character";
@@ -45,6 +45,13 @@ class Command {
                                 description: "Toggle viewing private Notes",
                                 type: ApplicationCommandOptionType.Boolean,
                                 required: true,
+                            },
+                            {
+                                name: "id",
+                                description: "Provide the ID of the Note",
+                                type: ApplicationCommandOptionType.Integer,
+                                required: true,
+                                min_value: 1
                             },
                         ],
                     },
@@ -336,8 +343,12 @@ class Command {
             case "view":
                 if (option.getSubcommandGroup() == "notes") {
                     //TODO
+                    const noteId = option.getInteger("id");
+                    const priv = option.getBoolean("private");
+                    
                 } else {
                     //TODO
+
                 }
             return;
             case "add":
