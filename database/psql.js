@@ -1109,7 +1109,7 @@ class PSQL {
               } else {
                 const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
                 this.query(sql, [server.id, u.id, n.title, note.content, note.private])
-                  .then(resolve("Success"))
+                  .then(resolve("Successfully added Server Note"))
                   .catch(err => reject(err));
               }
             })
@@ -1117,7 +1117,7 @@ class PSQL {
               if (String(err).includes("Error 404")) {
                 const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
                 this.query(sql, [server.id, u.id, note.title, note.content, note.private])
-                  .then(resolve("Success"))
+                  .then(resolve("Successfully added Server Note"))
                   .catch(err1 => reject(err1));
               } else {
                 reject(err);
@@ -1136,7 +1136,7 @@ class PSQL {
             .then(n => {
               const sql = "DELETE FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
               this.query(sql, [server.id, u.id, n.id])
-                .then(resolve("Success"))
+                .then(resolve("Successfully removed Server Note"))
                 .catch(err => reject(err));
             })
             .catch(err => reject(err));
@@ -1153,7 +1153,7 @@ class PSQL {
             .then(n => {
               const sql = "UPDATE server_notes SET title = $1, content = $2, private = $3 WHERE server_id = $4 AND user_id = $5 AND id = $6";
               this.query(sql, [note.title, note.content, note.private, server.id, u.id, n.id])
-                .then(resolve("Success"))
+                .then(resolve("Successfully updated Server Note!"))
                 .catch(err => reject(err));
             })
             .catch(err => reject(err));
@@ -1212,7 +1212,7 @@ class PSQL {
           } else {
             const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
             this.query(sql, [user.id, note.title, note.content, note.private])
-              .then(resolve("Success"))
+              .then(resolve("Successfully added Global Note"))
               .catch(err => reject(err));
           }
         })
@@ -1220,7 +1220,7 @@ class PSQL {
           if (String(err).includes("Error 404")) {
             const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
             this.query(sql, [user.id, note.title, note.content, note.private])
-              .then(resolve("Success"))
+              .then(resolve("Successfully added Global Note"))
               .catch(err1 => reject(err1));
           } else {
             reject(err);
@@ -1235,7 +1235,7 @@ class PSQL {
         .then(n => {
           const sql = "DELETE FROM global_notes WHERE user_id = $1 AND id = $2";
           this.query(sql, [user.id, n.id])
-            .then(resolve("Success"))
+            .then(resolve("Successfully removed Global Note"))
             .catch(err => reject(err));
         })
         .catch(err => reject(err));
@@ -1248,7 +1248,7 @@ class PSQL {
         .then(n => {
           const sql = "UPDATE global_notes SET title = $1, content = $2, private = $3 WHERE user_id = $4 AND id = $5";
           this.query(sql, [note.title, note.content, note.private, user.id, n.id])
-            .then(resolve("Success"))
+            .then(resolve("Successfully updated Global Note"))
             .catch(err => reject(err));
         })
         .catch(err => reject(err));
