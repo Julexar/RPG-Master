@@ -6,16 +6,22 @@ class slashHandler {
   async run() {
     const slashCommandsTable = new Ascii('Slash Commands').setHeading('Name', 'Status', 'Reason');
     const dirs = fs.readdirSync("./commands/slash");
-    dirs.forEach(dir => {
+
+    for (const dir of dirs) {
+
       const files = fs.readdirSync(`./commands/slash/${dir}`);
-      files.forEach(async (file) => {
+
+      for (const file of files) {
         const module = await import(`../../commands/slash/${dir}/${file}`);
         const command = module.default;
         let name;
+
         if (!command.name || !command.run) {
           return slashCommandsTable.addRow(`${command.name || file}`, "Failed", "Missing Name/Run");
         }
+
         name = command.name;
+
         if (command.nick) {
           name += ` (${command.nick})`;
         }
@@ -26,11 +32,11 @@ class slashHandler {
 
         client.slashCommands.set(command.name, command);
         slashCommandsTable.addRow(name, "Success");
-        if (file=="print.js") {
-          console.log(slashCommandsTable.toString());
-        }
-      });
-    });
+      }
+      
+    }
+
+    console.log(slashCommandsTable.toString());
   }
 }
 export default new slashHandler();
