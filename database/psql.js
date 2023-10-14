@@ -6190,8 +6190,8 @@ class PSQL {
   resetDevLog() {
     return new Promise((resolve, reject) => {
       if (fs.existsSync("./logs/dev/devlog.log")) {
-        fs.writeFileSync("./logs/dev/devlog.log", "\ ");
-        resolve("Success");
+        fs.writeFileSync("./logs/dev/devlog.log", "");
+        resolve("Successfully reset Devlog");
       } else {
         reject("Error 404: Logfile not found");
       }
