@@ -7,26 +7,34 @@ class prefixHandler {
   async run() {
     const prefixCommandsTable = new Ascii('Prefix Commands').setHeading('Name', 'Status', 'Reason');
     const dirs = fs.readdirSync("./commands/prefix");
-    dirs.forEach(dir => {
+
+    for (const dir of dirs) {
+
       const files = fs.readdirSync(`./commands/prefix/${dir}`);
-      files.forEach(async (file) => {
+
+      for (const file of files) {
         const module = await import(`../../commands/prefix/${dir}/${file}`);
         const command = module.default;
         let name;
+
         if (!command.name || !command.run) {
           return prefixCommandsTable.addRow(`${command.name || file}`, "Failed", "Missing Name/Run");
         }
+
         name = command.name;
+
         if (command.nick) {
           name += ` (${command.nick})`;
         }
+
         client.prefixCommands.set(command.name, command);
         prefixCommandsTable.addRow(name, "Success");
-        if (file=="br.js") {
-          console.log(prefixCommandsTable.toString());
-        }
-      });
-    });
+
+      }
+      
+    }
+
+    console.log(prefixCommandsTable.toString());
   }
 }
 export default new prefixHandler();
