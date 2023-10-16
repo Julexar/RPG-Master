@@ -5,3 +5,4 @@
 .upm
 *.log
 .env
+.vscode
