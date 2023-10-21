@@ -30,7 +30,7 @@ class Command {
                     case "toggle":
                         switch (option.getSubcommand()) {
                             case "suggestions":
-                                client.database.togGMSug(server, user)
+                                client.database.toggleGMSuggestion(server, user)
                                     .then(async (msg) => {
                                         client.database.writeLog(server, `${msg}`)
                                             .then(mes => client.database.writeDevLog(`${mes}`))

@@ -2,11 +2,13 @@ import pkg from "pg";
 const Pool = pkg.Pool;
 import "dotenv/config";
 import moment from "moment"
-import conf from "../config.js"
+import { config } from "../config.js"
 import fs from "fs";
+import { BadRequestError, DuplicateError, ForbiddenError, InternalServerError, NotFoundError } from "../custom/errors/index.js";
 
 class PSQL {
   constructor() {
+
     this.pool = new Pool({
       user: process.env.PG_USER,
       host: process.env.PG_HOST,
@@ -14,12 +16,12 @@ class PSQL {
       password: process.env.PG_PWD,
       port: process.env.PG_PORT
     });
+
     this.pool.connect((err) => {
       if (err) {
-        this.writeDevLog(`${err}`);
-      } else {
-        this.writeDevLog("Connected to Database!");
+        return this.writeDevLog(`${err}`);
       }
+      this.writeDevLog("Connected to Database!");
     });
   }
 
@@ -27,2023 +29,1420 @@ class PSQL {
     return new Promise((resolve, reject) => {
       this.pool.query(query, params, (err, results) => {
         if (err) {
-          reject(err);
+          return reject(new InternalServerError("Something went wrong!", err));
+        }
+
+        if (query.includes("SELECT")) {
+          results = JSON.parse(JSON.stringify(results.rows));
+        }
+        resolve(results);
+      });
+    });
+  };
+
+  async getServer(server) {
+    if (!server) {
+
+      const results = await this.query("SELECT * FROM servers")
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Servers found", "Could not find any Servers in the Database!");
+      }
+
+      return results;
+    } else {
+
+      const results = await this.query("SELECT * FROM servers WHERE id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+      }
+      
+      return results[0];
+    }
+  };
+
+  async addServer(server) {
+    if (await this.serverExists(server)) {
+      throw new DuplicateError("Duplicate Server", "This Server already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO servers (id, name, dm_role) VALUES ($1, $2, $3)";
+    await this.query(sql, [server.id, server.name, server.dm_role])
+
+    return `Successfully added Server \"${server.name}\" to Database`;
+  };
+
+  async remServer(server) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    await this.query("DELETE FROM servers WHERE id = $1", [server.id])
+
+    return `Successfully removed Server \"${server.name}\" from Database`;
+  };
+
+  async serverExists(server) {
+    const results = await this.query("SELECT * FROM servers WHERE id = $1", [server.id])
+
+    return results.length > 0;
+  };
+
+  async updateServer(server) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET name = $1, dm_role = $2 WHERE id = $3";
+
+    await this.query(sql, [server.name, server.dm_role, server.id])
+
+    return `Successfully updated Server \"${server.name}\" in Database`;
+  };
+
+  async setDupSessions(server, bool) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET dup_sessions = $1 WHERE id = $2";
+    await this.query(sql, [bool, server.id])
+
+    return `Successfully set duplicate Sessions to ${bool}`;
+  };
+
+  async setSumChannel(server, channel) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET sum_chan = $1 WHERE id = $2";
+    await this.query(sql, [channel.id, server.id])
+
+    return `Successfully set Summary Channel to <#${channel.id}>`
+  };
+
+  async setLogChannel(server, channel) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET log_chan = $1 WHERE id = $2";
+    await this.query(sql, [channel.id, server.id])
+
+    return `Succesfully changed the Log Channel to <#${channel.id}>`;
+  };
+
+  async setGMEdit(server, bool) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+    
+    const sql = "UPDATE servers SET gm_edit = $1 WHERE id = $2";
+    await this.query(sql, [bool, server.id]);
+
+    return `Successfully set the Ability for GMs to edit to ${bool}`;
+  };
+
+  async getStaffRole(server, type, role) {
+    if (!type && !role) {
+      const sql = "SELECT admin_role, mod_role FROM servers WHERE id = $1";
+      const results = await this.query(sql, [server.id])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Staff Roles found", "Could not find any Staff Roles in the Database!");
+      }
+
+      return results;
+    } else if (type && !role) {
+      const sql = `SELECT ${type}_role FROM servers WHERE server_id = $1`;
+      const results = await this.query(sql, [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Staff Role not found", "Could not find that Staff Role in the Database!");
+      }
+
+      return results[0];
+    }
+  };
+
+  async setStaffRole(server, type, role) {
+    return await this.getStaffRole(server, type)
+    .then(async (staffRole) => {
+      if ((staffRole.admin_role || staffRole.mod_role) && (staffRole.admin_role == role.id || staffRole.mod_role == role.id)) {
+        throw new DuplicateError("Duplicate Staff Role", "This Staff Role already exists in the Database!");
+      }
+
+      const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set ${type} role to <@&${role.id}>`;
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set ${type} role to <@&${role.id}>`;
+    });
+  };
+
+  async getDMRole(server) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "SELECT dm_role FROM servers WHERE id = $1";
+    const results = await this.query(sql, [server.id])
+
+    if (results.length === 0 || !results[0]) {
+      throw new NotFoundError("No GM Role found", "Could not find a GM Role in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async setDMRole(server, role) {
+    return this.getDMRole(server)
+    .then(async (dmRoleID) => {
+      if (dmRoleID == role.id) {
+        throw new DuplicateError("Duplicate GM Role", "This GM Role already exists in the Database!");
+      }
+
+      const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set gm role to <@&${role.id}>`;
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set gm role to <@&${role.id}>`;
+    });
+  };
+
+  async toggleLogs(server, bool) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET print_logs = $1 WHERE id = $2";
+    await this.query(sql, [bool, server.id])
+
+    return `Successfully set automatic printing of logs to ${bool}`;
+  };
+
+  async getGM(server, user) {
+    if (!user) {
+      const results = await this.query("SELECT * FROM gms WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No GMs found", "Could not find any GMs in the Database!");
+      }
+
+      return results;
+    }
+
+    const sql = "SELECT * FROM gms WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("GM not found", "Could not find that GM in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async gmExists(server, user) {
+    const sql = "SELECT * FROM gms WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    return results.length === 1;
+  };
+
+  async addGM(server, user) {
+    if (await this.gmExists(server, user)) {
+      throw new DuplicateError("Duplicate GM", "That GM already exists in the Database!");
+    }
+
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    const sql = "INSERT INTO gms (server_id, user_id, date) VALUES ($1, $2, $3)";
+    await this.query(sql, [server.id, user.id, date])
+    
+    return `Successfully registered \"${user.displayName}\" as GM in Database`;
+  };
+
+  async remGM(server, user) {
+    if (!(await this.gmExists(server, user))) {
+      throw new NotFoundError("GM not found", "Could not find that GM in the Database!");
+    }
+
+    const sql = "DELETE FROM gms WHERE server_id = $1 AND user_id = $2";
+    await this.query(sql, [server.id, user.id])
+    
+    return `Successfully unregistered \"${user.displayName} as GM in Database`;
+  };
+
+  async editGMXP(server, user, xp) {
+    const gm = await this.getGM(server, user)
+
+    if (gm.xp - xp < 0) {
+      throw new ForbiddenError("Not enough XP", "You do not have enough GMXP!");
+    } else {
+      gm.xp += xp;
+    }
+
+    const sql = "UPDATE gms SET xp = $1 WHERE server_id = $2 AND user_id = $3";
+    await this.query(sql, [gm.xp, server.id, user.id])
+    
+    return `Successfully set XP of GM \"${user.displayName}\" to ${gm.xp}`;
+  };
+
+  async toggleGMSuggestion(server, user) {
+    const gm = await this.getGM(server, user)
+    
+    const sql = "UPDATE gms SET suggestions = $1 WHERE server_id = $2 AND user_id = $3";
+    await this.query(sql, [!gm.suggestions, server.id, user.id])
+    
+    return `Successfully set receiving of suggestions to ${!gm.suggestions}`;
+  };
+
+  async getPrefix(server, prefix) {
+    if (!prefix) {
+      const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1";
+      const results = await this.query(sql, [server.id])
+
+      if (results.length === 0) {
+        await this.setPrefixDefault(server)
+        return [config.default_prefix];
+      } 
+      const prefixes = [];
+      for (let i = 0; i < results.length; i++) {
+        prefixes.push(results[i].prefix);
+      }
+
+      return prefixes;
+    }
+
+    const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1 AND prefix = $2";
+    const results = await this.query(sql, [server.id, prefix])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Prefix not found", "Could not find that Prefix in the Database!");
+    }
+
+    return results[0].prefix;
+  };
+
+  async setPrefixDefault(server) {
+    const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
+    await this.query(sql, [server.id, config.default_prefix])
+    
+    return `Successfully added default Prefix \"${config.default_prefix}\" to Server \"${server.name}\"`;
+  };
+
+  async prefixExists(server, prefix) {
+    const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1 AND prefix = $2";
+    const results = await this.query(sql, [server, prefix])
+
+    return results.length === 1;
+  };
+
+  async addPrefix(server, prefix) {
+    if (await this.prefixExists(server, prefix)) {
+      throw new DuplicateError("Duplicate Prefix", "That Prefix already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
+    await this.query(sql, [server.id, prefix]);
+
+    return `Successfully added Prefix \"${prefix}\" to Server \"${server.name}\"`;
+  };
+
+  async remPrefix(server, prefix) {
+    if (!(await this.prefixExists(server, prefix))) {
+      throw new NotFoundError("Prefix not found", "Could not find that Prefix in the Database!");
+    }
+
+    if (!prefix) {
+      const sql = "DELETE FROM server_prefix WHERE server_id = $1";
+      await this.query(sql, [server.id])
+
+      await this.setPrefixDefault(server)
+
+      return `Successfully reset all prefixes of Server \"${server.name}\"`;
+    }
+
+    const sql = "DELETE FROM server_prefix WHERE server_id = $1 AND prefix = $2";
+    await this.query(sql, [server.id, prefix])
+
+    return `Successfully removed Prefix \"${prefix}\" from Server \"${server.name}\"`;
+  };
+
+  async getCommand(cmd, type) {
+    if (!cmd) {
+      const results = await this.query("SELECT * FROM commands WHERE type = $1", [type])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Commands found", "Could not find any Commands in the Database!");
+      }
+
+      return results;
+    }
+
+    if (cmd.id) {
+      const results = await this.query("SELECT * FROM commands WHERE id = $1", [cmd.id])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("Command not found", "Could not find that Command in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM commands WHERE type = $1 AND name = $2";
+    const results = await this.query(sql, [type, cmd.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Command not found", "Could not find that Command in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async addCommand(cmd, type) {
+    const command = await this.getCommand(cmd, type)
+    if (command) {
+      throw new DuplicateError("Duplicate Command", "That Command already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO commands (type, name, enabled) VALUES($1, $2, $3)";
+    await this.query(sql, [type, cmd.name, cmd.enabled])
+
+    return `Successfully added ${type} Command \"${cmd.name}\" to Database`;
+  };
+
+  async remCommand(cmd, type) {
+    const command = await this.getCommand(cmd, type)
+
+    await this.query("DELETE FROM commands WHERE id = $1", [command.id])
+
+    return `Successfully removed ${type} Command \"${c.name}\" from Database`;
+  };
+
+  async updateCommand(cmd, type) {
+    const command = await this.getCommand(cmd, type)
+
+    const sql = "UPDATE commands SET name = $1, enabled = $2 WHERE id = $3";
+    await this.query(sql, [cmd.name, cmd.enabled, command.id])
+
+    return `Successfully updated ${type} Command \"${command.name}\" in Database`;
+  };
+
+  async getServCmd(server, cmd) {
+    if (!cmd) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1";
+      const results = await this.query(sql, [server.id])
+
+      if (results.length===0) {
+        throw new NotFoundError("No Server Commands found", "Could not find any Server Commands in the Database!");
+      }
+
+      return results.map(async (servCmd) => {
+        const command = await this.getCommand({id: servCmd.cmd_id})
+
+        if (command && (servCmd.enabled && !command.enabled)) {
+          return {
+            id: servCmd.id,
+            cmd_id: command.id,
+            name: command.name,
+            type: command.type,
+            enabled: false,
+            restricted: servCmd.restricted
+          }
         } else {
-          if (!query.includes("SELECT")) {
-            resolve("Success");
-          } else {
-            results = JSON.parse(JSON.stringify(results.rows));
-            resolve(results);
+          return {
+            id: servCmd.id,
+            cmd_id: command.id,
+            name: command.name,
+            type: command.type,
+            enabled: servCmd.enabled,
+            restricted: servCmd.restricted
           }
         }
       });
-    });
-  }
+    }
 
-  getServer(server) {
-    return new Promise((resolve, reject) => {
-      if (!server) {
-        const sql = "SELECT * FROM servers";
-        this.query(sql)
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Servers found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM servers WHERE id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Server not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
+    if (cmd.id) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, cmd.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Command not found", "Could not find that Server Command in the Database!");
       }
+      cmd = results[0];
+      const command = await this.getCommand({id: cmd.cmd_id})
+
+      if (!command.enabled) {
+        return [{
+          id: cmd.id,
+          cmd_id: command.id,
+          name: command.name,
+          type: command.type,
+          enabled: false,
+          restricted: cmd.restricted
+        }];
+      }
+
+      return [{
+        id: cmd.id,
+        cmd_id: command.id,
+        name: command.name,
+        type: command.type,
+        enabled: cmd.enabled,
+        restricted: cmd.restricted
+      }];
+    }
+
+    if (cmd.cmd_id) {
+      const command = await this.getCommand({id: cmd.cmd_id})
+
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
+      const results = await this.query(sql, [server.id, command.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Command not found", "Could not find that Server Command in the Database!");
+      }
+
+      cmd = results[0];
+
+      if (!command.enabled) {
+        return [{
+          id: cmd.id,
+          cmd_id: command.id,
+          name: command.name,
+          type: command.type,
+          enabled: false,
+          restricted: cmd.restricted
+        }];
+      }
+
+      return [{
+        id: cmd.id,
+        cmd_id: command.id,
+        name: command.name,
+        type: command.type,
+        enabled: cmd.enabled,
+        restricted: cmd.restricted
+      }];
+    }
+
+    if (cmd.name && cmd.type) {
+      const command = await this.getCommand(cmd, type)
+
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
+      const results = await this.query(sql, [server.id, command.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Command not found", "Could not find that Server Command in the Database!");
+      }
+
+      cmd = results[0];
+
+      if (!command.enabled) {
+        return [{
+          id: cmd.id,
+          cmd_id: command.id,
+          name: command.name,
+          type: command.type,
+          enabled: false,
+          restricted: cmd.restricted
+        }];
+      }
+
+      return [{
+        id: cmd.id,
+        cmd_id: command.id,
+        name: command.name,
+        type: command.type,
+        enabled: cmd.enabled,
+        restricted: cmd.restricted
+      }];
+    }
+  };
+
+  async servCmdExists(server, cmd) {
+    if (cmd.id) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, cmd.id])
+
+      return results.length === 1;
+    }
+
+    if (cmd.cmd_id) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
+      const results = await this.query(sql, [server.id, cmd.cmd_id])
+
+      return results.length === 1;
+    }
+  };
+
+  async addServCmd(server, cmd) {
+    if (await this.servCmdExists(server, cmd)) {
+      throw new DuplicateError("Duplicate Server Command", "That Server Command already exists in the Database!");
+    }
+
+    if (!cmd.cmd_id && cmd.name) {
+      const command = await this.getCommand({name: cmd.name}, cmd.type)
+
+      const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [server.id, command.id, cmd.id, command.enabled])
+
+      return `Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database`;
+    }
+
+    const command = await this.getCommand({id: cmd.cmd_id}, "slash")
+
+    const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
+    await this.query(sql, [server.id, command.id, cmd.id, command.enabled])
+
+    return `Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database`;
+  };
+
+  async remServCmd(server, cmd) {
+    const command = await this.getServCmd(server, cmd)
+
+    const sql = "DELETE FROM server_commands WHERE server_id = $1 AND id = $2";
+    await this.query(sql, [server.id, command.id])
+
+    return `Successfully removed ${command.type} Command \"${command.name}\" from Server \"${server.name}\" in Database`;
+  };
+
+  async toggleServCmd(server, cmd, bool) {
+    const command = await this.getServCmd(server, cmd)
+
+    const sql = "UPDATE server_commands SET enabled = $1 WHERE server_id = $2 AND id = $3";
+    await this.query(sql, [bool, server.id, command.id])
+
+    const action = bool ? "enabled" : "disabled"
+    return `Successfully ${action} Command \"${command.name}\" in Server \"${server.name}\"`;
+  };
+
+  async restrictServCmd(server, cmd, bool) {
+    const command = await this.getServCmd(server, cmd);
+
+    await this.query("UPDATE server_commands SET restricted = $1 WHERE id = $2", [bool, command.id])
+
+    const action = bool ? "enabled" : "disabled"
+    return `Successfully ${action} restrictions of Command \"${command.name}\" in Server \"${server.name}\"`;
+  };
+
+  async getRestriction(cmd, rest) {
+    if (!rest) {
+      const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1";
+      const results = await this.query(sql, [cmd.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Restrictions found", "Could not find any Restrictions for that Server Command in the Database!");
+      }
+
+      return results.map(restriction => {
+        return {
+          type: restriction.type,
+          id: restriction.id,
+          permission: restriction.permission
+        }
+      });
+    }
+
+    if (rest.id) {
+      const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND id = $2";
+      const results = await this.query(sql, [cmd.id, rest.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Restriction not found", "Could not find that Restriction for that Server Command in the Database!");
+      }
+
+      return [{
+        type: results[0].type,
+        id: results[0].id,
+        permission: results[0].permission
+      }];
+    }
+
+    const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2";
+    const results = await this.query(sql, [cmd.id, rest.type])
+
+    if (results.length === 0) {
+      throw new NotFoundError("No Restrictions found", "Could not find any Restrictions of that Type for the Server Command in the Database!");
+    }
+
+    return results.map(restriction => {
+      return {
+        type: restriction.type,
+        id: restriction.id,
+        permission: restriction.permission
+      }
+    });
+  };
+
+  async restrictionExists(cmd, rest) {
+    if (rest.id) {
+      const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND id = $2";
+      const results = await this.query(sql, [cmd.id, rest.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2";
+    const results = await this.query(sql, [cmd.id, rest.type])
+
+    return results.length > 0;
+  };
+
+  async addRestriction(cmd, rest) {
+    const restriction = await this.getRestriction(cmd, rest)
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO server_command_restrictions VALUES($1, $2, $3, $4)";
+      await this.query(sql, [cmd.id, rest.type, rest.id, rest.permission])
+
+      return `Successfully added restriction to Command \"${cmd.name}\" in Server \"${server.name}\"`;
+    });
+
+    if (restriction[0].permission == rest.permission) {
+      throw new DuplicateError("Duplicate Restriction", "That Restriction already exists for that Server Command in the Database!");
+    }
+
+    const sql = "UPDATE server_command_restrictions SET permission = $1 WHERE cmd_id = $2 AND id = $3";
+    await this.query(sql, [rest.permission, cmd.id, rest.id])
+
+    return `Successfully updated restrictions of Command \"${cmd.name}\" in Server \"${server.name}\"`;
+  };
+
+  async remRestriction(cmd, rest) {
+    if (!(await this.restrictionExists(cmd, rest))) {
+      throw new NotFoundError("Restriction not found", "Could not find that Restriction for that Server Command in the Database!");
+    }
+
+    const sql = "DELETE FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2 AND id = $3";
+    await this.query(sql, [cmd.id, rest.type, rest.id])
+
+    return `Successfully removed restriction of Command \"${cmd.name}\" in Server \"${server.name}\"`;
+  };
+
+  async getMember(server, user) {
+    if (!user) {
+      const sql = "SELECT * FROM server_members WHERE server_id = $1";
+      const results = await this.query(sql, [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Server Members found", "Could not find any Members for that Server in the Database!");
+      }
+
+      const query = "SELECT * FROM users WHERE id IN ($1)";
+      const users = await this.query(query, [results.map(member => `'${member.user_id}'`).join(',')])
+      return users.map(dbUser => {
+        return {
+          id: dbUser.id,
+          name: dbUser.name
+        };
+      });
+    }
+
+    const sql = "SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Server Member not found", "Could not find that Server Member in the Database!");
+    }
+
+    const dbUser = await this.getUser({ id: results[0].user_id });
+    return dbUser;
+  };
+
+  async memberExists(server, user) {
+    const sql = "SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    return results.length === 1;
+  };
+
+  async addMember(server, user) {
+    if (await this.memberExists(server, user)) {
+      throw new DuplicateError("Duplicate Server Member", `The User \"${user.username}\" is already a Member of the Server \"${server.name}\"!`);
+    }
+    
+    const add_member = "INSERT INTO server_members (server_id, user_id) VALUES ($1, $2)";
+
+    if (await this.userExists(user)) {
+      await this.query(add_member, [server.id, user.id])
+
+      return `Successfully added User \"${user.username}\" to Server \"${server.name}\"`;
+    }
+
+    await this.addUser(user)
+
+    await this.query(add_member, [server.id, user.id])
+
+    return `Successfully added User \"${user.username}\" to Server \"${server.name}\"`;
+  };
+
+  async remMember(server, user) {
+    if (!(await this.memberExists())) {
+      throw new NotFoundError("Server Member not found", "Could not find that Server Member in the Database!");
+    }
+
+    const sql = "DELETE FROM server_members WHERE server_id = $1 AND user_id = $2";
+    await this.query(sql, [server.id, user.id])
+
+    return `Successfully removed User \"${user.username}\" from Server \"${server.name}\"`;
+  };
+
+  async getUser(user) {
+    if (user.id) {
+      const results = await this.query("SELECT * FROM users WHERE id = $1", [user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("User not found", "Could not find that User in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM users WHERE name = $1")
+
+    if (results.length === 0) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async userExists(user) {
+    const results = await this.query("SELECT * FROM users WHERE id = $1", [user.id]);
+
+    return results.length === 1;
+  };
+
+  async addUser(user) {
+    if (await this.userExists(user)) {
+      throw new DuplicateError("Duplicate User", "This User already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO users (id, name) VALUES($1, $2)";
+    await this.query(sql, [user.id, user.username])
+
+    return `Successfully added User \"${user.username}\" to the Database!`;
+  };
+
+  async remUser(user) {
+    if (!(await this.userExists(user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    await this.query("DELETE FROM users WHERE id = $1", [user.id])
+
+    return `Successfully removed User \"${user.username}\" from the Database!`;
+  };
+
+  async updateUser(user, char) {
+    if (!(await this.userExists(user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    const sql = "UPDATE users SET char_id = $1 WHERE id = $2";
+    await this.query(sql, [char.id, user.id])
+
+    return `Successfully updated Character for User \"${user.username}\" in Database`;
+  };
+
+  async getServerNote(server, user, note) {
+    if (!(await this.userExists(server, user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    if (!note) {
+      const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2";
+      const results = await this.query(sql, [server.id, user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Server Notes found", "Could not find any Server Notes in the Database!");
+      }
+
+      return results;
+    }
+
+    if (note.id) {
+      const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
+      const results = await this.query(sql, [server.id, user.id, note.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3";
+    const results = await this.query(sql, [server.id, user.id, note.title])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async serverNoteExists(server, user, note) {
+    if (note.id) {
+      const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
+      const results = await this.query(sql, [server.id, user.id, note.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3";
+    const results = await this.query(sql, [server.id, user.id, note.title])
+
+    return results.length === 1;
+  };
+
+  async addServerNote(server, user, note) {
+    if (!(await this.userExists(user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    await this.getServerNote(server, user, note)
+    .then(async (serverNote) => {
+      if (note.content == serverNote.content) {
+        throw new DuplicateError("Duplicate Server Note", "A Server Note with that title and content already exists in the Database!");
+      }
+
+      const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
+      await this.query(sql, [server.id, user.id, note.title, note.content, note.private])
     })
-  }
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
 
-  addServer(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(reject("Error 409: Duplicate Server"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO servers (id, name, dm_role) VALUES ($1, $2, $3)";
-            this.query(sql, [server.id, server.name, server.dm_role])
-              .then(resolve(`Successfully added Server \"${server.name}\" to Database`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
+      const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
+      await this.query(sql, [server.id, user.id, note.title, note.content, note.private])
     });
-  }
 
-  remServer(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "DELETE FROM servers WHERE id = $1";
-          this.query(sql, [server.id])
-            .then(resolve(`Successfully removed Server \"${server.name}\" from Database`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    return "Succcessfully added Server Note to Database";
+  };
 
-  updateServer(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET name = $1, dm_role = $2 WHERE id = $3";
-          this.query(sql, [server.name, server.dm_role, server.id])
-            .then(resolve(`Successfully updated Server \"${server.name}\" in Database`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+  async remServerNote(server, user, note) {
+    if (!(await this.serverNoteExists(server, user, note))) {
+      throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+    }
 
-  setDupSessions(server, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET dup_sessions = $1 WHERE id = $2";
-          this.query(sql, [bool, server.id])
-            .then(resolve(`Successfully set Channel for duplicate Sessions`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    const sql = "DELETE FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
+    await this.query(sql, [server.id, user.id, note.id])
 
-  setSumChannel(server, channel) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET sum_chan = $1 WHERE id = $2";
-          this.query(sql, [channel.id, server.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    return "Successfully removed Server Note from Database";
+  };
 
-  setLogChannel(server, channel) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET log_chan = $1 WHERE id = $2";
-          this.query(sql, [channel.id, server.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+  async updateServerNote(server, user, note) {
+    if (!(await this.serverNoteExists(server, user, note))) {
+      throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+    }
 
-  setGMEdit(server, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET gm_edit = $1 WHERE id = $2";
-          this.query(sql, [bool, server.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
+    const sql = "UPDATE server_note SET title = $1, content = $2, private = $3 WHERE server_id = $4 AND user_id = $5 AND id = $6";
+    await this.query(sql, [note.title, note.content, note.private, server.id, user.id, note.id])
+
+    return "Successfully updated Server Note in Database";
+  };
+
+  async getGlobalNote(user, note) {
+    if (!(await this.userExists(user))) {
+      throw NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    if (!note) {
+      const results = await this.query("SELECT * FROM global_notes WHERE user_id = $1", [user.id])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Global Notes found", "Could not find any Global Notes in the Database!");
+      }
+
+      return results;
+    }
+
+    if (note.id) {
+      const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND id = $2";
+      const results = await this.query(sql, [user.id, note.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND title = $2";
+    const results = await this.query(sql, [user.id, note.title])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async globalNoteExists(user, note) {
+    if (note.id) {
+      const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND id = $2";
+      const results = await this.query(sql, [user.id, note.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND title = $2";
+    const results = await this.query(sql, [user.id, note.title])
+
+    return results.length === 1;
+  };
+
+  async addGlobalNote(user, note) {
+    await this.getGlobalNote(user, note)
+    .then(async (globalNote) => {
+      if (globalNote.content == note.content) {
+        throw new DuplicateError("Duplicate Global Note", "A Global Note with that title and content already exists in the Database!");
+      }
+
+      const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [user.id, note.title, note.content, note.private])
     })
-  }
-
-  getStaffRole(server, type, role) {
-    return new Promise((resolve, reject) => {
-      if (!type && !role) {
-        const sql = "SELECT admin_role, mod_role FROM servers WHERE id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Staff Roles found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else if (type && !role) {
-        const sql = `SELECT ${type}_role FROM servers WHERE id = $1`;
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Staff Role not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
       }
-    });
-  }
 
-  setStaffRole(server, type, role) {
-    return new Promise((resolve, reject) => {
-      this.getStaffRole(server, type)
-        .then(r => {
-          if ((r.admin_role || r.mod_role) && (r.admin_role == role.id || r.mod_role == role.id)) {
-            reject("Error 409: Duplicate Staff Role");
-          } else {
-            const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
+      const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [user.id, note.title, note.content, note.private])
     });
-  }
 
-  getDMRole(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "SELECT dm_role FROM servers WHERE id = $1";
-          this.query(sql, [server.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: No GM Role found");
-              } else if (results.length === 1) {
-                resolve(results[0].dm_role);
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    return "Successfully added Global Note to Database";
+  };
 
-  setDMRole(server, role) {
-    return new Promise((resolve, reject) => {
-      this.getDMRole(server)
-        .then(r => {
-          if (r == role.id) {
-            reject("Error 409: Duplicate GM Role");
-          } else {
-            const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+  async remGlobalNote(user, note) {
+    if (!(await this.globalNoteExists(user, note))) {
+      throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+    }
 
-  toggleLogs(server, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(s => {
-          const sql = "UPDATE servers SET print_logs = $1 WHERE id = $2";
-          this.query(sql, [bool, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    await this.query("DELETE FROM global_notes WHERE user_id = $1 AND id = $2", [user.id, note.id])
 
-  getGM(server, user) {
-    return new Promise((resolve, reject) => {
-      if (!user) {
-        const sql = "SELECT * FROM gms WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No GMs found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM gms WHERE server_id = $1 AND user_id = $2";
-        this.query(sql, [server.id, user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: GM not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
+    return "Successfully removed Global Note from Database";
+  };
+
+  async updateGlobalNote(user, note) {
+    if (!(await this.globalNoteExists(user, note))) {
+      throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+    }
+
+    const sql = "UPDATE global_notes SET title = $1, content = $2, private = $3 WHERE user_id = $4 AND id = $5";
+    await this.query(sql, [note.title, note.content, note.private, user.id, note.id])
+
+    return "Successfully updated Global Note in Database";
+  };
+
+  async getArmor(server, armor) {
+    if (!armor) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Armor found", "Could not find any Armor in the Database!");
       }
-    });
-  }
 
-  addGM(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(reject("Error 409: Duplicate GM"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            let date = moment().format("YYYY-MM-DD HH:mm:ss");
-            const sql = "INSERT INTO gms (server_id, user_id, date) VALUES ($1, $2, $3)";
-            this.query(sql, [server.id, user.id, date])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results;
+    }
 
-  remGM(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(() => {
-          const sql = "DELETE FROM gms WHERE server_id = $1 AND user_id = $2";
-          this.query(sql, [server.id, user.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (armor.id) {
+      const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, armor.id])
 
-  editGMXP(server, user, xp) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          if (gm.xp - xp < 0) {
-            gm.xp = 0;
-          } else {
-            gm.xp += xp;
-          }
-          const sql = "UPDATE gms SET xp = $1 WHERE server_id = $2 AND user_id = $3";
-          this.query(sql, [gm.xp, server.id, user.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  togGMSug(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          const sql = "UPDATE gms SET suggestions = $1 WHERE server_id = $2 AND user_id = $3";
-          let bool;
-          if (gm.suggestions) {
-            bool = false;
-          } else {
-            bool = true;
-          }
-          this.query(sql, [bool, server.id, user.id])
-            .then(resolve(`Successfully toggled receiving of Suggestions to ${bool}`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getPrefixes(server, prefix) {
-    return new Promise((resolve, reject) => {
-      if (!prefix) {
-        const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              this.setPrefixDefault(server)
-                .then(console.log)
-                .catch(err => reject(err));
-              resolve([conf.default_prefix]);
-            } else if (results.length >= 1) {
-              const prefixes = [];
-              for (let i = 0; i < results.length; i++) {
-                prefixes.push(results[i].prefix);
-              }
-              resolve(prefixes);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1 AND prefix = $2";
-        this.query(sql, [server.id, prefix])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Prefix not found");
-            } else if (results.length === 1) {
-              resolve(results[0].prefix);
-            }
-          })
-          .catch(err => reject(err));
+      if (results.length === 0) {
+        throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
       }
-    });
-  }
 
-  setPrefixDefault(server) {
-    return new Promise((resolve, reject) => {
-      const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
-      this.query(sql, [server.id, conf.default_prefix])
-        .then(resolve(`Added default Prefix "${conf.default_prefix}" to Server "${server.name}"`))
-        .catch(err => reject(err));
-    });
-  }
+      return results[0];
+    }
+    
+    const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
+    const results = await this.query(sql, [server.id, armor.name])
 
-  addPrefix(server, prefix) {
-    return new Promise((resolve, reject) => {
-      this.getPrefixes(server, prefix)
-        .then(reject("Error 409: Duplicate Prefix"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
-            this.query(sql, [server.id, prefix])
-              .then(resolve(`Added Prefix "${prefix}" to Server "${server.name}"`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    })
-  }
+    if (results.length === 0) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
 
-  remPrefix(server, prefix) {
-    return new Promise((resolve, reject) => {
-      if (!prefix) {
-        this.getPrefixes(server)
-          .then(() => {
-            const sql = "DELETE FROM server_prefix WHERE server_id = $1";
-            this.query(sql, [server.id])
-              .then(() => {
-                this.setPrefixDefault(server)
-                  .then(resolve("Success"))
-                  .catch(err => reject(err));
-              })
-              .catch(err => reject(err));
-          })
-          .catch(err => reject(err));
-      } else {
-        this.getPrefixes(server, prefix)
-          .then(() => {
-            const sql = "DELETE FROM server_prefix WHERE server_id = $1 AND prefix = $2";
-            this.query(sql, [server.id, prefix])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          })
-          .catch(err => reject(err));
+    return results[0];
+  };
+
+  async armorExists(server, armor) {
+    if (armor.id) {
+      const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, armor.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
+    const results = await this.query(sql, [server.id, armor.id])
+
+    return results.length === 1;
+  };
+
+  async addArmor(server, armor) {
+    if (await this.armorExists(server, armor)) {
+      throw new DuplicateError("Duplicate Armor", "This Armor already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
+
+    return "Successfully added Armor to Database";
+  };
+
+  async remArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    const sql = "DELETE FROM armors WHERE server_id = $1 AND id = $2";
+    await this.query(sql, [server.id, armor.id])
+
+    return "Successfully removed Armor from Database";
+  };
+
+  async updateArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
+    await this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req, server.id, arm.id])
+    
+    return "Successfully updated Armor in Database";
+  };
+
+  async getChar(user, char) {
+    if (!char) {
+      const results = await this.query("SELECT * FROM characters WHERE user_id = $1", [user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Characters found", "Could not find any Characters in the Database!");
       }
-    });
-  }
 
-  getCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      if (!cmd) {
-        const sql = "SELECT * FROM commands WHERE type = $1";
-        this.query(sql, [type])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Commands found");
-            } else if (results.length>=1) {
-              resolve(results);
+      return results.map(async (character) => {
+        return {
+          owner: user.id,
+          name: character.name,
+          ac: character.ac,
+          hp: {
+            current: character.hp,
+            max: character.hp_max,
+            temp: character.hp_temp
+          },
+          portrait: character.portrait,
+          init: character.init,
+          level: character.level,
+          stats: await this.getCharStat(char),
+          money: {
+            pp: character.pp,
+            gp: character.gp,
+            ep: character.ep,
+            sp: character.sp,
+            cp: character.cp
+          },
+          multi: character.multi,
+          armor: character.armor_id,
+          race: character.race_id,
+          subrace: character.subrace_id,
+          class: character.class_id,
+          subclass: character.subclass_id,
+          class_level: character.class_level,
+          mc: [
+            {
+              id: character.mc1_id,
+              level: character.mc1_level,
+              sub: character.mc1_sub_id
+            },
+            {
+              id: character.mc2_id,
+              level: character.mc2_level,
+              sub: character.mc2_sub_id
+            },
+            {
+              id: character.mc2_id,
+              level: character.mc2_level,
+              sub: character.mc3_sub_id
             }
-          })
-          .catch(err => reject(err));
+          ]
+        }
+      });
+    }
+
+    if (char.id) {
+      const sql = "SELECT * FROM characters WHERE user_id = $1 AND id = $2";
+      const results = await this.query(sql, [user.id, char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+      }
+
+      const dbChar = results[0];
+      return {
+        owner: user.id,
+        name: dbChar.name,
+        ac: dbChar.ac,
+        hp: {
+          current: dbChar.hp,
+          max: dbChar.hp_max,
+          temp: dbChar.hp_temp
+        },
+        portrait: dbChar.portrait,
+        init: dbChar.init,
+        level: dbChar.level,
+        stats: await this.getCharStat(char),
+        money: {
+          pp: dbChar.pp,
+          gp: dbChar.gp,
+          ep: dbChar.ep,
+          sp: dbChar.sp,
+          cp: dbChar.cp
+        },
+        multi: dbChar.multi,
+        armor: dbChar.armor_id,
+        race: dbChar.race_id,
+        subrace: dbChar.subrace_id,
+        class: dbChar.class_id,
+        subclass: dbChar.subclass_id,
+        class_level: dbChar.class_level,
+        mc: [
+          {
+            id: dbChar.mc1_id,
+            level: dbChar.mc1_level,
+            sub: dbChar.mc1_sub_id
+          },
+          {
+            id: dbChar.mc2_id,
+            level: dbChar.mc2_level,
+            sub: dbChar.mc2_sub_id
+          },
+          {
+            id: dbChar.mc2_id,
+            level: dbChar.mc2_level,
+            sub: dbChar.mc3_sub_id
+          }
+        ]
+      };
+    }
+
+    const sql = "SELECT * FROM characters WHERE user_id = $1 AND name = $2";
+    const results = await this.query(sql, [user.id, char.name])
+
+    const dbChar = results[0];
+    return {
+      owner: user.id,
+      name: dbChar.name,
+      ac: dbChar.ac,
+      hp: {
+        current: dbChar.hp,
+        max: dbChar.hp_max,
+        temp: dbChar.hp_temp,
+        method: dbChar.hp_method
+      },
+      portrait: dbChar.portrait,
+      init: dbChar.init,
+      level: dbChar.level,
+      stats: await this.getCharStat(char),
+      money: {
+        pp: dbChar.pp,
+        gp: dbChar.gp,
+        ep: dbChar.ep,
+        sp: dbChar.sp,
+        cp: dbChar.cp
+      },
+      multi: dbChar.multi,
+      armor: dbChar.armor_id,
+      race: dbChar.race_id,
+      subrace: dbChar.subrace_id,
+      class: dbChar.class_id,
+      subclass: dbChar.subclass_id,
+      class_level: dbChar.class_level,
+      mc: [
+        {
+          id: dbChar.mc1_id,
+          level: dbChar.mc1_level,
+          sub: dbChar.mc1_sub_id,
+          enabled: dbChar.mc1_enabled
+        },
+        {
+          id: dbChar.mc2_id,
+          level: dbChar.mc2_level,
+          sub: dbChar.mc2_sub_id,
+          enabled: dbChar.mc2_enabled
+        },
+        {
+          id: dbChar.mc2_id,
+          level: dbChar.mc2_level,
+          sub: dbChar.mc3_sub_id,
+          enabled: dbChar.mc3_enabled
+        }
+      ]
+    };
+  };
+
+  async charExists(user, char) {
+    if (char.id) {
+      const sql = "SELECT * FROM characters WHERE user_id = $1 and id = $2";
+      const results = await this.query(sql, [user.id, char.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM characters WHERE user_id = $1 AND name = $2";
+    const results = await this.query(sql, [user.id, char.name])
+
+    return results.length > 0;
+  };
+
+  async addChar(user, char) {
+    if (await this.charExists(user, char)) {
+      throw new DuplicateError("Duplicate Character", "A Character with that name already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO characters (user_id, name, ac, hp, hp_max, hp_temp, init, level, xp, pp, gp, ep, sp, cp, armor_id, race_id, subrace_id, class_id, subclass_id, class_level, multi, mc1_id, mc1_sub_id, mc1_level, mc2_id, mc2_sub_id, mc2_level, mc3_id, mc3_sub_id, mc3_level) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)";
+    await this.query(sql, [user.id, char.name, char.ac, char.hp, char.hp_max, char.hp_temp, char.init, char.level, char.xp, char.money.pp, char.money.gp, char.money.ep, char.money.sp, char.money.cp, char.armor, char.race, char.subrace, char.class, char.subclass, char.class_level, char.multi, char.mc[0].id, char.mc[0].sub, char.mc[0].level, char.mc[1].id, char.mc[1].sub, char.mc[1].level, char.mc[2].id, char.mc[2].sub, char.mc[2].level])
+
+    return `Successfully added Character \"${char.name}\" for User \"${user.username}\" to Database`;
+  };
+
+  async remChar(user, char) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    const sql = "DELETE FROM characters WHERE user_id = $1 AND id = $2";
+    await this.query(sql, [user.id, char.id])
+
+    return `Successfully removed Character \"${char.name}\" of User \"${user.username}\" from Database`;
+  };
+
+  async setCharXP(user, char, xp) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    const sql = "UPDATE characters SET xp = $1 WHERE user_id = $3 AND id = $4";
+    await this.query(sql, [xp, user.id, char.id])
+
+    return `Successfully set Level of Character \"${char.name}\" to ${Math.ceil(xp/300)-1} (${xp} XP)`;
+  };
+
+  async addCharXP(user, char, xp) {
+    const dbChar = await this.getChar(user, char)
+
+    const sql = "UPDATE characters SET xp = $1 WHERE user_id = $3 AND id = $4";
+
+    if (dbChar.xp + xp > 335000) {
+      dbChar.xp = 335000;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
+    } else {
+      dbChar.xp += xp;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
+    }
+
+    return `Successfully added ${xp} XP to Character \"${char.name}\". Character is now Level ${Math.ceil(dbChar.xp/300)-1} (${dbChar.xp} XP)`;
+  };
+
+  async remCharXP(user, char, xp) {
+    const dbChar = await this.getChar(user, char)
+
+    const sql = "UPDATE characters SET xp = $1 WHERE user_id = $3 AND id = $4";
+    if (dbChar.xp - xp < 300) {
+      dbChar.xp = 300;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
+    } else {
+      dbChar.xp -= xp;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
+    }
+
+    return `Successfully removed ${xp} XP from Character \"${char.name}\". Character is now Level ${Math.ceil(dbChar.xp/300)-1} (${dbChar.xp} XP)`;
+  };
+
+  async setCharLvl(user, char, lvl) {
+    const xp = 300 * (lvl - 1);
+
+    return await this.setCharXP(user, char, xp)
+  };
+
+  async selectChar(user, char) {
+    const dbChar = await this.getChar(user, char)
+
+    await this.query("UPDATE users SET char_id = $1 WHERE id = $2", [dbChar.id, user.id])
+
+    return `Successfully changed active Character to \"${dbChar.name}\"`;
+  };
+
+  async updateCharHP(server, user, char) {
+    const dbChar = await this.getChar(user, char)
+
+    const charClass = await this.getClass(server, {id: dbChar.class})
+
+    const charConstitution = await this.getCharStat(char, "con")
+
+    let hp = charClass.hitdice_size + charConstitution;
+
+    if (dbChar.hp_method === "fixed") {
+      if (!dbChar.multi) {
+        hp += dbChar.class_level-1 * (Math.ceil(charClass.hitdice_size / 2) + charConstitution);
       } else {
-        if (cmd.id) {
-          const sql = "SELECT * FROM commands WHERE id = $1";
-          this.query(sql, [cmd.id])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Command not found");
-              } else if (results.length===1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM commands WHERE type = $1 AND name = $2";
-          this.query(sql, [type, cmd.name])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Command not found");
-              } else if (results.length===1) {
-                resolve(results[0]);
-              } else if (results.length>1) {
-                resolve(results);
-              }
-            })
-            .catch(err => reject(err));
+        for (async (mc) of dbChar.mc) {
+          if (mc.enabled) {
+            const charMC = await this.getClass(server, {id: mc.id})
+
+            hp += mc.level-1 * (Math.ceil(charMC.hitdice_size / 2) + charConstitution);
+          }
         }
       }
-    });
-  }
-
-  addCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      this.getCommand(cmd, type)
-        .then(reject("Error 409: Duplicate Command"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO commands (type, name, enabled) VALUES($1, $2, $3)";
-            this.query(sql, [type, cmd.name, cmd.enabled])
-              .then(resolve(`Successfully added ${type} Command \"${cmd.name}\" to Database!`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      this.getCommand(cmd, type)
-        .then(c => {
-          const sql = "DELETE FROM commands WHERE id = $1 AND type = $2";
-          this.query(sql, [c.id, type])
-            .then(resolve(`Successfully removed ${type} Command \"${c.name}\" from Database!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    })
-  }
-
-  updateCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      this.getCommand(cmd, type)
-        .then(c => {
-          const sql = "UPDATE commands SET name = $1, enabled = $2 WHERE id = $3";
-          this.query(sql, [cmd.name, cmd.enabled, c.id])
-            .then(resolve(`Successfully updated ${type} Command \"${c.name}\" in Database!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getServCmd(server, cmd) {
-    return new Promise((resolve, reject) => {
-      if (!cmd) {
-        const sql = "SELECT * FROM server_commands WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Server Commands found");
-            } else if (results.length>=1) {
-              const cms = [];
-              for (const cm of results) {
-                this.getCommand({id: cm.cmd_id})
-                  .then(c => {
-                    if (cm.enabled && !c.enabled) {
-                      cms.push({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: false,
-                        restricted: cm.restricted,
-                        state: "Success"
-                      });
-                    } else {
-                      cms.push({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted,
-                        state: "Success"
-                      });
-                    }
-                  })
-                  .catch(err => cms.push({
-                    id: cm.id,
-                    cmd_id: cm.cmd_id,
-                    state: "Failed",
-                    reason: `${err}`
-                  }));
-              }
-              resolve(cms);
-            }
-          })
-          .catch(err => reject(err));
+    } else {
+      if (!dbChar.multi) {
+        hp += dbChar.class_level-1 * (Math.ceil(Math.random() * charClass.hitdice_size) + charConstitution);
       } else {
-        if (cmd.id) {
-          const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, cmd.id])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Server Command not found");
-              } else if (results.length===1) {
-                const cm = results[0];
-                this.getCommand({id: cm.cmd_id})
-                  .then(c => {
-                    if (!c.enabled) {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: c.enabled,
-                        restricted: cm.restricted
-                      });
-                    } else {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted
-                      });
-                    }
-                  })
-                  .catch(err => reject(err));
-              }
-            })
-        } else if (cmd.cmd_id) {
-          this.getCommand({id: cmd.cmd_id})
-            .then(c => {
-              const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
-              this.query(sql, [server.id, c.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Server Command not found");
-                  } else if (results.length===1) {
-                    const cm = results[0];
-                    if (!c.enabled) {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: c.enabled,
-                        restricted: cm.restricted
-                      });
-                    } else {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted
-                      });
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        } else if (cmd.name) {
-          this.getCommand({name: cmd.name}, cmd.type)
-            .then(c => {
-              const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
-              this.query(sql, [server.id, c.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Server Command not found");
-                  } else if (results.length===1) {
-                    const cm = results[0];
-                    if (!c.enabled) {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: c.enabled,
-                        restricted: cm.restricted
-                      });
-                    } else {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted
-                      });
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
+        for (async (mc) of dbChar.mc) {
+          if (mc.enabled) {
+            const charMC = await this.getClass(server, {id: mc.id})
+
+            hp += mc.level-1 * (Math.ceil(Math.random() * charMC.hitdice_size) + charConstitution);
+          }
         }
       }
-    });
-  }
+    }
 
-  addServCmd(server, cmd) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(reject("Error 409: Duplicate Server Command"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            if (!cmd.cmd_id) {
-              this.getCommand({name: cmd.name}, cmd.type)
-                .then(c => {
-                  const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
-                  this.query(sql, [server.id, c.id, cmd.id, c.enabled])
-                    .then(resolve(`Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database!`))
-                    .catch(err1 => reject(err1));
-                })
-            } else {
-              this.getCommand({id: cmd.cmd_id}, "slash")
-                .then(c => {
-                  const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
-                  this.query(sql, [server.id, c.id, cmd.id, c.enabled])
-                    .then(resolve(`Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database!`))
-                    .catch(err1 => reject(err1));
-                })
-                .catch(err1 => reject(err1));
-            }
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+    await this.query("UPDATE characters SET hp_max = $1 WHERE user_id = $2 AND id = $3", [hp, user.id, dbChar.id])
 
-  remServCmd(server, cmd) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(cm => {
-          const sql = "DELETE FROM server_commands WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, cm.id])
-            .then(resolve(`Successfully removed Command ${cm.name} from Server ${server.name} in Database!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  toggleServCmd(server, cmd, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(c => {
-          const sql = "UPDATE server_commands SET enabled = $1 WHERE server_id = $2 AND id = $3";
-          this.query(sql, [bool, server.id, c.id])
-            .then(() => {
-              if (bool) {
-                resolve(`Successfully enabled Command \"${c.name}\" in Server \"${server.name}\"!`);
-              } else {
-                resolve(`Successfully disabled Command \"${c.name}\" in Server \"${server.name}\"!`);
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  restrictServCmd(server, cmd, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(c => {
-          const sql = "UPDATE server_commands SET restricted = $1 WHERE id = $2";
-          this.query(sql, [bool, c.id])
-            .then(() => {
-              if (bool) {
-                resolve(`Successfully enabled restrictions of Command \"${c.name}\" in Server \"${server.name}\"!`);
-              } else {
-                resolve(`Successfully disabled restrictions of Command \"${c.name}\" in Server \"${server.name}\"!`);
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRestriction(cmd, rest) {
-    return new Promise((resolve, reject) => {
-      if (!rest) {
-        const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1";
-        this.query(sql, [cmd.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Restrictions found");
-            } else if (results.length>=1) {
-              const rests = [];
-              for (const res of results) {
-                rests.push({
-                  type: res.type,
-                  id: res.id,
-                  permission: res.permission
-                });
-              }
-              resolve(rests);
-            }
-          })
-          .catch(err => reject(err));
-      } else if (rest) {
-        if (rest.id) {
-          const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND id = $2";
-          this.query(sql, [cmd.id, rest.id])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Restriction not found");
-              } else if (results.length===1) {
-                resolve([{
-                  type: results[0].type,
-                  id: results[0].id,
-                  permission: results[0].permission
-                }]);
-              }
-            })
-            .catch(err => reject(err));
-        } else if (rest.type) {
-          const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2";
-          this.query(sql, [cmd.id, rest.type])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: No Restrictions found");
-              } else if (results.length>=1) {
-                const rests = [];
-                for (const res of results) {
-                  rests.push([{
-                    type: res.type,
-                    id: res.id,
-                    permission: res.permission
-                  }]);
-                }
-                resolve(rests);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addRestriction(cmd, rest) {
-    return new Promise((resolve, reject) => {
-      this.getRestriction(cmd, rest)
-        .then(res => {
-          if (res[0].permission == rest.permission) {
-            reject("Error 409: Duplicate Restriction");
-          } else {
-            const sql = "UPDATE server_command_restrictions SET permission = $1 WHERE cmd_id = $2 AND id = $3";
-            this.query(sql, [rest.permission, cmd.id, rest.id])
-              .then(resolve(`Successfully updated restrictions of Command \"${cmd.name}\" in Server \"${server.name}\"!`))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO server_command_restrictions VALUES($1, $2, $3, $4)";
-            this.query(sql, [cmd.id, rest.type, rest.id, rest.permission])
-              .then(resolve(`Successfully added restriction to Command \"${cmd.name}\" in Server \"${server.name}\"!`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRestriction(cmd, rest) {
-    return new Promise((resolve, reject) => {
-      this.getRestriction(cmd, rest)
-        .then(res => {
-          res = res[0];
-          const sql = "DELETE FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2 AND id = $3";
-          this.query(sql, [cmd.id, res.type, res.id])
-            .then(resolve(`Successfully removed restriction of Command \"${cmd.name}\" in Server \"${server.name}\"!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getMember(server, user) {
-    return new Promise((resolve, reject) => {
-      if (!user) {
-        const sql = "SELECT * FROM server_members WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Server Members found");
-            } else if (results.length >= 1) {
-              const users = [];
-              for (const member of results) {
-                this.getUser({ id: member.user_id })
-                  .then(us => users.push({
-                    id: us.id,
-                    name: us.name,
-                    state: "Success"
-                  }))
-                  .catch(err => users.push({
-                    id: member.user_id,
-                    state: "Failed",
-                    reason: `${err}`
-                  }));
-              }
-              resolve(users);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2";
-        this.query(sql, [server.id, user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Server Member not found");
-            } else if (results.length === 0) {
-              const member = results[0];
-              this.getUser({ id: member.user_id })
-                .then(us => resolve(us))
-                .catch(err => reject(err));
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  addMember(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getMember(server, user)
-        .then(reject("Error 409: Duplicate Server Member"))
-        .catch(() => {
-          this.getUser(user)
-            .then(() => {
-              const sql = "INSERT INTO server_members (server_id, user_id) VALUES ($1, $2)";
-              this.query(sql, [server.id, user.id])
-                .then(resolve(`Successfully added User \"${user.username}\" to Server \"${server.name}\"`))
-                .catch(err1 => reject(err1));
-            })
-            .catch(err1 => {
-              if (String(err1).includes("Error 404: User")) {
-                this.addUser(user)
-                  .then(() => {
-                    const sql = "INSERT INTO server_members (server_id, user_id) VALUES($1, $2)";
-                    this.query(sql, [server.id, user.id])
-                      .then(() => {
-                        const sql = "INSERT INTO server_members (server_id, user_id) VALUES ($1, $2)";
-                        this.query(sql, [server.id, user.id])
-                          .then(resolve(`Successfully added User \"${user.username}\" to Server \"${server.name}\"`))
-                          .catch(err2 => reject(err2));
-                      })
-                      .catch(err2 => reject(err2));
-                  })
-                  .catch(err2 => reject(err2));
-              } else {
-                reject(err);
-              }
-            });
-        });
-    });
-  }
-
-  remMember(server, member) {
-    return new Promise((resolve, reject) => {
-      this.getMember(server, member)
-        .then(us => {
-          const sql = "DELETE FROM server_members WHERE server_id = $1 AND user_id = $2";
-          this.query(sql, [server.id, us.id])
-            .then(resolve(`Successfully removed User \"${member.username}\" from Server \"${server.name}\"`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getUser(user) {
-    return new Promise((resolve, reject) => {
-      if (user.id) {
-        const sql = "SELECT * FROM users WHERE id = $1";
-        this.query(sql, [user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: User not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM users WHERE name = $1";
-        this.query(sql, [user.username])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: User not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  addUser(user) {
-    return new Promise((resolve, reject) => {
-      this.getUser(user)
-        .then(reject("Error 409: Duplicate User"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO users (id, name) VALUES($1, $2)";
-            this.query(sql, [user.id, user.username])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remUser(user) {
-    return new Promise((resolve, reject) => {
-      this.getUser(user)
-        .then(us => {
-          const sql = "DELETE FROM users WHERE id = $1";
-          this.query(sql, [us.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateUser(user, char) {
-    return new Promise((resolve, reject) => {
-      this.getUser(user)
-        .then(us => {
-          if (!char) {
-            const sql = "UPDATE users SET name = $1, char_id = $2 WHERE id = $3";
-            this.query(sql, [user.username, char.id, us.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          } else {
-            const sql = "UPDATE users SET name = $1 WHERE id = $2";
-            this.query(sql, [user.username, us.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          if (!note) {
-            const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2";
-            this.query(sql, [server.id, u.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Server Notes found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (note.id) {
-              const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
-              this.query(sql, [server.id, u.id, note.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Server Note not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3";
-              this.query(sql, [server.id, u.id, note.title])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Server Note not found");
-                  } else if (results.length >= 1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          this.getServerNote(server, u, note)
-            .then(n => {
-              if (n.content == note.content) {
-                reject("Error 409: Duplicate Server Note");
-              } else {
-                const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
-                this.query(sql, [server.id, u.id, n.title, note.content, note.private])
-                  .then(resolve("Successfully added Server Note"))
-                  .catch(err => reject(err));
-              }
-            })
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
-                this.query(sql, [server.id, u.id, note.title, note.content, note.private])
-                  .then(resolve("Successfully added Server Note"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          this.getServerNote(server, u, note)
-            .then(n => {
-              const sql = "DELETE FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
-              this.query(sql, [server.id, u.id, n.id])
-                .then(resolve("Successfully removed Server Note"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          this.getServerNote(server, u, note)
-            .then(n => {
-              const sql = "UPDATE server_notes SET title = $1, content = $2, private = $3 WHERE server_id = $4 AND user_id = $5 AND id = $6";
-              this.query(sql, [note.title, note.content, note.private, server.id, u.id, n.id])
-                .then(resolve("Successfully updated Server Note!"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      if (!note) {
-        const sql = "SELECT * FROM global_notes WHERE user_id = $1";
-        this.query(sql, [user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Global Notes found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (note.id) {
-          const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND id = $2";
-          this.query(sql, [user.id, note.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Global Note not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND title = $2";
-          this.query(sql, [user.id, note.title])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Global Note not found");
-              } else if (results.length >= 1) {
-                resolve(results);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      this.getGlobalNote(user, note)
-        .then(n => {
-          if (n.content == note.content) {
-            reject("Error 409: Duplicate Global Note");
-          } else {
-            const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
-            this.query(sql, [user.id, note.title, note.content, note.private])
-              .then(resolve("Successfully added Global Note"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
-            this.query(sql, [user.id, note.title, note.content, note.private])
-              .then(resolve("Successfully added Global Note"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      this.getGlobalNote(user, note)
-        .then(n => {
-          const sql = "DELETE FROM global_notes WHERE user_id = $1 AND id = $2";
-          this.query(sql, [user.id, n.id])
-            .then(resolve("Successfully removed Global Note"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      this.getGlobalNote(user, note)
-        .then(n => {
-          const sql = "UPDATE global_notes SET title = $1, content = $2, private = $3 WHERE user_id = $4 AND id = $5";
-          this.query(sql, [note.title, note.content, note.private, user.id, n.id])
-            .then(resolve("Successfully updated Global Note"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      if (!armor) {
-        const sql = "SELECT * FROM armors WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Armor found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (armor.id) {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, armor.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, armor.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(reject("Error 409: Duplicate Armor"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-            this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "DELETE FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
-          this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req, server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getChar(user, char) {
-    return new Promise((resolve, reject) => {
-      if (!char) {
-        const sql = "SELECT * FROM characters WHERE user_id = $1";
-        this.query(sql, [user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Characters found");
-            } else if (results.length >= 1) {
-              let chars = []
-              for (let i = 0; i < results.length; i++) {
-                let char = {
-                  owner: user.id,
-                  name: results[0].name,
-                  ac: results[0].ac,
-                  init: results[0].init,
-                  level: results[0].level,
-                  xp: results[0].xp,
-                  stat: {
-                    str: 0,
-                    dex: 0,
-                    con: 0,
-                    int: 0,
-                    wis: 0,
-                    cha: 0,
-                  },
-                  money: {
-                    pp: results[0].pp,
-                    gp: results[0].gp,
-                    ep: results[0].ep,
-                    sp: results[0].sp,
-                    cp: results[0].cp
-                  },
-                  multi: results[0].multi,
-                  armor: null,
-                  race: null,
-                  subrace: null,
-                  clas: null,
-                  subclass: null,
-                  class_level: results[0].class_level,
-                  mc1: null,
-                  mc1sub: null,
-                  mc1_level: results[0].mc1_level,
-                  mc2: null,
-                  mc2sub: null,
-                  mc2_level: results[0].mc2_level,
-                  mc3: null,
-                  mc3sub: null,
-                  mc3_level: results[0].mc3_level
-                }
-                this.getCharStat()
-                this.getArmor(server, { id: results[0].armor_id })
-                  .then(arm => char.armor = arm.name)
-                  .catch(console.error);
-                this.getRace(server, { id: results[0].race_id })
-                  .then(race => {
-                    char.race = race.name;
-                    if (race.sub) {
-                      this.getSubrace(server, race, { id: results[0].subrace_id })
-                        .then(sub => char.subrace = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                this.getClass(server, { id: results[0].class_id })
-                  .then(clas => {
-                    char.clas = clas.name;
-                    if (clas.sub) {
-                      this.getSubclass(server, clas, { id: results[0].subclass_id })
-                        .then(sub => char.subclass = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                if (char.multi) {
-                  if (results[0].multiclass1_id) {
-                    this.getClass(server, { id: results[0].multiclass1_id })
-                      .then(clas => {
-                        char.mc1 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass1_sub_id })
-                            .then(sub => char.mc1sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass2_id) {
-                    this.getClass(server, { id: results[0].multiclass2_id })
-                      .then(clas => {
-                        char.mc2 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass2_sub_id })
-                            .then(sub => char.mc2sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass3_id) {
-                    this.getClass(server, { id: results[0].multiclass3_id })
-                      .then(clas => {
-                        char.mc3 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass3_sub_id })
-                            .then(sub => char.mc3sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                }
-                chars.push(char);
-              }
-              resolve(chars);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (char.id) {
-          const sql = "SELECT * FROM characters WHERE user_id = $1 AND id = $2";
-          this.query(sql, [user.id, char.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character not found");
-              } else if (results.length === 1) {
-                let char = {
-                  owner: user.id,
-                  name: results[0].name,
-                  ac: results[0].ac,
-                  init: results[0].init,
-                  level: results[0].level,
-                  xp: results[0].xp,
-                  stat: {
-                    str: 0,
-                    dex: 0,
-                    con: 0,
-                    int: 0,
-                    wis: 0,
-                    cha: 0,
-                  },
-                  money: {
-                    pp: results[0].pp,
-                    gp: results[0].gp,
-                    ep: results[0].ep,
-                    sp: results[0].sp,
-                    cp: results[0].cp
-                  },
-                  multi: results[0].multi,
-                  armor: null,
-                  race: null,
-                  subrace: null,
-                  clas: null,
-                  subclass: null,
-                  class_level: results[0].class_level,
-                  mc1: null,
-                  mc1sub: null,
-                  mc1_level: results[0].mc1_level,
-                  mc2: null,
-                  mc2sub: null,
-                  mc2_level: results[0].mc2_level,
-                  mc3: null,
-                  mc3sub: null,
-                  mc3_level: results[0].mc3_level
-                }
-                this.getArmor(server, { id: results[0].armor_id })
-                  .then(arm => char.armor = arm.name)
-                  .catch(console.error);
-                this.getRace(server, { id: results[0].race_id })
-                  .then(race => {
-                    char.race = race.name;
-                    if (race.sub) {
-                      this.getSubrace(server, race, { id: results[0].subrace_id })
-                        .then(sub => char.subrace = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                this.getClass(server, { id: results[0].class_id })
-                  .then(clas => {
-                    char.clas = clas.name;
-                    if (clas.sub) {
-                      this.getSubclass(server, clas, { id: results[0].subclass_id })
-                        .then(sub => char.subclass = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                if (char.multi) {
-                  if (results[0].multiclass1_id) {
-                    this.getClass(server, { id: results[0].multiclass1_id })
-                      .then(clas => {
-                        char.mc1 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass1_sub_id })
-                            .then(sub => char.mc1sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass2_id) {
-                    this.getClass(server, { id: results[0].multiclass2_id })
-                      .then(clas => {
-                        char.mc2 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass2_sub_id })
-                            .then(sub => char.mc2sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass3_id) {
-                    this.getClass(server, { id: results[0].multiclass3_id })
-                      .then(clas => {
-                        char.mc3 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass3_sub_id })
-                            .then(sub => char.mc3sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                }
-                resolve(char);
-              }
-            })
-        } else {
-          const sql = "SELECT * FROM characters WHERE user_id = $1 AND name = $2";
-          this.query(sql, [user.id, char.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character not found");
-              } else if (results.length === 1) {
-                let char = {
-                  id: results[0].id,
-                  owner: user.id,
-                  name: results[0].name,
-                  ac: results[0].ac,
-                  init: results[0].init,
-                  level: results[0].level,
-                  xp: results[0].xp,
-                  stats: {
-                    str: 0,
-                    dex: 0,
-                    con: 0,
-                    int: 0,
-                    wis: 0,
-                    cha: 0,
-                  },
-                  money: {
-                    pp: results[0].pp,
-                    gp: results[0].gp,
-                    ep: results[0].ep,
-                    sp: results[0].sp,
-                    cp: results[0].cp
-                  },
-                  multi: results[0].multi,
-                  armor: null,
-                  race: null,
-                  subrace: null,
-                  clas: null,
-                  subclass: null,
-                  class_level: results[0].class_level,
-                  mc1: null,
-                  mc1sub: null,
-                  mc1_level: results[0].mc1_level,
-                  mc2: null,
-                  mc2sub: null,
-                  mc2_level: results[0].mc2_level,
-                  mc3: null,
-                  mc3sub: null,
-                  mc3_level: results[0].mc3_level
-                }
-                this.getCharStat({id: results[0].id})
-                  .then(stats => char.stats = stats[0])
-                this.getArmor(server, { id: results[0].armor_id })
-                  .then(arm => char.armor = arm.name)
-                  .catch(console.error);
-                this.getRace(server, { id: results[0].race_id })
-                  .then(race => {
-                    char.race = race.name;
-                    if (race.sub) {
-                      this.getSubrace(server, race, { id: results[0].subrace_id })
-                        .then(sub => char.subrace = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                this.getClass(server, { id: results[0].class_id })
-                  .then(clas => {
-                    char.clas = clas.name;
-                    if (clas.sub) {
-                      this.getSubclass(server, clas, { id: results[0].subclass_id })
-                        .then(sub => char.subclass = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                if (char.multi) {
-                  if (results[0].multiclass1_id) {
-                    this.getClass(server, { id: results[0].multiclass1_id })
-                      .then(clas => {
-                        char.mc1 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass1_sub_id })
-                            .then(sub => char.mc1sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass2_id) {
-                    this.getClass(server, { id: results[0].multiclass2_id })
-                      .then(clas => {
-                        char.mc2 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass2_sub_id })
-                            .then(sub => char.mc2sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass3_id) {
-                    this.getClass(server, { id: results[0].multiclass3_id })
-                      .then(clas => {
-                        char.mc3 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass3_sub_id })
-                            .then(sub => char.mc3sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                }
-                resolve(char);
-              } else if (results.length > 1) {
-                resolve(results);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addChar(server, user, char) {
-    return new Promise((resolve, reject) => {
-      reject("Character Creation is currently in Development!");
-    });
-  }
-
-  remChar(user, char) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(results => {
-          if (isArray(results)) {
-            reject("Error 409: Found more than 1 Character!")
-          } else {
-            let char = results;
-            const sql = "DELETE FROM characters WHERE user_id = $1 AND id = $2";
-            this.query(sql, [user.id, char.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharXP(user, char, method, xp) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          switch (method) {
-            case "set":
-              const sql = "UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3";
-              this.query(sql, [xp, c.user_id, c.id])
-                .then(() => {
-                  const sql1 = "UPDATE characters SET pb = $1, level = $2 WHERE user_id = $3 AND id = $4";
-                  if (xp<300) {
-                    this.query(sql1, [2,1,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err))
-                  } else if (xp<900) {
-                    this.query(sql1, [2,2,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<2700) {
-                    this.query(sql1, [2,3,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<6500) {
-                    this.query(sql1, [2,4,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<14000) {
-                    this.query(sql1, [3,5,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<23000) {
-                    this.query(sql1, [3,6,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<34000) {
-                    this.query(sql1, [3,7,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<48000) {
-                    this.query(sql1, [3,8,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<64000) {
-                    this.query(sql1, [4,9,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<85000) {
-                    this.query(sql1, [4,10,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<100000) {
-                    this.query(sql1, [4,11,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<120000) {
-                    this.query(sql1, [4,12,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<140000) {
-                    this.query(sql1, [5,13,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<165000) {
-                    this.query(sql1, [5,14,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<195000) {
-                    this.query(sql1, [5,15,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<225000) {
-                    this.query(sql1, [5,16,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<265000) {
-                    this.query(sql1, [6,17,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<305000) {
-                    this.query(sql1, [6,18,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<335000) {
-                    this.query(sql1, [6,19,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp==335000) {
-                    this.query(sql1, [6,20,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            break;
-            case "add":
-              xp+=c.xp;
-              const sql1 = "UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3";
-              this.query(sql1, [xp, c.user_id, c.id])
-                .then(() => {
-                  const sql2 = "UPDATE characters SET pb = $1, level = $2 WHERE user_id = $3 AND id = $4";
-                  if (xp<300) {
-                    this.query(sql2, [2,1,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err))
-                  } else if (xp<900) {
-                    this.query(sql2, [2,2,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<2700) {
-                    this.query(sql2, [2,3,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<6500) {
-                    this.query(sql2, [2,4,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<14000) {
-                    this.query(sql2, [3,5,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<23000) {
-                    this.query(sql2, [3,6,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<34000) {
-                    this.query(sql2, [3,7,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<48000) {
-                    this.query(sql2, [3,8,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<64000) {
-                    this.query(sql2, [4,9,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<85000) {
-                    this.query(sql2, [4,10,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<100000) {
-                    this.query(sql2, [4,11,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<120000) {
-                    this.query(sql2, [4,12,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<140000) {
-                    this.query(sql2, [5,13,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<165000) {
-                    this.query(sql2, [5,14,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<195000) {
-                    this.query(sql2, [5,15,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<225000) {
-                    this.query(sql2, [5,16,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<265000) {
-                    this.query(sql2, [6,17,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<305000) {
-                    this.query(sql2, [6,18,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<335000) {
-                    this.query(sql2, [6,19,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp==335000) {
-                    this.query(sql2, [6,20,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            break;
-            case "rem":
-              xp = c.xp - xp;
-              const sql3 = "UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3";
-              this.query(sql3, [xp, c.user_id, c.id])
-                .then(() => {
-                  const sql2 = "UPDATE characters SET pb = $1, level = $2 WHERE user_id = $3 AND id = $4";
-                  if (xp<300) {
-                    this.query(sql2, [2,1,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err))
-                  } else if (xp<900) {
-                    this.query(sql2, [2,2,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<2700) {
-                    this.query(sql2, [2,3,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<6500) {
-                    this.query(sql2, [2,4,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<14000) {
-                    this.query(sql2, [3,5,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<23000) {
-                    this.query(sql2, [3,6,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<34000) {
-                    this.query(sql2, [3,7,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<48000) {
-                    this.query(sql2, [3,8,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<64000) {
-                    this.query(sql2, [4,9,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<85000) {
-                    this.query(sql2, [4,10,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<100000) {
-                    this.query(sql2, [4,11,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<120000) {
-                    this.query(sql2, [4,12,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<140000) {
-                    this.query(sql2, [5,13,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<165000) {
-                    this.query(sql2, [5,14,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<195000) {
-                    this.query(sql2, [5,15,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<225000) {
-                    this.query(sql2, [5,16,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<265000) {
-                    this.query(sql2, [6,17,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<305000) {
-                    this.query(sql2, [6,18,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<335000) {
-                    this.query(sql2, [6,19,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp==335000) {
-                    this.query(sql2, [6,20,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            break;
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  setCharLvl(server, user, char, lvl) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          const xp = 300 * (lvl - 1);
-          this.updateCharXP(user, char, "set", xp)
-            .then(() => {
-              this.updateCharHP(server, user, char)
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  selectChar(user, char) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          const sql = "UPDATE users SET char_id = $1 WHERE user_id = $2";
-          this.query(sql, [user.id, c.id])
-            .then(resolve(`Changed active Character to \"${c.name}\"`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharHP(server, user, char) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(s => {
-          this.getChar(user, char)
-            .then(c => {
-              this.getClass(server, {id: c.class_id})
-                .then(clas => {
-                  let hp;
-                  if (s.hp_method == "fixed") {
-                    if (c.level>1) {
-                      hp = clas.hitdice_size + c.class_level
-                    } else {
-                      hp = clas.hitdice_size;
-                    }
-                  }
-                })
-            })
-        })
-    });
-  }
+    return `Successfully set Maximum HP of Character \"${char.name}\" to ${hp}`;
+  };
 
   getCharNote(user, char, note) {
     return new Promise((resolve, reject) => {

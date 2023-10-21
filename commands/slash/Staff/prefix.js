@@ -40,50 +40,50 @@ class Command {
             case "add":
                 const addprefix = option.getString("prefix");
                 client.database.addPrefix(server, addprefix)
-                        .then(async (mes) => {
-                            client.database.writeLog(server, mes)
-                                .then(msg => client.database.writeDevLog(msg))
-                                .catch(err => client.database.writeDevLog(`${err}`));
-                            await interaction.reply({
-                                embeds: [
-                                    new EmbedBuilder()
-                                        .setColor('Green')
-                                        .setTitle("Success")
-                                        .setDescription(`Added Prefix \`${addprefix}\``)
-                                        .setTimestamp()
-                                ]
-                            });
-                        })
-                        .catch(async (err) => {
-                            client.database.writeLog(server, `${err}`)
-                                .then(async (msg1) => {
-                                    client.database.writeDevLog(msg1);
-                                    if (String(err).includes("Error 409")) {
-                                        await interaction.reply({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor("Red")
-                                                    .setTitle(`${err}`)
-                                                    .setDescription(`The Prefix \`${addprefix}\` already exists on the Server!`)
-                                                    .setTimestamp()
-                                            ],
-                                            ephemeral: true
-                                        });
-                                    } else {
-                                        await interaction.reply({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor("Red")
-                                                    .setTitle("An Error occurred...")
-                                                    .setDescription(`${err}`)
-                                                    .setTimestamp()
-                                            ],
-                                            ephemeral: true
-                                        });
-                                    }
-                                })
-                                .catch(err1 => client.database.writeDevLog(`${err1}`));
+                    .then(async (mes) => {
+                        client.database.writeLog(server, mes)
+                            .then(msg => client.database.writeDevLog(msg))
+                            .catch(err => client.database.writeDevLog(`${err}`));
+                        await interaction.reply({
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Green')
+                                    .setTitle("Success")
+                                    .setDescription(`Added Prefix \`${addprefix}\``)
+                                    .setTimestamp()
+                            ]
                         });
+                    })
+                    .catch(async (err) => {
+                        client.database.writeLog(server, `${err}`)
+                            .then(async (msg1) => {
+                                client.database.writeDevLog(msg1);
+                                if (String(err).includes("Error 409")) {
+                                    await interaction.reply({
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor("Red")
+                                                .setTitle(`${err}`)
+                                                .setDescription(`The Prefix \`${addprefix}\` already exists on the Server!`)
+                                                .setTimestamp()
+                                        ],
+                                        ephemeral: true
+                                    });
+                                } else {
+                                    await interaction.reply({
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor("Red")
+                                                .setTitle("An Error occurred...")
+                                                .setDescription(`${err}`)
+                                                .setTimestamp()
+                                        ],
+                                        ephemeral: true
+                                    });
+                                }
+                            })
+                            .catch(err1 => client.database.writeDevLog(`${err1}`));
+                    });
             return;
             case "remove":
                 const row = new ActionRowBuilder()

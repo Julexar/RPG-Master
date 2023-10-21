@@ -1,5 +1,5 @@
 import { Client, Collection, GatewayIntentBits } from "discord.js";
-import config from "../../config.js";
+import { config } from "../../config.js";
 import * as psql from "../../database/psql.js";
 class DiscordClient extends Client {
   constructor() {
