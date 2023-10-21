@@ -5,7 +5,7 @@ class Command {
     constructor() {
         this.server;
         this.name = "command";
-        this.description = "Prints Logs";
+        this.description = "Command Settings";
         this.enabled = true;
         this.defaultMemberPermissions = [PermissionFlagsBits.ModerateMembers];
         this.options = [
