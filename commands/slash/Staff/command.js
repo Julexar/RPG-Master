@@ -7,7 +7,7 @@ class Command {
         this.name = "command";
         this.description = "Command Settings";
         this.enabled = true;
-        this.defaultMemberPermissions = [PermissionFlagsBits.ModerateMembers];
+        this.defaultMemberPermissions = [PermissionFlagsBits.Administrator];
         this.options = [
             {
                 name: "toggle",
