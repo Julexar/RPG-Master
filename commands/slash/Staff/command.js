@@ -21,12 +21,6 @@ class Command {
                         required: true,
                         choices: cmds,
                     },
-                    {
-                        name: "active",
-                        description: "Provide a Boolean",
-                        type: ApplicationCommandOptionType.Boolean,
-                        required: true,
-                    },
                 ],
             },
             {
@@ -108,6 +102,20 @@ class Command {
                             },
                         ],
                     },
+                    {
+                        name: "view",
+                        description: "Shows the Restrictions of a Command",
+                        type: ApplicationCommandOptionType.Subcommand,
+                        options: [
+                            {
+                                name: "command",
+                                description: "Choose a Command",
+                                type: ApplicationCommandOptionType.String,
+                                required: true,
+                                choices: cmds,
+                            },
+                        ],
+                    },
                 ],
             },
         ];
@@ -136,7 +144,7 @@ class Command {
         switch (option.getSubcommand()) {
             case "toggle":
                 const bool = option.getBoolean("bool");
-                client.database.toggleServCmd(this.server, cmd, bool)
+                client.database.toggleServCmd(this.server, cmd)
                     .then(msg => {
                         client.database.writeLog(this.server, `${msg}`)
                             .then(async (mes) => {
