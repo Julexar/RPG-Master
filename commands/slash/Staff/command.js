@@ -24,10 +24,24 @@ class Command {
                 ],
             },
             {
-                name: "restrict",
+                name: "restriction",
                 description: "Edits Restrictions of a Command",
                 type: ApplicationCommandOptionType.SubcommandGroup,
                 options: [
+                    {
+                        name: "toggle",
+                        description: "Toggles the Restrictions of a Command",
+                        type: ApplicationCommandOptionType.Subcommand,
+                        options: [
+                            {
+                                name: "command",
+                                description: "Choose a Command",
+                                type: ApplicationCommandOptionType.String,
+                                required: true,
+                                choices: cmds,
+                            },
+                        ],
+                    },
                     {
                         name: "add",
                         description: "Adds a Restriction to a Command",
@@ -143,65 +157,68 @@ class Command {
         };
         switch (option.getSubcommand()) {
             case "toggle":
-                const bool = option.getBoolean("bool");
-                client.database.toggleServCmd(this.server, cmd)
-                    .then(msg => {
-                        client.database.writeLog(this.server, `${msg}`)
-                            .then(async (mes) => {
-                                client.database.writeDevLog(`${mes}`);
-                                await interaction.reply({
-                                    embeds: [
-                                        new EmbedBuilder()
-                                            .setColor("Green")
-                                            .setDescription(`${mes}`)
-                                            .setTimestamp()
-                                    ],
-                                    ephemeral: true
-                                });
-                            })
-                            .catch(err => client.database.writeDevLog(`${err}`));
-                    })
-                    .catch(err => {
-                        client.database.writeLog(this.server, `${err}`)
-                            .then(async (mes) => {
-                                client.database.writeDevLog(`${mes}`);
-                                if (String(err).includes("Command")) {
+                if (option.getSubcommandGroup() == "restriction") {
+                    client.database.restrictServCmd(this.server, cmd)
+                } else {
+                    client.database.toggleServCmd(this.server, cmd)
+                        .then(msg => {
+                            client.database.writeLog(this.server, `${msg}`)
+                                .then(async (mes) => {
+                                    client.database.writeDevLog(`${mes}`);
                                     await interaction.reply({
                                         embeds: [
                                             new EmbedBuilder()
-                                                .setColor("Red")
-                                                .setTitle(`${err}`)
-                                                .setDescription("Could not find that Server Command in the Database!")
+                                                .setColor("Green")
+                                                .setDescription(`${mes}`)
                                                 .setTimestamp()
                                         ],
                                         ephemeral: true
                                     });
-                                } else if (String(err).includes("Server")) {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor("Red")
-                                                .setTitle(`${err}`)
-                                                .setDescription("Could not find the Server in the Database!")
-                                                .setTimestamp()
-                                        ],
-                                        ephemeral: true
-                                    });
-                                } else {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor("Red")
-                                                .setTitle("An Error occurred...")
-                                                .setDescription(`${err}`)
-                                                .setTimestamp()
-                                        ],
-                                        ephemeral: true
-                                    });
-                                }
-                            })
-                            .catch(err1 => client.database.writeDevLog(`${err1}`));
-                    });
+                                })
+                                .catch(err => client.database.writeDevLog(`${err}`));
+                        })
+                        .catch(err => {
+                            client.database.writeLog(this.server, `${err}`)
+                                .then(async (mes) => {
+                                    client.database.writeDevLog(`${mes}`);
+                                    if (String(err).includes("Command")) {
+                                        await interaction.reply({
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor("Red")
+                                                    .setTitle(`${err}`)
+                                                    .setDescription("Could not find that Server Command in the Database!")
+                                                    .setTimestamp()
+                                            ],
+                                            ephemeral: true
+                                        });
+                                    } else if (String(err).includes("Server")) {
+                                        await interaction.reply({
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor("Red")
+                                                    .setTitle(`${err}`)
+                                                    .setDescription("Could not find the Server in the Database!")
+                                                    .setTimestamp()
+                                            ],
+                                            ephemeral: true
+                                        });
+                                    } else {
+                                        await interaction.reply({
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor("Red")
+                                                    .setTitle("An Error occurred...")
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp()
+                                            ],
+                                            ephemeral: true
+                                        });
+                                    }
+                                })
+                                .catch(err1 => client.database.writeDevLog(`${err1}`));
+                        });
+                }
             return;
             case "add":
                 if (option.getString("type")=="user") {

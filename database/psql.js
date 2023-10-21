@@ -627,22 +627,22 @@ class PSQL {
     return `Successfully removed ${command.type} Command \"${command.name}\" from Server \"${server.name}\" in Database`;
   };
 
-  async toggleServCmd(server, cmd, bool) {
+  async toggleServCmd(server, cmd) {
     const command = await this.getServCmd(server, cmd)
 
     const sql = "UPDATE server_commands SET enabled = $1 WHERE server_id = $2 AND id = $3";
-    await this.query(sql, [bool, server.id, command.id])
+    await this.query(sql, [!command.enabled, server.id, command.id])
 
-    const action = bool ? "enabled" : "disabled"
+    const action = !command.enabled ? "enabled" : "disabled"
     return `Successfully ${action} Command \"${command.name}\" in Server \"${server.name}\"`;
   };
 
-  async restrictServCmd(server, cmd, bool) {
+  async restrictServCmd(server, cmd) {
     const command = await this.getServCmd(server, cmd);
 
-    await this.query("UPDATE server_commands SET restricted = $1 WHERE id = $2", [bool, command.id])
+    await this.query("UPDATE server_commands SET restricted = $1 WHERE id = $2", [!command.restricted, command.id])
 
-    const action = bool ? "enabled" : "disabled"
+    const action = !command.restricted ? "enabled" : "disabled"
     return `Successfully ${action} restrictions of Command \"${command.name}\" in Server \"${server.name}\"`;
   };
 
