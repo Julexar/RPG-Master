@@ -56,7 +56,7 @@ const {
 const { kHeadersList } = require('../core/symbols')
 const EE = require('events')
 const { Readable, pipeline } = require('stream')
-const { isErrored, isReadable, nodeMajor, nodeMinor } = require('../core/util')
+const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
 const { getGlobalDispatcher } = require('../global')
@@ -174,22 +174,22 @@ async function fetch (input, init = {}) {
   let controller = null
 
   // 11. Add the following abort steps to requestObject’s signal:
-  requestObject.signal.addEventListener(
-    'abort',
+  addAbortListener(
+    requestObject.signal,
     () => {
       // 1. Set locallyAborted to true.
       locallyAborted = true
 
-      // 2. Abort the fetch() call with p, request, responseObject,
+      // 2. Assert: controller is non-null.
+      assert(controller != null)
+
+      // 3. Abort controller with requestObject’s signal’s abort reason.
+      controller.abort(requestObject.signal.reason)
+
+      // 4. Abort the fetch() call with p, request, responseObject,
       //    and requestObject’s signal’s abort reason.
       abortFetch(p, request, responseObject, requestObject.signal.reason)
-
-      // 3. If controller is not null, then abort controller.
-      if (controller != null) {
-        controller.abort()
-      }
-    },
-    { once: true }
+    }
   )
 
   // 12. Let handleFetchDone given response response be to finalize and
@@ -319,7 +319,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
 function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis, cacheState) {
   if (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2)) {
-    performance.markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState)
+    performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis, cacheState)
   }
 }
 
@@ -1200,6 +1200,10 @@ async function httpRedirectFetch (fetchParams, response) {
   if (!sameOrigin(requestCurrentURL(request), locationURL)) {
     // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
     request.headersList.delete('authorization')
+
+    // "Cookie" and "Host" are forbidden request-headers, which undici doesn't implement.
+    request.headersList.delete('cookie')
+    request.headersList.delete('host')
   }
 
   // 14. If request’s body is non-null, then set request’s body to the first return
@@ -1344,7 +1348,7 @@ async function httpNetworkOrCacheFetch (
   //    user agents should append `User-Agent`/default `User-Agent` value to
   //    httpRequest’s header list.
   if (!httpRequest.headersList.contains('user-agent')) {
-    httpRequest.headersList.append('user-agent', 'undici')
+    httpRequest.headersList.append('user-agent', typeof esbuildDetection === 'undefined' ? 'undici' : 'node')
   }
 
   //    15. If httpRequest’s cache mode is "default" and httpRequest’s header
@@ -1405,6 +1409,8 @@ async function httpNetworkOrCacheFetch (
       httpRequest.headersList.append('accept-encoding', 'gzip, deflate')
     }
   }
+
+  httpRequest.headersList.delete('host')
 
   //    20. If includeCredentials is true, then:
   if (includeCredentials) {
@@ -1760,7 +1766,7 @@ async function httpNetworkFetch (
       fetchParams.controller.connection.destroy()
 
       // 2. Return the appropriate network error for fetchParams.
-      return makeAppropriateNetworkError(fetchParams)
+      return makeAppropriateNetworkError(fetchParams, err)
     }
 
     return makeNetworkError(err)
@@ -1979,19 +1985,37 @@ async function httpNetworkFetch (
           let location = ''
 
           const headers = new Headers()
-          for (let n = 0; n < headersList.length; n += 2) {
-            const key = headersList[n + 0].toString('latin1')
-            const val = headersList[n + 1].toString('latin1')
 
-            if (key.toLowerCase() === 'content-encoding') {
-              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-              // "All content-coding values are case-insensitive..."
-              codings = val.toLowerCase().split(',').map((x) => x.trim())
-            } else if (key.toLowerCase() === 'location') {
-              location = val
+          // For H2, the headers are a plain JS object
+          // We distinguish between them and iterate accordingly
+          if (Array.isArray(headersList)) {
+            for (let n = 0; n < headersList.length; n += 2) {
+              const key = headersList[n + 0].toString('latin1')
+              const val = headersList[n + 1].toString('latin1')
+              if (key.toLowerCase() === 'content-encoding') {
+                // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+                // "All content-coding values are case-insensitive..."
+                codings = val.toLowerCase().split(',').map((x) => x.trim())
+              } else if (key.toLowerCase() === 'location') {
+                location = val
+              }
+
+              headers.append(key, val)
             }
+          } else {
+            const keys = Object.keys(headersList)
+            for (const key of keys) {
+              const val = headersList[key]
+              if (key.toLowerCase() === 'content-encoding') {
+                // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+                // "All content-coding values are case-insensitive..."
+                codings = val.toLowerCase().split(',').map((x) => x.trim()).reverse()
+              } else if (key.toLowerCase() === 'location') {
+                location = val
+              }
 
-            headers.append(key, val)
+              headers.append(key, val)
+            }
           }
 
           this.body = new Readable({ read: resume })
@@ -2007,7 +2031,14 @@ async function httpNetworkFetch (
             for (const coding of codings) {
               // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
               if (coding === 'x-gzip' || coding === 'gzip') {
-                decoders.push(zlib.createGunzip())
+                decoders.push(zlib.createGunzip({
+                  // Be less strict when decoding compressed responses, since sometimes
+                  // servers send slightly invalid responses that are still accepted
+                  // by common browsers.
+                  // Always using Z_SYNC_FLUSH is what cURL does.
+                  flush: zlib.constants.Z_SYNC_FLUSH,
+                  finishFlush: zlib.constants.Z_SYNC_FLUSH
+                }))
               } else if (coding === 'deflate') {
                 decoders.push(zlib.createInflate())
               } else if (coding === 'br') {
