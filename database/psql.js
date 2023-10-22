@@ -1545,27 +1545,22 @@ class PSQL {
   };
 
   async setCharStats(char, stats) {
-    return await this.getCharStat(char)
-    .then(async (charStats) => {
+    try {
+      const charStats = await this.getCharStat(char)
       stats = stats.filter(stat => !stat.name.inlcudes(charStats.map(charStat => charStat.name)))
       
-      stats.map(async (stat) => {
-        await this.setCharStat(char, stat)
-      });
-
-      return "Successfully updated Character Stats in Database";
-    })
-    .catch(async (err) => {
+      await Promise.all(stats.map(stat => this.setCharStat(char, stat)));
+    } catch (err) {
       if (!(err instanceof NotFoundError)) {
         throw err;
       }
-
+  
       stats.map(async (stat) => {
         await this.setCharStat(char, stat)
       });
-
-      return "Successfully added Character Stats to Database";
-    });
+    }
+  
+    return "Successfully added Character Stats to Database";
   };
 
   async charStatExists(char, stat) {
