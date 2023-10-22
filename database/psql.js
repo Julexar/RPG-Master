@@ -1406,37 +1406,22 @@ class PSQL {
 
   async updateCharHP(server, user, char) {
     const dbChar = await this.getChar(user, char)
-
     const charClass = await this.getClass(server, {id: dbChar.class})
-
     const charConstitution = await this.getCharStat(char, "con")
-
     let hp = charClass.hitdice_size + charConstitution;
 
-    if (dbChar.hp_method === "fixed") {
-      if (!dbChar.multi) {
-        hp += dbChar.class_level-1 * (Math.ceil(charClass.hitdice_size / 2) + charConstitution);
-      } else {
-        for (async (mc) of dbChar.mc) {
-          if (mc.enabled) {
-            const charMC = await this.getClass(server, {id: mc.id})
+    const modifier = dbChar.hp_method === "fixed" ? 0.5 : Math.random()
 
-            hp += mc.level-1 * (Math.ceil(charMC.hitdice_size / 2) + charConstitution);
-          }
-        }
-      }
+    if (!dbChar.multi) {
+      hp += dbChar.class_level-1 * (Math.ceil(charClass.hitdice_size * modifier) + charConstitution);
     } else {
-      if (!dbChar.multi) {
-        hp += dbChar.class_level-1 * (Math.ceil(Math.random() * charClass.hitdice_size) + charConstitution);
-      } else {
-        for (async (mc) of dbChar.mc) {
-          if (mc.enabled) {
-            const charMC = await this.getClass(server, {id: mc.id})
+      await Promise.all(dbChar.mc.map(async (mc) => {
+        if (mc.enabled) {
+          const charMC = await this.getClass(server, {id: mc.id})
 
-            hp += mc.level-1 * (Math.ceil(Math.random() * charMC.hitdice_size) + charConstitution);
-          }
+          hp += mc.level-1 * (Math.ceil(charMC.hitdice_size * modifier) + charConstitution);
         }
-      }
+      }));
     }
 
     await this.query("UPDATE characters SET hp_max = $1 WHERE user_id = $2 AND id = $3", [hp, user.id, dbChar.id])
@@ -1444,397 +1429,349 @@ class PSQL {
     return `Successfully set Maximum HP of Character \"${char.name}\" to ${hp}`;
   };
 
-  getCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          if (!note) {
-            const sql = "SELECT * FROM character_notes WHERE char_id = $1";
-            this.query(sql, [c.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Charcter Notes found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (note.id) {
-              const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, note.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Character Note not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND title = $2";
-              this.query(sql, [c.id, note.title])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Character Note not found");
-                  } else if (results.length >= 1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
+  async getCharNote(user, char, note) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!")
+    }
 
-  addCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          this.getCharNote(user, c, note)
-            .then(n => {
-              if (n.content == note.content) {
-                reject("Error 409: Duplicate Character Note");
-              } else {
-                const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
-                this.query(sql, [c.id, note.title, note.content, note.private])
-                  .then(resolve("Success"))
-                  .catch(err => reject(err));
-              }
-            })
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
-                this.query(sql, [c.id, note.title, note.content, note.private])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (!note) {
+      const results = await this.query("SELECT * FROM character_notes WHERE char_id = $1", [char.id])
 
-  remCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          this.getCharNote(user, c, note)
-            .then(n => {
-              const sql = "DELETE FROM character_notes WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, n.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          this.getCharNote(user, char, note)
-            .then(n => {
-              const sql = "UPDATE character_notes SET title = $1, content = $2, private = $3 WHERE char_id = $4 AND id = $5";
-              this.query(sql, [note.title, note.content, note.private, c.id, n.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharStat(char, stat) {
-    return new Promise((resolve, reject) => {
-      if (!stat) {
-        const sql = "SELECT * FROM character_stats WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Character Stats found");
-            } else if (results.length===1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = `SELECT ${stat} FROM character_stats WHERE char_id = $1`;
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: Character Stat not found");
-            } else if (results.length===1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Notes found", "Could not find any Notes for this Character in the Database!");
       }
-    });
-  }
 
-  setCharStat(char, stat, val) {
-    return new Promise((resolve, reject) => {
-      this.getCharStat(char, stat)
-        .then(s => {
-          if (s.includes(val)) {
-            reject("Error 409: Duplicate Character Stat");
-          } else {
-            const sql = `UPDATE character_stats SET ${stat} = $1 WHERE char_id = $2`;
-            this.query(sql, [val, char.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404: No")) {
-            const sql = "INSERT INTO character_stats (char_id, str, dex, con, int, wis, cha) VALUES($1, $2, $3, $4, $5, $6, $7)";
-            this.query(sql, [char.id, val[0], val[1], val[2], val[3], val[4], val[5]])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results;
+    }
 
-  remCharStat(char, stat) {
-    return new Promise((resolve, reject) => {
-      this.getCharStat(char, stat)
-        .then(function() {
-          const sql = "DELETE FROM character_stats WHERE char_id = $1 AND name = $2";
-          this.query(sql, [char.id, stat.name])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (note.id) {
+      const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, note.id])
 
-  getCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          if (!act) {
-            const sql = "SELECT * FROM character_actions WHERE char_id = $1";
-            this.query(sql, [c.id])
-              .then(results => {
-                if (results.length===0) {
-                  reject("Error 404: No Actions found");
-                } else if (results.length>=1) {
-                  const acts = [];
-                  for (const action of results) {
-                    if (action.atk_id) {
-                      this.getCharAttack(c, {id: action.atk_id})
-                        .then(atk => {
-                          this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                            .then(type => acts.push({
-                              id: action.id,
-                              akt_id: atk.id,
-                              name: atk.name,
-                              description: atk.description,
-                              atk_stat: atk.atk_stat,
-                              save: atk.save,
-                              save_stat: atk.save_stat,
-                              on_fail: atk.on_fail,
-                              dmg_dice: akt.dmg_dice,
-                              dmg_dice_size: atk.dmg_dice_size,
-                              dmg: atk.dmg,
-                              dmg_type: type.name,
-                              magical: atk.magical,
-                              magic_bonus: atk.magic_bonus,
-                              state: "Success"
-                            }))
-                            .catch(err => acts.push({
-                              name: action.name,
-                              id: action.id,
-                              state: "Failed",
-                              reason: `${err}`
-                            }));
-                        })
-                        .catch(err => acts.push({
-                          name: action.name,
-                          id: action.id,
-                          state: "Failed",
-                          reason: `${err}`
-                        }));
-                    }
-                  }
-                  resolve(acts);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (act.id) {
-              const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, act.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Action not found");
-                  } else if (results.length===1) {
-                    act = results[0];
-                    if (act.atk_id) {
-                      this.getCharAttack(c, {id: action.atk_id})
-                        .then(atk => {
-                          this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                            .then(type => resolve({
-                              id: act.id,
-                              akt_id: atk.id,
-                              name: atk.name,
-                              description: atk.description,
-                              atk_stat: atk.atk_stat,
-                              save: atk.save,
-                              save_stat: atk.save_stat,
-                              on_fail: atk.on_fail,
-                              dmg_dice: akt.dmg_dice,
-                              dmg_dice_size: atk.dmg_dice_size,
-                              dmg: atk.dmg,
-                              dmg_type: type.name,
-                              magical: atk.magical,
-                              magic_bonus: atk.magic_bonus,
-                              state: "Success"
-                            }))
-                            .catch(err => reject(err));
-                        })
-                        .catch(err => reject(err));
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND name = $2";
-              this.query(sql, [c.id, act.name])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Action not found");
-                  } else if (results.length===1) {
-                    act = results[0];
-                    if (act.atk_id) {
-                      this.getCharAttack(c, {id: act.atk_id})
-                        .then(atk => {
-                          this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                            .then(type => resolve({
-                              id: act.id,
-                              akt_id: atk.id,
-                              name: atk.name,
-                              description: atk.description,
-                              atk_stat: atk.atk_stat,
-                              save: atk.save,
-                              save_stat: atk.save_stat,
-                              on_fail: atk.on_fail,
-                              dmg_dice: akt.dmg_dice,
-                              dmg_dice_size: atk.dmg_dice_size,
-                              dmg: atk.dmg,
-                              dmg_type: type.name,
-                              magical: atk.magical,
-                              magic_bonus: atk.magic_bonus,
-                              state: "Success"
-                            }))
-                            .catch(err => reject(err));
-                        })
-                        .catch(err => reject(err));
-                    } else if (results.length>1) {
-                      const acts = [];
-                      for (const action of results) {
-                        if (action.atk_id) {
-                          this.getCharAttack(c, {id: action.atk_id})
-                            .then(atk => {
-                              this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                                .then(type => acts.push({
-                                  id: action.id,
-                                  akt_id: atk.id,
-                                  name: atk.name,
-                                  description: atk.description,
-                                  atk_stat: atk.atk_stat,
-                                  save: atk.save,
-                                  save_stat: atk.save_stat,
-                                  on_fail: atk.on_fail,
-                                  dmg_dice: akt.dmg_dice,
-                                  dmg_dice_size: atk.dmg_dice_size,
-                                  dmg: atk.dmg,
-                                  dmg_type: type.name,
-                                  magical: atk.magical,
-                                  magic_bonus: atk.magic_bonus,
-                                  state: "Success"
-                                }))
-                                .catch(err => acts.push({
-                                  id: action.id,
-                                  name: action.name,
-                                  state: "Failed",
-                                  reason: `${err}`
-                                }));
-                            })
-                            .catch(err => acts.push({
-                              name: action.name,
-                              id: action.id,
-                              state: "Failed",
-                              reason: `${err}`
-                            }));
-                        }
-                      }
-                      resolve(acts);
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
+      if (results.length === 0) {
+        throw new NotFoundError("Character Note not found", "Could not find that Character Note in the Database!");
+      }
 
-  addCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getCharAction(server, user, char, act)
-        .then(reject("Error 409: Duplicate Action"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO character_actions (char_id, name, description, type, atk_id) VALUES($1, $2; $3, $4, $5)";
-            this.query(sql, [char.id, act.name, act.description, act.type, act.atk_id])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results[0];
+    }
 
-  remCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getCharAction(server, user, char, act)
-        .then(a => {
-          const sql = "DELETE FROM character_actions WHERE char_id = $1 AND id = $2";
-          this.query(sql, [a.char_id, a.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND title = $2";
+    const results = await this.query(sql, [c.id, note.title])
 
-  updateCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getCharAction(server, user, char, act)
-        .then(a => {
-          const sql = "UPDATE character_actions SET name = $1, description = $2, type = $3 WHERE char_id = $4 AND id = $5";
-          this.query(sql, [act.name, act.description, act.type, a.char_id, a.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
+    if (results.length === 0) {
+      throw new NotFoundError("Character Note not found", "Could not find a Character Note with that title in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async charNoteExists(char, note) {
+    if (note.id) {
+      const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, note.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND title = $2";
+    const results = await this.query(sql, [char.id, note.title])
+
+    return results.length === 1;
+  };
+
+  async addCharNote(user, char, note) {
+    await this.getCharNote(user, char, note)
+    .then(async (charNote) => {
+      if (charNote.content == note.content) {
+        throw new DuplicateError("Duplicate Character Note", "A Character Note with that title and content already exists in the Database!");
+      }
+
+      const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [char.id, note.title, note.content, note.private])
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [char.id, note.title, note.content, note.private])
     });
-  }
+
+    return "Successfully added Character Note to Database";
+  };
+
+  async remCharNote(char, note) {
+    if (!(await this.charNoteExists(char, note))) {
+      throw new NotFoundError("Character Note not found", "Could not find that Character Note in the Database!");
+    }
+
+    const sql = "DELETE FROM character_notes WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, note.id])
+
+    return "Successfully removed Character Note from Database";
+  };
+
+  async updateCharNote(char, note) {
+    if (!(await this.charNoteExists(char, note))) {
+      throw new NotFoundError("Character Note not found", "Could not find that Character Note in the Database!");
+    }
+
+    const sql = "UPDATE character_notes SET title = $1, content = $2, private = $3 WHERE char_id = $4 AND id = $5";
+    await this.query(sql, [note.title, note.content, note.private, char.id, note.id])
+
+    return "Successfully updated Character Note in Database";
+  };
+
+  async getCharStat(char, stat) {
+    if (!stat) {
+      const results = await this.query("SELECT * FROM character_stats WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Stats found", "Could not find any Stats for that Character in the Database!");
+      }
+
+      return results;
+    }
+
+    const sql = `SELECT ${stat} FROM character_stats WHERE char_id = $1`;
+    const results = await this.query(sql, [char.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Stat not found", "Could not find that Stat for that Character in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async setCharStats(char, stats) {
+    return await this.getCharStat(char)
+    .then(async (charStats) => {
+      stats = stats.filter(stat => !stat.name.inlcudes(charStats.map(charStat => charStat.name)))
+      
+      stats.map(async (stat) => {
+        await this.setCharStat(char, stat)
+      });
+
+      return "Successfully updated Character Stats in Database";
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      stats.map(async (stat) => {
+        await this.setCharStat(char, stat)
+      });
+
+      return "Successfully added Character Stats to Database";
+    });
+  };
+
+  async charStatExists(char, stat) {
+    const sql = "SELECT * FROM character_stats WHERE char_id = $1 AND name = $2";
+    const results = await this.query(sql, [char.id, stat.name])
+
+    return results.length === 1;
+  };
+
+  async setCharStat(char, stat) {
+    if (!(await this.charStatExists(char, stat))) {
+      const sql = "INSERT INTO character_stats VALUES($1, $2, $3)";
+      await this.query(sql, [char.id, stat.name, stat.val]);
+
+      return "Successfully added Character Stat to Database";
+    }
+
+    const sql = "UPDATE character_stats SET val = $1 WHERE char_id = $2 AND name = $3";
+    await this.query(sql, [stat.val, char.id, stat.name])
+
+    return "Successfully updated Character Stat in Database";
+  };
+
+  async remCharStat(char, stat) {
+    if (!(await this.charStatExists(char, stat))) {
+      throw new NotFoundError("Character Stat not found", "Could not find that Character Stat in the Database!")
+    }
+
+    const sql = "DELETE FROM character_stats WHERE char_id = $1 AND name = $2";
+    await this.query(sql, [char.id, stat.name])
+
+    return "Successfully removed Character Stat from Database";
+  };
+
+  async getCharAction(server, user, char, act) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    if (!act) {
+      const results = await this.query("SELECT * FROM character_actions WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Actions found", "Could not find any Actions for that Character in the Database!");
+      }
+
+      return results.map(async (action) => {
+        if (action.atk_id) {
+          const attack = await this.getCharAttack(user, char, {id: action.atk_id})
+
+          const dmgtype = await this.getCondOrDmgtype(server, "damagetypes", {id: attack.dmg_type_id})
+
+          return {
+            id: action.id,
+            atk_id: attack.id,
+            name: attack.name,
+            description: attack.description,
+            atk_stat: attack.stat,
+            save: attack.save,
+            save_stat: attack.save_stat,
+            on_fail: attack.on_fail,
+            dmg_dice: attack.dmg_dice,
+            dmg_dice_size: attack.dmg_dice_size,
+            dmg: attack.dmg,
+            dmg_type: dmgtype.name,
+            magical: attack.magical,
+            magic_bonus: attack.magic_bonus
+          };
+        }
+
+        return {
+          id: action.id,
+          name: action.name,
+          description: action.description,
+          type: action.type
+        };
+      });
+    }
+
+    if (act.id) {
+      const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, act.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Action not found", "Could not find that Character Action in the Database!");
+      }
+
+      const action = results[0];
+
+      if (action.atk_id) {
+        const attack = await this.getCharAttack(user, char, {id: action.atk_id})
+
+        const dmgtype = await this.getCondOrDmgtype(server, "damagetypes", {id: attack.dmg_type_id})
+
+        return {
+          id: action.id,
+          atk_id: attack.id,
+          name: attack.name,
+          description: attack.description,
+          atk_stat: attack.stat,
+          save: attack.save,
+          save_stat: attack.save_stat,
+          on_fail: attack.on_fail,
+          dmg_dice: attack.dmg_dice,
+          dmg_dice_size: attack.dmg_dice_size,
+          dmg: attack.dmg,
+          dmg_type: dmgtype.name,
+          magical: attack.magical,
+          magic_bonus: attack.magic_bonus
+        };
+      }
+
+      return {
+        id: action.id,
+        name: action.name,
+        description: action.description,
+        type: action.type
+      };
+    }
+
+    const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND name = $2";
+    const results = await this.query(sql, [char.id, act.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Action not found", "Could not find a Character Action with that name in the Database!");
+    }
+
+    const action = results[0];
+
+    if (action.atk_id) {
+      const attack = await this.getCharAttack(user, char, {id: action.atk_id})
+
+      const dmgtype = await this.getCondOrDmgtype(server, "damagetypes", {id: attack.dmg_type_id})
+
+      return {
+        id: action.id,
+        atk_id: attack.id,
+        name: attack.name,
+        description: attack.description,
+        atk_stat: attack.stat,
+        save: attack.save,
+        save_stat: attack.save_stat,
+        on_fail: attack.on_fail,
+        dmg_dice: attack.dmg_dice,
+        dmg_dice_size: attack.dmg_dice_size,
+        dmg: attack.dmg,
+        dmg_type: dmgtype.name,
+        magical: attack.magical,
+        magic_bonus: attack.magic_bonus
+      };
+    }
+
+    return {
+      id: action.id,
+      name: action.name,
+      description: action.description,
+      type: action.type
+    };
+  };
+
+  async charActionExists(char, act) {
+    if (act.id) {
+      const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, act.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND name = $2";
+    const results = await this.query(sql, [char.id, act.name])
+
+    return results.length === 1;
+  };
+
+  async addCharAction(char, act) {
+    if (await this.charActionExists(char, act)) {
+      throw new DuplicateError("Duplicate Character Action", "A Character Action with that name already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO character_actions (char_id, name, description, type, atk_id) VALUES($1, $2; $3, $4, $5)";
+    await this.query(sql, [char.id, act.name, act.description, act.type, act.atk_id])
+
+    return "Successfully added Character Action into Database";
+  };
+
+  async remCharAction(char, act) {
+    if (!(await this.charActionExists(char, act))) {
+      throw new NotFoundError("Character Action not found", "Could not find that Character Action in the Database!");
+    }
+
+    const sql = "DELETE FROM character_actions WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, act.id])
+
+    return "Successfully removed Character Action from Database";
+  };
+
+  async updateCharAction(char, act) {
+    if (!(await this.charActionExists(char, act))) {
+      throw new NotFoundError("Character Action not found", "Could not find that Character Action in the Database!");
+    }
+
+    const sql = "UPDATE character_actions SET name = $1, description = $2, type = $3 WHERE char_id = $4 AND id = $5";
+    await this.query(sql, [act.name, act.description, act.type, char.id, act.id])
+
+    return "Successfully updated Character Action in Database";
+  };
 
   getCharAttack(user, char, atk) {
     return new Promise((resolve, reject) => {
