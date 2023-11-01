@@ -1840,33 +1840,33 @@ class PSQL {
   async getCharFeat(server, char, feat) {
     if (!feat) {
       const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1", [char.id])
-
+  
       if (results.length === 0) {
         throw new NotFoundError("No Character Feats found", "Could not find any Feats for that Character in the Database!");
       }
-
-      return results.map(async (charFeat) => {
+  
+      return Promise.all(results.map(async (charFeat) => {
         const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
-
+  
         return {
           id: charFeat.id,
           name: dbFeat.name,
           description: dbFeat.description,
           feat_id: dbFeat.id
         };
-      });
+      }));
     }
-
+  
     if (feat.id) {
       const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND id = $2", [char.id, feat.id])
-
+  
       if (results.length === 0) {
         throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
       }
-
+  
       const charFeat = results[0];
       const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
-
+  
       return {
         id: charFeat.id,
         name: dbFeat.name,
@@ -1874,17 +1874,16 @@ class PSQL {
         feat_id: dbFeat.id
       };
     }
-
+  
     const dbFeat = await this.getFeat(server, feat)
-
     const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND feat_id = $2", [char.id, dbFeat.id])
-
+  
     if (results.length === 0) {
       throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
     }
-
+  
     const charFeat = results[0];
-
+  
     return {
       id: charFeat.id,
       name: dbFeat.name,
@@ -1907,19 +1906,19 @@ class PSQL {
     if (await this.charFeatExists(server, char, feat)) {
       throw new DuplicateError("Duplicate Character Feat", "That Feat is already linked to that Character!");
     }
-
+  
     const sql = "INSERT INTO character_feats (char_id, feat_id) VALUES ($1, $2)";
-
+  
     if (feat.feat_id) {
       await this.query(sql, [char.id, feat.feat_id])
     }
+  
+    const dbFeat = await this.getFeat(server, {name: feat.name})
+    .catch(() => { throw new BadRequestError("Invalid Feat", "That Feat does not exist in the Database!") });
+  
+    await this.query(sql, [char.id, dbFeat.id])
 
-    await this.getFeat(server, {name: feat.name})
-    .then(async (dbFeat) => {
-      await this.query(sql, [char.id, dbFeat.id])
-      return "Successfully added Feat to Character";
-    })
-    .catch(() => {throw new BadRequestError("Invalid Feat", "That Feat does not exist in the Database!")});
+    return "Successfully added Feat to Character";
   };
 
   async remCharFeat(server, char, feat) {
@@ -2097,8 +2096,9 @@ class PSQL {
         throw new NotFoundError("No Character Resistances found", "Could not find any Resistances for that Character in the Database!");
       }
 
-      return results.map(async (charResist) => {
+      return Promise.all(results.map(async (charResist) => {
         let dbResist;
+
         switch (charResist.type) {
           case "damagetype":
             dbResist = await this.getDamagetype(server, {id: charResist.res_id})
@@ -2114,7 +2114,7 @@ class PSQL {
           type: charResist.type,
           res_id: dbResist.id
         };
-      });
+      }));
     }
 
     if (resistance.id) {
@@ -2219,14 +2219,14 @@ class PSQL {
   async getCharImmunity(server, char, immunity) {
     if (!immunity) {
       const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1", [char.id])
-
+  
       if (results.length === 0) {
         throw new NotFoundError("No Character Immunities found", "Could not find any Immunities for that Character in the Database!");
       }
-
-      return results.map(async (charImmune) => {
+  
+      return Promise.all(results.map(async (charImmune) => {
         let dbImmune;
-
+  
         switch (charImmune.type) {
           case "damagetype":
             dbImmune = await this.getDamagetype(server, {id: charImmune.imm_id})
@@ -2235,26 +2235,26 @@ class PSQL {
             dbImmune = await this.getCondition(server, {id: charImmune.imm_id})
           break;
         }
-
+  
         return {
           id: charImmune.id,
           name: dbImmune.name,
           type: charImmune.type,
           imm_id: dbImmune.id
         };
-      });
+      }));
     }
-
+  
     if (immunity.id) {
       const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2", [char.id, immunity.id])
-
+  
       if (results.length === 0) {
         throw new NotFoundError("Character Immunity not found", "Could not find that Immunity for that Character in the Database!");
       }
-
+  
       const charImmune = results[0];
-
       let dbImmune;
+  
       switch (charImmune.type) {
         case "damagetype":
           dbImmune = await this.getDamagetype(server, {id: charImmune.imm_id})
@@ -2263,7 +2263,7 @@ class PSQL {
           dbImmune = await this.getCondition(server, {id: charImmune.imm_id})
         break;
       }
-
+  
       return {
         id: charImmune.id,
         name: dbImmune.name,
@@ -2271,9 +2271,9 @@ class PSQL {
         imm_id: dbImmune.id
       };
     }
-
+  
     let dbImmune;
-
+  
     switch (immunity.type) {
       case "damagetype":
         dbImmune = await this.getDamagetype(server, {name: immunity.name})
@@ -2282,15 +2282,15 @@ class PSQL {
         dbImmune = await this.getCondition(server, {name: immunity.name})
       break;
     }
-
+  
     const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2", [char.id, dbImmune.id])
-
+  
     if (results.length === 0) {
       throw new NotFoundError("Character Immunity not found", "Could not find an Immunity with that name for that Character in the Database!");
     }
-
+  
     const charImmune = results[0];
-
+  
     return {
       id: charImmune.id,
       name: dbImmune.name,
@@ -2397,26 +2397,26 @@ class PSQL {
   };
 
   async addCharSense(char, sense) {
-    await this.getCharSense(char, sense)
-    .then(async (charSense) => {
+    try {
+      const charSense = await this.getCharSense(char, sense)
+  
       if (charSense.range <= sense.range) {
         throw new DuplicateError("Duplicate Character Sense", "That Character already has that Sense with the same or a larger range!");
       }
-
+  
       await this.query("UPDATE character_senses SET range = $1 WHERE char_id = $2 AND name = $3", [sense.range, char.id, sense.name])
-
+  
       return "Successfully updated Character Sense in Database";
-    })
-    .catch(async (err) => {
+    } catch (err) {
       if (!(err instanceof NotFoundError)) {
         throw err;
       }
-
+  
       const sql = "INSERT INTO character_senses (char_id, name, range) VALUES($1, $2, $3)";
       await this.query(sql, [char.id, sense.name, sense.range])
-
+  
       return "Successfully added Character Sense to Database";
-    });
+    }
   };
 
   async remCharSense(char, sense) {
@@ -2545,14 +2545,14 @@ class PSQL {
   };
 
   async featExists(server, feat) {
+    let results;
+  
     if (feat.id) {
-      const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
-
-      return results.length === 1;
+      results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
+    } else {
+      results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND name = $2", [server.id, feat.name])
     }
-
-    const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND name = $2", [server.id, feat.name])
-
+  
     return results.length === 1;
   };
 
