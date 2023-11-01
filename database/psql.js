@@ -1607,11 +1607,11 @@ class PSQL {
         throw new NotFoundError("No Character Actions found", "Could not find any Actions for that Character in the Database!");
       }
 
-      return results.map(async (action) => {
+      return Promise.all(results.map(async (action) => {
         if (action.atk_id) {
           const attack = await this.getCharAttack(user, char, {id: action.atk_id})
 
-          const dmgtype = await this.getCondOrDmgtype(server, "damagetypes", {id: attack.dmg_type_id})
+          const dmgtype = await this.getDamagetype(server, {id: attack.dmg_type_id})
 
           return {
             id: action.id,
@@ -1637,7 +1637,7 @@ class PSQL {
           description: action.description,
           type: action.type
         };
-      });
+      }));
     }
 
     if (act.id) {
@@ -1653,7 +1653,7 @@ class PSQL {
       if (action.atk_id) {
         const attack = await this.getCharAttack(user, char, {id: action.atk_id})
 
-        const dmgtype = await this.getCondOrDmgtype(server, "damagetypes", {id: attack.dmg_type_id})
+        const dmgtype = await this.getDamagetype(server, {id: attack.dmg_type_id})
 
         return {
           id: action.id,
@@ -1693,7 +1693,7 @@ class PSQL {
     if (action.atk_id) {
       const attack = await this.getCharAttack(user, char, {id: action.atk_id})
 
-      const dmgtype = await this.getCondOrDmgtype(server, "damagetypes", {id: attack.dmg_type_id})
+      const dmgtype = await this.getDamagetype(server, {id: attack.dmg_type_id})
 
       return {
         id: action.id,
@@ -1768,190 +1768,170 @@ class PSQL {
     return "Successfully updated Character Action in Database";
   };
 
-  getCharAttack(user, char, atk) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          if (!atk) {
-            const sql = "SELECT * FROM character_attacks WHERE char_id = $1";
-            this.query(sql, [c.id])
-              .then(results => {
-                if (results.length===0) {
-                  reject("Error 404: No Attacks found");
-                } else if (results.length>=1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (atk.id) {
-              const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, atk.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Attack not found");
-                  } else if (results.length===1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND name = $2";
-              this.query(sql, [c.id, atk.name])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Attack not found");
-                  } else if (results.length===1) {
-                    resolve(results[0]);
-                  } else if (results.length>1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
+  async getCharAttack(user, char, atk) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
 
-  addCharAttack(user, char, atk) {
-    return new Promise((resolve, reject) => {
-      this.getCharAttack(user, char, atk)
-        .then(reject("Error 409: Duplicate Attack"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO character_attacks (char_id, name, description, atk_stat, save, save_stat, on_fail, dmg_dice, dmg_dice_size, dmg, dmg_type_id, magical, magic_bonus) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-            this.query(sql, [char.id, atk.name, atk.description, atk.atk_stat, atk.save, atk.on_fail, atk.dmg_dice, atk.dmg_dice_size, atk.dmg, atk.dmg_type_id, atk.magical, atk.magic_bonus])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+    if (!atk) {
+      const results = await this.query("SELECT * FROM character_attacks WHERE char_id = $1", [char.id])
 
-  remCharAttack(user, char, atk) {
-    return new Promise((resolve, reject) => {
-      this.getCharAttack(user, char, atk)
-        .then(a => {
-          const sql = "DELETE FROM character_attacks WHERE char_id = $1 AND id = $2";
-          this.query(sql, [a.char_id, a.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-
-
-  getCharFeat(server, char, feat) {
-    return new Promise((resolve, reject) => {
-      if (!feat) {
-        const sql = "SELECT * FROM character_feats WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Feats found");
-            } else if (results.length >= 1) {
-              let list = [];
-              for (const f of results) {
-                this.getFeat(server, { id: f.feat_id })
-                  .then(feats => {
-                    if (feats.length === 1) {
-                      list.push({
-                        name: feats[0].name,
-                        description: feats[0].description,
-                        feat_id: feats[0].id,
-                        id: f.id,
-                        state: "Valid"
-                      });
-                    } else {
-                      list.push({
-                        name: feats[0].name,
-                        state: "Invalid"
-                      });
-                    }
-                  })
-                  .catch(list.push({
-                    name: f[0].name,
-                    state: "Invalid"
-                  }));
-              }
-              resolve(list);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (feat.id) {
-          const sql = "SELECT * FROM character_feats WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, feat.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Feat not found");
-              } else if (results.length === 1) {
-                this.getFeat(server, { id: results[0].feat_id })
-                  .then(feats => {
-                    if (feats.length === 1) {
-                      resolve({
-                        name: feats[0].name,
-                        description: feats[0].description,
-                        feat_id: feats[0].id,
-                        id: feat.id,
-                        state: "Valid"
-                      });
-                    } else if (feats.length === 0) {
-                      reject("Error 400: Invalid Feat");
-                    }
-                  })
-                  .catch(reject("Error 400: Invalid Feat"));
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          this.getFeat(server, { name: feat.name })
-            .then(f => resolve(f))
-            .catch(reject("Error 400: Invalid Feat"));
-        }
+      if (results.length === 0) {
+        throw new NotFoundError("No Attacks found", "Could not find any Attacks for that Character in the Database!");
       }
-    });
-  }
 
-  addCharFeat(server, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getCharFeat(server, char, feat)
-        .then(reject("Error 409: Duplicate Character Feat"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getFeat(server, feat)
-              .then(f => {
-                const sql = "INSERT INTO character_feats (char_id, feat_id) VALUES ($1, $2)";
-                this.query(sql, [char.id, f.id])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              })
-              .catch(reject("Error 400: Invalid Feat"));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results;
+    }
 
-  remCharFeat(server, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getCharFeat(server, char, feat)
-        .then(f => {
-          const sql = "DELETE FROM character_feats WHERE char_id = $1 AND feat_id = $2 AND id = $3";
-          this.query(sql, [char.id, f.feat_id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (atk.id) {
+      const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, atk.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Attack not found", "Could not find that Attack for that Character in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND name = $2";
+    const results = await this.query(sql, [char.id, atk.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Attack not found", "Could not find an Attack with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async charAtkExists(char, atk) {
+    if (atk.id) {
+      const results = await this.query("SELECT * FROM character_attacks WHERE char_id = $1 AND id = $2", [char.id, atk.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_attacks WHERE char_id = $1 AND name = $2", [char.id, atk.name])
+
+    return results.length === 1;
+  };
+
+  async addCharAttack(char, atk) {
+    if (await this.charAtkExists(char, atk)) {
+      throw new DuplicateError("Duplicate Attack", "An Attack with that name already exists for that Character!");
+    }
+
+    const sql = "INSERT INTO character_attacks (char_id, name, description, atk_stat, save, save_stat, on_fail, dmg_dice, dmg_dice_size, dmg, dmg_type_id, magical, magic_bonus) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
+    await this.query(sql, [char.id, atk.name, atk.description, atk.atk_stat, atk.save, atk.on_fail, atk.dmg_dice, atk.dmg_dice_size, atk.dmg, atk.dmg_type_id, atk.magical, atk.magic_bonus])
+
+    return "Successfully added Attack to Character in Database";
+  };
+
+  async remCharAttack(char, atk) {
+    if (!(await this.charAtkExists(char, atk))) {
+      throw new NotFoundError("Attack not found", "Could not find that Attack for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_attacks WHERE char_id = $1 AND id = $2", [char.id, atk.id])
+
+    return "Successfully removed Attack from Character in Database";
+  };
+
+  async getCharFeat(server, char, feat) {
+    if (!feat) {
+      const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Feats found", "Could not find any Feats for that Character in the Database!");
+      }
+
+      return results.map(async (charFeat) => {
+        const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
+
+        return {
+          id: charFeat.id,
+          name: dbFeat.name,
+          description: dbFeat.description,
+          feat_id: dbFeat.id
+        };
+      });
+    }
+
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND id = $2", [char.id, feat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
+      }
+
+      const charFeat = results[0];
+      const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
+
+      return {
+        id: charFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description,
+        feat_id: dbFeat.id
+      };
+    }
+
+    const dbFeat = await this.getFeat(server, feat)
+
+    const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND feat_id = $2", [char.id, dbFeat.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
+    }
+
+    const charFeat = results[0];
+
+    return {
+      id: charFeat.id,
+      name: dbFeat.name,
+      description: dbFeat.description,
+      feat_id: dbFeat.id
+    };
+  };
+
+  async charFeatExists(server, char, feat) {
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND id = $2", [char.id, feat.id])
+
+      return results.length === 1;
+    }
+
+    return await this.featExists(server, feat)
+  };
+
+  async addCharFeat(server, char, feat) {
+    if (await this.charFeatExists(server, char, feat)) {
+      throw new DuplicateError("Duplicate Character Feat", "That Feat is already linked to that Character!");
+    }
+
+    const sql = "INSERT INTO character_feats (char_id, feat_id) VALUES ($1, $2)";
+
+    if (feat.feat_id) {
+      await this.query(sql, [char.id, feat.feat_id])
+    }
+
+    await this.getFeat(server, {name: feat.name})
+    .then(async (dbFeat) => {
+      await this.query(sql, [char.id, dbFeat.id])
+      return "Successfully added Feat to Character";
+    })
+    .catch(() => {throw new BadRequestError("Invalid Feat", "That Feat does not exist in the Database!")});
+  };
+
+  async remCharFeat(server, char, feat) {
+    if (!(await this.charFeatExists(server, char, feat))) {
+      throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
+    }
+
+    const sql = "DELETE FROM character_feats WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, feat.id])
+
+    return "Successfully removed Feat from Character";
+  };
 
   getCharProf(char, prof) {
     //TODO: Copy over from GitHub
@@ -1965,626 +1945,648 @@ class PSQL {
     //TODO: Copy over from GitHub
   }
 
-  getCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      if (!conordmg) {
-        const sql = `SELECT * FROM ${type} WHERE server_id = $1`;
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject(`Error 404: No such ${type} found`);
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (conordmg.id) {
-          const sql = `SELECT * FROM ${type} WHERE server_id = $1 AND id = $2`;
-          this.query(sql, [server.id, conordmg.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject(`Error 404: ${type} not found`);
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = `SELECT * FROM ${type} WHERE server_id = $1 AND name = $2`;
-          this.query(sql, [server.id, conordmg.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject(`Error 404: ${type} not found`);
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
+  async getCondition(server, condition) {
+    if (!condition) {
+      const results = await this.query("SELECT * FROM conditions WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No conditions found", "Could not find any Conditions in the Database!");
       }
-    });
-  }
 
-  addCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      this.getCondOrDmgtype(server, type, conordmg)
-        .then(reject(`Error 409: Duplicate ${type}`))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = `INSERT INTO ${type} (server_id, name) VALUES($1, $2)`;
-            this.query(sql, [server.id, conordmg.name])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results;
+    }
 
-  remCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      this.getCondOrDmgtype(server, type, conordmg)
-        .then(cod => {
-          const sql = `DELETE FROM ${type} WHERE server_id = $1 AND id = $2`;
-          this.query(sql, [server.id, cod.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (condition.id) {
+      const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND id = $2", [server.id, condition.id])
 
-  updateCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      this.getCondOrDmgtype(server, type, conordmg)
-        .then(cod => {
-          const sql = `UPDATE ${type} SET name = $1 WHERE server_id = $2 AND id = $3`;
-          this.query(sql, [conordmg.name, server.id, cod.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharRes(server, char, res) {
-    return new Promise((resolve, reject) => {
-      if (!res) {
-        const sql = "SELECT * FROM character_resistances WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Resistances found");
-            } else if (results.length >= 1) {
-              const resistances = [];
-              for (const resist of results) {
-                this.getCondOrDmgtype(server, resist.type, resist)
-                  .then(r => resistances.push({
-                    name: r.name,
-                    type: resist.type,
-                    res_id: r.id,
-                    id: resist.id,
-                    state: "Valid"
-                  }))
-                  .catch(resistances.push({
-                    type: resist.type,
-                    state: "Invalid"
-                  }));
-              }
-              resolve(resistances);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (res.res_id) {
-          this.getCondOrDmgtype(server, res.type, { id: res.res_id })
-            .then(r => {
-              const sql = "SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2";
-              this.query(sql, [char.id, r.id])
-                .then(resist => {
-                  if (resist.length === 0) {
-                    reject("Error 404: Character Resistance not found");
-                  } else if (resist.length === 1) {
-                    resolve({
-                      name: r.name,
-                      type: res.type,
-                      res_id: r.id,
-                      id: resist[0].id,
-                      state: "Valid"
-                    });
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(reject("Error 400: Invalid Resistance"));
-        } else if (res.id) {
-          const sql = `SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2`;
-          this.query(sql, [char.id, res.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Resistance not found");
-              } else if (results.length === 1) {
-                this.getCondOrDmgtype(server, res.type, { id: results[0].res_id })
-                  .then(r => resolve({
-                    name: r.name,
-                    type: res.type,
-                    res_id: r.id,
-                    id: res.id,
-                    state: "Valid"
-                  }))
-                  .catch(reject("Error 400: Invalid Resistance"));
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          this.getCondOrDmgtype(server, res.type, { name: res.name })
-            .then(r => {
-              const sql = "SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2";
-              this.query(sql, [server.id, r.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Character Resistance not found");
-                  } else if (results.length === 1) {
-                    resolve({
-                      name: r.name,
-                      type: res.type,
-                      res_id: r.id,
-                      id: results[0].id,
-                      state: "Valid"
-                    });
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(reject("Error 400: Invalid Resistance"));
-        }
+      if (results.length === 0) {
+        throw new NotFoundError("Condition not found", "Could not find that Condition in the Database!");
       }
-    });
-  }
 
-  addCharRes(server, char, res) {
-    return new Promise((resolve, reject) => {
-      this.getCharRes(server, char, res)
-        .then(reject("Error 409: Duplicate Character Resistance"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getCharImm(server, char, { name: res.name, type: res.type })
-              .then(reject(`Error 409: Immunity for that ${res.type} already exists!`))
-              .catch(err1 => {
-                if (String(err1).includes("Error 404")) {
-                  this.getCondOrDmgtype(server, res.type, { name: res.name })
-                    .then(r => {
-                      const sql = "INSERT INTO character_resistances (char_id, type, res_id) VALUES ($1, $2, $3)";
-                      this.query(sql, [char.id, res.type, r.id])
-                        .then(resolve("Success"))
-                        .catch(err2 => reject(err2));
-                    })
-                    .catch(reject("Error 400: Invalid Resistance"));
-                } else {
-                  reject(err1);
-                }
-              })
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results[0];
+    }
 
-  remCharRes(server, char, res) {
-    return new Promise((resolve, reject) => {
-      this.getCharRes(server, char, res)
-        .then(r => {
-          const sql = "DELETE FROM character_resistances WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, r.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND name = $2", [server.id, condition.name])
 
-  getCharImm(server, char, imm) {
-    return new Promise((resolve, reject) => {
-      if (!imm) {
-        const sql = "SELECT * FROM character_immunities WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Immunities found");
-            } else if (results.length >= 1) {
-              const immunities = [];
-              for (const immune of results) {
-                this.getCondOrDmgtype(server, immune.type, { id: immune.imm_id })
-                  .then(i => immunities.push({
-                    name: i.name,
-                    type: immune.type,
-                    imm_id: i.id,
-                    id: immune.id,
-                    state: "Valid"
-                  }))
-                  .catch(immunities.push({
-                    type: immune.type,
-                    state: "Invalid"
-                  }));
-              }
-              resolve(immunities);
-            }
-          })
-          .catch(reject("Error 400: Invalid Immunity"));
-      } else {
-        if (imm.imm_id) {
-          this.getCondOrDmgtype(server, imm.type, { id: imm.imm_id })
-            .then(i => {
-              if (i.length === 0) {
-                reject("Error 400: Invalid Immunity");
-              } else {
-                const sql = "SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2";
-                this.query(sql, [char.id, i.id])
-                  .then(resist => {
-                    if (resist.length === 0) {
-                      reject("Error 404: Character Immunity not found");
-                    } else if (resist.length === 1) {
-                      resolve({
-                        name: i.name,
-                        type: res.type,
-                        res_id: i.id,
-                        id: resist[0].id,
-                        state: "Valid"
-                      });
-                    }
-                  })
-                  .catch(err => reject(err));
-              }
-            })
-            .catch(reject("Error 400: Invalid Immunity"));
-        } else if (imm.id) {
-          const sql = "SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, imm.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Immunity not found");
-              } else if (results.length === 0) {
-                this.getCondOrDmgtype(server, imm.type, { id: results[0].imm_id })
-                  .then(i => resolve({
-                    name: i.name,
-                    type: imm.type,
-                    imm_id: i.id,
-                    id: imm.id,
-                    state: "Valid"
-                  }))
-                  .catch(reject("Error 400: Invalid Immunity"));
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          this.getCondOrDmgtype(server, imm.type, { name: imm.name })
-            .then(i => {
-              const sql = "SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2";
-              this.query(sql, [char.id, i.id])
-                .then(immune => {
-                  if (immune.length === 0) {
-                    reject("Error 404: Character Immunity not found");
-                  } else if (immune.length === 1) {
-                    resolve({
-                      name: i.name,
-                      type: imm.type,
-                      imm_id: i.id,
-                      id: immune.id,
-                      state: "Valid"
-                    });
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(reject("Error 400: Invalid Immunity"));
-        }
+    if (results.length === 0) {
+      throw new NotFoundError("Condition not found", "Could not find a Condition with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async conditionExists(server, condition) {
+    if (condition.id) {
+      const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND id = $2", [server.id, condition.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND name = $2", [server.id, condition.name])
+
+    return results.length === 1;
+  };
+
+  async addCondition(server, condition) {
+    if (await this.conditionExists(server, condition)) {
+      throw new DuplicateError("Duplicate Condition", "That Condition already exists in the Database!");
+    }
+
+    await this.query("INSERT INTO conditions (server_id, name) VALUES($1, $2)", [server.id, condition.name])
+
+    return "Successfully added Condition to Database";
+  };
+
+  async remCondition(server, condition) {
+    if (!(await this.conditionExists(server, condition))) {
+      throw new NotFoundError("Condition not found", "Could not find that Condition in the Database!");
+    }
+
+    await this.query("DELETE FROM conditions WHERE server_id = $1 AND id = $2", [server.id, condition.id])
+
+    return "Successfully removed Condition from Database";
+  };
+
+  async updateCondition(server, condition) {
+    if (!(await this.conditionExists(server, condition))) {
+      throw new NotFoundError("Condition not found", "Could not find that Condition in the Database!");
+    }
+
+    await this.query("UPDATE conditions SET name = $1 WHERE server_id = $2 AND id = $3", [condition.name, server.id, condition.id])
+
+    return "Successfully updated Condition in Database";
+  };
+
+  async getDamagetype(server, dmgtype) {
+    if (!dmgtype) {
+      const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Damagetypes found", "Could not find any Damagetypes in the Database!");
       }
-    });
-  }
 
-  addCharImm(server, char, imm) {
-    return new Promise((resolve, reject) => {
-      this.getCharImm(server, char, imm)
-        .then(reject("Error 409: Duplicate Character Immunity"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getCharRes(server, char, { name: imm.name, type: imm.type })
-              .then(res => {
-                this.remCharRes(server, char, res)
-                  .then(function() {
-                    const sql = "INSERT INTO character_immunities (char_id, type, imm_id) VALUES ($1, $2, $3)";
-                    this.query(sql, [char.id, imm.type, res.res_id])
-                      .then(resolve("Success"))
-                      .catch(err1 => reject(err1));
-                  })
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => {
-                if (String(err1).includes("Error 404")) {
-                  this.getCondOrDmgtype(server, imm.type, { name: imm.name })
-                    .then(i => {
-                      const sql = "INSERT INTO character_immunities (char_id, type, imm_id) VALUES ($1, $2, $3)";
-                      this.query(sql, [char.id, imm.type, i.id])
-                        .then(resolve("Success"))
-                        .catch(err2 => reject(err2));
-                    })
-                    .catch(reject("Error 400: Invalid Immunity"));
-                }
-              });
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results;
+    }
 
-  remCharImm(server, char, imm) {
-    return new Promise((resolve, reject) => {
-      this.getCharImm(server, char, imm)
-        .then(i => {
-          const sql = "DELETE FROM character_immunities WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, i.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (dmgtype.id) {
+      const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND id = $2", [server.id, dmgtype.id])
 
-  getCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      if (!sense) {
-        const sql = "SELECT * FROM character_senses WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Senses found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (sense.id) {
-          const sql = "SELECT * FROM character_senses WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, sense.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Sense not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM character_senses WHERE char_id = $1 AND name = $2";
-          this.query(sql, [char.id, sense.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Sense not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
+      if (results.length === 0) {
+        throw new NotFoundError("Damagetype not found", "Could not find that Damagetype in the Database!");
       }
-    });
-  }
 
-  addCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      this.getCharSense(char, sense)
-        .then(reject("Error 409: Duplicate Character Sense"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO character_senses (char_id, name, range) VALUES ($1, $2, $3)";
-            this.query(sql, [char.id, sense.name, sense.range])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      return results[0];
+    }
 
-  remCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      this.getCharSense(char, sense)
-        .then(sen => {
-          const sql = "DELETE FROM character_senses WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, sen.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND name = $2", [server.id, dmgtype.name])
 
-  updateCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      this.getCharSense(char, sense)
-        .then(sen => {
-          const sql = "UPDATE character_senses SET name = $1, range = $2 WHERE char_id = $3 AND id = $4";
-          this.query(sql, [sense.name, sense.range, char.id, sen.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (results.length === 0) {
+      throw new NotFoundError("Damagetype not found", "Could not find a Damagetype with that name in the Database!");
+    }
 
-  getArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      if (!armor) {
-        const sql = "SELECT * FROM armors WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Armor found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (armor.id) {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, armor.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, armor.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
+    return results[0];
+  };
+
+  async dmgtypeExists(server, dmgtype) {
+    if (dmgtype.id) {
+      const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND id = $2", [server.id, dmgtype.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND name = $2", [server.id, dmgtype.name])
+
+    return results.length === 1;
+  };
+
+  async addDamagetype(server, dmgtype) {
+    if (await this.dmgtypeExists(server, dmgtype)) {
+      throw new DuplicateError("Duplicate Damagetype", "That Damagetype already exists in the Database!");
+    }
+
+    await this.query("INSERT INTO damagetypes (server_id, name) VALUES($1, $2)", [server.id, dmgtype.name])
+
+    return "Successfully added Damagetype to Database";
+  };
+
+  async remDamagetype(server, dmgtype) {
+    if (!(await this.dmgtypeExists(server, dmgtype))) {
+      throw new NotFoundError("Damagetype not found", "Could not find that Damagetype in the Database!");
+    }
+
+    await this.query("DELETE FROM damagetypes WHERE server_id = $1 AND id = $2", [server.id, dmgtype.id])
+
+    return "Successfully removed Damagetype from Database";
+  };
+
+  async updateDamagetype(server, dmgtype) {
+    if (!(await this.dmgtypeExists(server, dmgtype))) {
+      throw new NotFoundError("Damagetype not found", "Could not find that Damagetype in the Database!");
+    }
+
+    await this.query("UPDATE damagetypes SET name = $1 WHERE server_id = $2 AND id = $3", [dmgtype.name, server.id, dmgtype.id])
+
+    return "Successfully updated Damagetype in Database";
+  };
+
+  async getCharResistance(server, char, resistance) {
+    if (!resistance) {
+      const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Resistances found", "Could not find any Resistances for that Character in the Database!");
       }
-    });
-  }
 
-  addArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(reject("Error 409: Duplicate Armor"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-            this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "DELETE FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
-          this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune, armor.attune_req, server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      if (!feat) {
-        const sql = "SELECT * FROM feats WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Feats found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (feat.id) {
-          const sql = "SELECT * FROM feats WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, feat.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Feat not found");
-              } else if (results.length === 0) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM feats WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, feat.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Feat not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
+      return results.map(async (charResist) => {
+        let dbResist;
+        switch (charResist.type) {
+          case "damagetype":
+            dbResist = await this.getDamagetype(server, {id: charResist.res_id})
+          break;
+          case "condition":
+            dbResist = await this.getCondition(server, {id: charResist.res_id})
+          break;
         }
+
+        return {
+          id: charResist.id,
+          name: dbResist.name,
+          type: charResist.type,
+          res_id: dbResist.id
+        };
+      });
+    }
+
+    if (resistance.id) {
+      const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2", [char.id, resistance.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Resistance not found", "Could not find that Resistance for that Character in the Database!");
       }
-    });
-  }
 
-  addFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      this.getFeat(server, feat)
-        .then(reject("Error 409: Duplicate Feat"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO feats (server_id, name, description, type, val1, val2, val3) VALUES($1, $2, $3, $4, $5, $6, $7)";
-            this.query(sql, [server.id, feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      const charResist = results[0];
+      let dbResist;
 
-  remFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      this.getFeat(server, feat)
-        .then(f => {
-          const sql = "DELETE FROM feats WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+      switch (charResist.type) {
+        case "damagetype":
+          dbResist = await this.getDamagetype(server, {id: charResist.res_id})
+        break;
+        case "condition":
+          dbResist = await this.getCondition(server, {id: charResist.res_id})
+        break;
+      }
 
-  updateFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      this.getFeat(server, feat)
-        .then(f => {
-          const sql = "UPDATE feats SET name = $1, description = $2, type = $3, val1 = $4, val2 = $5, val3 = $6 WHERE server_id = $7 AND id = $8";
-          this.query(sql, [feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3, server.id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
+      return {
+        id: charResist.id,
+        name: dbResist.name,
+        type: charResist.type,
+        res_id: dbResist.id
+      };
+    }
+
+    let dbResist;
+
+    switch (resistance.type) {
+      case "damagetype":
+        dbResist = await this.getDamagetype(server, {name: resistance.name})
+      break;
+      case "condition":
+        dbResist = await this.getCondition(server, {name: resistance.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2", [char.id, dbResist.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Resistance not found", "Could not find a Resistance with that name for that Character in the Database!");
+    }
+
+    const charResist = results[0];
+
+    return {
+      id: charResist.id,
+      name: dbResist.name,
+      type: charResist.type,
+      res_id: dbResist.id
+    };
+  };
+
+  async charResistExists(server, char, resistance) {
+    if (resistance.id) {
+      const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2", [char.id, resistance.id])
+
+      return results.length === 1;
+    }
+
+    let dbResist;
+
+    switch (resistance.type) {
+      case "damagetype":
+        dbResist = await this.getDamagetype(server, {name: resistance.name})
+      break;
+      case "condition":
+        dbResist = await this.getCondition(server, {name: resistance.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2", [char.id, dbResist.id])
+
+    return results.length === 1;
+  };
+
+  async addCharResistance(server, char, resistance) {
+    if (await this.charResistExists(server, char, resistance)) {
+      throw new DuplicateError("Duplicate Character Resistance", "That Resistance is already linked to that Character!");
+    }
+
+    const sql = "INSERT INTO character_resistances (char_id, type, res_id) VALUES($1, $2, $3)";
+    await this.query(sql, [char.id, resistance.type, dbResist.id])
+
+    return "Successfully added Resistance to Character in Database";
+  };
+
+  async remCharReistance(server, char, resistance) {
+    if (!(await this.charResistExists(server, char, resistance))) {
+      throw new NotFoundError("Character Resistance not found", "Could not find that Resistance for that Character in the Database!");
+    }
+
+    const sql = "DELETE FROM character_resistances WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, resistance.id])
+
+    return "Successfully removed Resistance from Character in Database";
+  };
+
+  async getCharImmunity(server, char, immunity) {
+    if (!immunity) {
+      const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Immunities found", "Could not find any Immunities for that Character in the Database!");
+      }
+
+      return results.map(async (charImmune) => {
+        let dbImmune;
+
+        switch (charImmune.type) {
+          case "damagetype":
+            dbImmune = await this.getDamagetype(server, {id: charImmune.imm_id})
+          break;
+          case "condition":
+            dbImmune = await this.getCondition(server, {id: charImmune.imm_id})
+          break;
+        }
+
+        return {
+          id: charImmune.id,
+          name: dbImmune.name,
+          type: charImmune.type,
+          imm_id: dbImmune.id
+        };
+      });
+    }
+
+    if (immunity.id) {
+      const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2", [char.id, immunity.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Immunity not found", "Could not find that Immunity for that Character in the Database!");
+      }
+
+      const charImmune = results[0];
+
+      let dbImmune;
+      switch (charImmune.type) {
+        case "damagetype":
+          dbImmune = await this.getDamagetype(server, {id: charImmune.imm_id})
+        break;
+        case "condition":
+          dbImmune = await this.getCondition(server, {id: charImmune.imm_id})
+        break;
+      }
+
+      return {
+        id: charImmune.id,
+        name: dbImmune.name,
+        type: charImmune.type,
+        imm_id: dbImmune.id
+      };
+    }
+
+    let dbImmune;
+
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immunity.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immunity.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2", [char.id, dbImmune.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Immunity not found", "Could not find an Immunity with that name for that Character in the Database!");
+    }
+
+    const charImmune = results[0];
+
+    return {
+      id: charImmune.id,
+      name: dbImmune.name,
+      type: charImmune.type,
+      imm_id: dbImmune.id
+    };
+  };
+
+  async charImmuneExists(server, char, immunity) {
+    if (immunity.id) {
+      const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2", [char.id, immunity.id])
+
+      return results.length === 1;
+    }
+
+    let dbImmune;
+
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immunity.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immunity.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2", [char.id, dbImmune.id])
+
+    return results.length === 1;
+  };
+
+  async addCharImmunity(server, char, immunity) {
+    if (await this.charImmuneExists(server, char, immunity)) {
+      throw new DuplicateError("Duplicate Character Immunity", "That Immunity is already linked to that Character!");
+    }
+
+    let dbImmune;
+
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immunity.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immunity.name})
+      break;
+    }
+
+    const sql = "INSERT INTO character_immunities (char_id, type, imm_id) VALUES($1, $2, $3)";
+    await this.query(sql, [char.id, immunity.type, dbImmune.id])
+
+    return "Successfully added Character Immunity to Database";
+  };
+
+  async remCharImmunity(server, char, immunity) {
+    if (!(await this.charImmuneExists(server, char, immunity))) {
+      throw new NotFoundError("Character Immunity not found", "Could not find that Immunity for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_immunities WHERE char_id = $1 AND id = $2", [char.id, immunity.id])
+
+    return "Successfully removed Character Immunity from Database";
+  };
+
+  async getCharSense(char, sense) {
+    if (!sense) {
+      const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Senses found", "Could not find any Senses for that Character in the Database!");
+      }
+
+      return results;
+    }
+
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND id = $2", [char.id, sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Sense not found", "Could not find that Sense for that Character in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND name = $2", [char.id, sense.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Sense not found", "Could not find a Sense with that name for that Character in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async charSenseExists(char, sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND id = $2", [char.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND name = $2", [char.id, sense.name])
+
+    return results.length === 1;
+  };
+
+  async addCharSense(char, sense) {
+    await this.getCharSense(char, sense)
+    .then(async (charSense) => {
+      if (charSense.range <= sense.range) {
+        throw new DuplicateError("Duplicate Character Sense", "That Character already has that Sense with the same or a larger range!");
+      }
+
+      await this.query("UPDATE character_senses SET range = $1 WHERE char_id = $2 AND name = $3", [sense.range, char.id, sense.name])
+
+      return "Successfully updated Character Sense in Database";
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_senses (char_id, name, range) VALUES($1, $2, $3)";
+      await this.query(sql, [char.id, sense.name, sense.range])
+
+      return "Successfully added Character Sense to Database";
     });
-  }
+  };
+
+  async remCharSense(char, sense) {
+    if (!(await this.charSenseExists(char, sense))) {
+      throw new NotFoundError("Character Sense not found", "Could not find that Sense for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_senses WHERE char_id = $1 AND id = $2", [char.id, sense.id])
+
+    return "Successfully removed Character Sense from Database";
+  };
+
+  async updateCharSense(char, sense) {
+    if (!(await this.charSenseExists(char, sense))) {
+      throw new NotFoundError("Character Sense not found", "Could not find that Sense for that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_senses SET name = $1, range = $2 WHERE char_id = $3 AND id = $4";
+    await this.query(sql, [sense.name, sense.range, char.id, sense.id])
+
+    return "Successfully updated Character Sense in Database";
+  };
+
+  async getArmor(server, armor) {
+    if (!armor) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Armor found", "Could not find any Armor in the Database!");
+      }
+
+      return results;
+    }
+
+    if (armor.id) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND id = $2", [server.id, armor.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND name = $2", [server.id, armor.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Armor not found", "Could not find an Armor with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async armorExists(server, armor) {
+    if (armor.id) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND id = $2", [server.id, armor.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND name = $2", [server.id, armor.name])
+
+    return results.length === 1;
+  };
+
+  async addArmor(server, armor) {
+    if (await this.armorExists(server, armor)) {
+      throw new DuplicateError("Duplicate Armor", "That Armor already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
+
+    return "Successfully added Armor to Database";
+  };
+
+  async remArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    await this.query("DELETE FROM armors WHERE server_id = $1 AND id = $2", [server.id, armor.id])
+
+    return "Successfully removed Armor from Database";
+  };
+
+  async updateArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
+    await this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune, armor.attune_req, server.id, armor.id])
+    
+    return "Successfully updated Armor in Database";
+  };
+
+  async getFeat(server, feat) {
+    if (!feat) {
+      const results = await this.query("SELECT * FROM feats WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Feats found", "Could not find any Feats in the Database!");
+      }
+
+      return results;
+    }
+
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Feat not found", "Could not find that Feat in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND name = $2", [server.id, feat.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Feat not found", "Could not find a Feat with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async featExists(server, feat) {
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND name = $2", [server.id, feat.name])
+
+    return results.length === 1;
+  };
+
+  async addFeat(server, feat) {
+    if (await this.featExists(server, feat)) {
+      throw new DuplicateError("Duplicate Feat", "That Feat already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO feats (server_id, name, description, type, val1, val2, val3) VALUES($1, $2, $3, $4, $5, $6, $7)";
+    await this.query(sql, [server.id, feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3])
+
+    return "Successfully added Feat to Database";
+  };
+
+  async remFeat(server, feat) {
+    if (!(await this.featExists(server, feat))) {
+      throw new NotFoundError("Feat not found", "Could not find that Feat in the Database!");
+    }
+
+    await this.query("DELETE FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
+
+    return "Successfully removed Feat from Database";
+  };
+
+  async updateFeat(server, feat) {
+    if (!(await this.featExists(server, feat))) {
+      throw new NotFoundError("Feat not found", "Could not find that Feat in the Database!");
+    }
+
+    const sql = "UPDATE feats SET name = $1, description = $2, type = $3, val1 = $4, val2 = $5, val3 = $6 WHERE server_id = $7 AND id = $8";
+    await this.query(sql, [feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3, server.id, feat.id])
+
+    return "Successfully updated Feat in Database";
+  };
 
   getClass(server, clas) {
     return new Promise((resolve, reject) => {
