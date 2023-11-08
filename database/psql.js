@@ -1144,6 +1144,36 @@ class PSQL {
     return "Successfully updated Armor in Database";
   };
 
+  async getProficiency(prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM proficiency_types")
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Proficiencies found", "Could not find any Proficiencies in the Database!");
+      }
+
+      return results;
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM proficiency_types WHERE id = $1", [prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Proficiency not found", "Could not find that Proficiency in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM proficiency_types WHERE key = $1", [prof.key])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Proficiency not found", "Could not find a Proficiency with that key in the Database!");
+    }
+
+    return results[0];
+  };
+
   async getChar(user, char) {
     if (!char) {
       const results = await this.query("SELECT * FROM characters WHERE user_id = $1", [user.id])
@@ -1534,8 +1564,8 @@ class PSQL {
       return results;
     }
 
-    const sql = `SELECT ${stat} FROM character_stats WHERE char_id = $1`;
-    const results = await this.query(sql, [char.id])
+    const sql = "SELECT * FROM character_stats WHERE char_id = $1 AND key = $2";
+    const results = await this.query(sql, [char.id, stat.key])
 
     if (results.length === 0) {
       throw new NotFoundError("Character Stat not found", "Could not find that Stat for that Character in the Database!");
@@ -1547,7 +1577,7 @@ class PSQL {
   async setCharStats(char, stats) {
     try {
       const charStats = await this.getCharStat(char)
-      stats = stats.filter(stat => !stat.name.inlcudes(charStats.map(charStat => charStat.name)))
+      stats = stats.filter(stat => !stat.key.inlcudes(charStats.map(charStat => charStat.key)))
       
       await Promise.all(stats.map(stat => this.setCharStat(char, stat)));
     } catch (err) {
@@ -1564,22 +1594,22 @@ class PSQL {
   };
 
   async charStatExists(char, stat) {
-    const sql = "SELECT * FROM character_stats WHERE char_id = $1 AND name = $2";
-    const results = await this.query(sql, [char.id, stat.name])
+    const sql = "SELECT * FROM character_stats WHERE char_id = $1 AND key = $2";
+    const results = await this.query(sql, [char.id, stat.key])
 
     return results.length === 1;
   };
 
   async setCharStat(char, stat) {
     if (!(await this.charStatExists(char, stat))) {
-      const sql = "INSERT INTO character_stats VALUES($1, $2, $3)";
-      await this.query(sql, [char.id, stat.name, stat.val]);
+      const sql = "INSERT INTO character_stats (char_id, key, value) VALUES($1, $2, $3)";
+      await this.query(sql, [char.id, stat.key, stat.val]);
 
       return "Successfully added Character Stat to Database";
     }
 
     const sql = "UPDATE character_stats SET val = $1 WHERE char_id = $2 AND name = $3";
-    await this.query(sql, [stat.val, char.id, stat.name])
+    await this.query(sql, [stat.val, char.id, stat.key])
 
     return "Successfully updated Character Stat in Database";
   };
@@ -1589,8 +1619,8 @@ class PSQL {
       throw new NotFoundError("Character Stat not found", "Could not find that Character Stat in the Database!")
     }
 
-    const sql = "DELETE FROM character_stats WHERE char_id = $1 AND name = $2";
-    await this.query(sql, [char.id, stat.name])
+    const sql = "DELETE FROM character_stats WHERE char_id = $1 AND key = $2";
+    await this.query(sql, [char.id, stat.key])
 
     return "Successfully removed Character Stat from Database";
   };
@@ -1932,17 +1962,131 @@ class PSQL {
     return "Successfully removed Feat from Character";
   };
 
-  getCharProf(char, prof) {
-    //TODO: Copy over from GitHub
-  }
+  async getCharProficiency(char, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1", [char.id])
 
-  addCharProf(char, prof) {
-    //TODO: Copy over from GitHub
-  }
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Proficiencies found", "Could not find any Proficiencies for that Character in the Database!");
+      }
 
-  remCharProf(char, prof) {
-    //TODO: Copy over from GitHub
-  }
+      return Promise.all(results.map(async (charProf) => {
+        const dbProf = await this.getProficiency({id: charProf.type})
+
+        return {
+          id: charProf.id,
+          char_id: char.id,
+          name: charProf.name,
+          type: dbProf.name,
+          expert: charProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2", [char.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Proficiency not found", "Could not find that Proficiency for that Character in the Database!");
+      }
+
+      const charProf = results[0];
+
+      const dbProf = await this.getProficiency({id: charProf.type})
+
+      return {
+        id: charProf.id,
+        char_id: char.id,
+        name: charProf.name,
+        type: dbProf.name,
+        expert: charProf.expert
+      };
+    }
+
+    if (prof.type) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND type = $2", [char.id, prof.type])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Proficiencies not found", "Could not find any Proficiencies of that type for that Character in the Database!");
+      }
+
+      const dbProf = await this.getProficiency({id: prof.type})
+
+      return results.map(charProf => {
+        return {
+          id: charProf.id,
+          char_id: char.id,
+          name: charProf.name,
+          type: dbProf.name,
+          expert: charProf.expert
+        };
+      });
+    }
+
+    const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2", [char.id, prof.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Proficiency not found", "Could not find a Character Proficiency with that name in the Database!");
+    }
+
+    const charProf = results[0];
+
+    const dbProf = await this.getProficiency({id: charProf.type})
+
+    return {
+      id: charProf.id,
+      char_id: char.id,
+      name: charProf.name,
+      type: dbProf.name,
+      expert: charProf.expert
+    };
+  };
+
+  async charProfExists(char, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2", [char.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2", [char.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addCharProficiency(char, prof) {
+    try {
+      const charProf = await this.getCharProficiency(char, prof)
+
+      if (charProf.expert == prof.expert) {
+        throw new DuplicateError("Duplicate Character Proficiency", "That Character already has that Proficiency!");
+      }
+
+      const sql = "UPDATE character_proficiencies SET expert = $1 WHERE char_id = $2 AND id = $3";
+      await this.query(sql, [prof.expert, char.id, charProf.id])
+
+      return "Successfully updated Character Proficiency in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_proficiencies (char_id, name, type, expert) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [char.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Character Proficiency to Database";
+    }
+  };
+
+  async remCharProficiency(char, prof) {
+    if (!(await this.charProfExists(char, prof))) {
+      throw new NotFoundError("Character Proficiency not found", "Could not find that Proficiency for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_proficiencies WHERE char_id = $1 AND id = $2", [char.id, prof.id])
+
+    return "Successfully removed Character Proficiency from Database";
+  };
 
   async getCondition(server, condition) {
     if (!condition) {
@@ -2588,419 +2732,447 @@ class PSQL {
     return "Successfully updated Feat in Database";
   };
 
-  getClass(server, clas) {
-    return new Promise((resolve, reject) => {
-      if (!clas) {
-        const sql = "SELECT * FROM classes WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Classes found");
-            } else if (results.length >= 1) {
-              const classes = []
-              classes.push({
-                name: c.name,
-                hitdice: c.hitdice,
-                hitdice_size: c.hitdice_size,
-                caster: c.caster,
-                cast_lvl: c.cast_lvl,
-                sub: c.sub,
-                profs: {
-                  armor: [],
-                  lang: [],
-                  skill: [],
-                  tool: [],
-                  weapon: []
-                },
-                saves: [],
-                senses: [],
-                traits: []
-              });
-              let num = 0;
-              for (const c of results) {
-                this.getClassProf(server, c)
-                  .then(profs => classes[num].profs = profs)
-                  .catch(console.error);
-                this.getClassSave(server, c)
-                  .then(saves => classes[num].saves = saves)
-                  .catch(console.error);
-                this.getClassSense(server, c)
-                  .then(senses => classes[num].senses = senses)
-                  .catch(console.error);
-                this.getClassTrait(server, c)
-                  .then(traits => classes[num].traits = traits)
-                  .catch(console.error);
-                num++;
-              }
-              resolve(classes);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (clas.id) {
-          const sql = "SELECT * FROM classes WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, clas.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Class not found");
-              } else if (results.length === 1) {
-                const c = results[0];
-                const classes = {
-                  name: c.name,
-                  hitdice: c.hitdice,
-                  hitdice_size: c.hitdice_size,
-                  caster: c.caster,
-                  cast_lvl: c.cast_lvl,
-                  sub: c.sub,
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  saves: [],
-                  senses: [],
-                  traits: []
-                };
-                this.getClassProf(server, c)
-                  .then(profs => classes.profs = profs)
-                  .catch(console.error);
-                this.getClassSave(server, c)
-                  .then(saves => classes.saves = saves)
-                  .catch(console.error);
-                this.getClassSense(server, c)
-                  .then(senses => classes.senses = senses)
-                  .catch(console.error);
-                this.getClassTrait(server, c)
-                  .then(traits => classes.traits = traits)
-                  .catch(console.error);
-                resolve(classes);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM classes WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, clas.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Class not found");
-              } else if (results.length === 1) {
-                const c = results[0];
-                const classes = {
-                  name: c.name,
-                  hitdice: c.hitdice,
-                  hitdice_size: c.hitdice_size,
-                  caster: c.caster,
-                  cast_lvl: c.cast_lvl,
-                  sub: c.sub,
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  saves: [],
-                  senses: [],
-                  traits: []
-                };
-                this.getClassProf(server, c)
-                  .then(profs => classes.profs = profs)
-                  .catch(console.error);
-                this.getClassSave(server, c)
-                  .then(saves => classes.saves = saves)
-                  .catch(console.error);
-                this.getClassSense(server, c)
-                  .then(senses => classes.senses = senses)
-                  .catch(console.error);
-                this.getClassTrait(server, c)
-                  .then(traits => classes.traits = traits)
-                  .catch(console.error);
-                resolve(classes);
-              }
-            })
-            .catch(err => reject(err));
-        }
+  async getClass(server, clas) {
+    if (!clas) {
+      const results = await this.query("SELECT * FROM classes WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Classes found", "Could not find any Classes in the Database!");
       }
-    });
-  }
 
-  addClass(server, clas) {
-    //TODO: Copy from GitHub
-  }
+      return Promise.all(results.map(async (dbClass) => {
+        const classProfs = await this.getClassProf(server, clas)
+        const classSaves = await this.getClassSave(server, clas)
+        const classSenses = await this.getClassSense(server, clas)
+        const classTraits = await this.getClassTrait(server, clas)
 
-  remClass(server, clas) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          const sql = "DELETE FROM classes WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, c.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+        return {
+          id: dbClass.id,
+          name: dbClass.name,
+          hitdice: dbClass.hitdice,
+          hitdice_size: dbClass.hitdice_size,
+          caster: dbClass.caster,
+          cast_lvl: dbClass.cast_lvl,
+          sub: dbClass.sub,
+          profs: classProfs,
+          saves: classSaves,
+          senses: classSenses,
+          traits: classTraits
+        };
+      }));
+    }
 
-  updateClass(server, clas) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          const sql = "UPDATE classes SET name = $1, description = $2, hitdice = $3, hitdice_size = $4, caster = $5, cast_lvl = $6, sub = $7 WHERE server_id = $8 AND id = $9";
-          this.query(sql, [clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub, server.id, c.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (clas.id) {
+      const results = await this.query("SELECT * FROM classes WHERE server_id = $1 AND id = $2", [server.id, clas.id])
 
-  getClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          if (!trait) {
-            const sql = "SELECT * FROM class_traits WHERE server_id = $1 AND class_id = $2";
-            this.query(sql, [server.id, c.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Class Traits found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (trait.id) {
-              const sql = "SELECT * FROM class_traits WHERE server_id = $1 AND class_id = $2 AND id = $3";
-              this.query(sql, [server.id, c.id, trait.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Trait not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM class_traits WHERE server_id = $1 AND class_id = $2 AND name = $3";
-              this.query(sql, [server.id, c.id, trait.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Trait not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
+      if (results.length === 0) {
+        throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+      }
 
-  addClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClassTrait(server, clas, trait)
-        .then(reject("Error 409: Duplicate Class Trait"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO class_traits (server_id, class_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-            this.query(sql, [server.id, clas.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+      const dbClass = results[0];
 
-  remClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClassTrait(server, clas, trait)
-        .then(t => {
-          const sql = "DELETE FROM class_traits WHERE server_id = $1 AND class_id = $2 AND id = $3";
-          this.query(sql, [server.id, clas.id, t.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+      const classProfs = await this.getClassProf(server, clas)
+      const classSaves = await this.getClassSave(server, clas)
+      const classSenses = await this.getClassSense(server, clas)
+      const classTraits = await this.getClassTrait(server, clas)
 
-  updateClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClassTrait(server, clas, trait)
-        .then(t => {
-          const sql = "UPDATE class_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE server_id = $12 AND class_id = $13 AND id = $14";
-          this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, server.id, clas.id, t.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+      return {
+        id: dbClass.id,
+        name: dbClass.name,
+        hitdice: dbClass.hitdice,
+        hitdice_size: dbClass.hitdice_size,
+        caster: dbClass.caster,
+        cast_lvl: dbClass.cast_lvl,
+        sub: dbClass.sub,
+        profs: classProfs,
+        saves: classSaves,
+        senses: classSenses,
+        traits: classTraits
+      };
+    }
 
-  getClassFeat(server, clas, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          if (!feat) {
-            const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2";
-            this.query(sql, [char.id, c.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Class Feats found");
-                } else if (results.length >= 1) {
-                  const feats = [];
-                  for (const f of results) {
-                    this.getFeat(server, f)
-                      .then(fea => feats.push({
-                        name: fea.name,
-                        description: fea.description,
-                        class: c.name,
-                        visible: fea.visible,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(feats.push({
-                        feat_id: f.id,
-                        class: c.name,
-                        state: "Invalid"
-                      }));
-                  }
-                  resolve(feats);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (feat.feat_id) {
-              const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3";
-              this.query(sql, [char.id, c.id, feat.feat_id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Feat not found");
-                  } else if (results.length === 1) {
-                    const f = results[0];
-                    this.getFeat(server, { id: f.feat_id })
-                      .then(fea => resolve({
-                        name: fea.name,
-                        description: fea.description,
-                        class: c.name,
-                        visible: fea.visible,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(reject("Error 400: Invalid Feat"));
-                  }
-                })
-                .catch(err => reject(err));
-            } else if (feat.id) {
-              const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3";
-              this.query(sql, [char.id, c.id, feat.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Feat not found");
-                  } else if (results.length === 1) {
-                    const f = results[0]
-                    this.getFeat(server, { id: f.feat_id })
-                      .then(fea => resolve({
-                        name: fea.name,
-                        description: fea.description,
-                        class: c.name,
-                        visible: fea.visible,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(reject("Error 400: Invalid Feat"));
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              this.getFeat(server, { name: feat.name })
-                .then(fea => {
-                  const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3";
-                  this.query(sql, [char.id, c.id, fea.id])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Class Feat not found");
-                      } else if (results.length === 1) {
-                        resolve({
-                          name: fea.name,
-                          description: fea.description,
-                          class: c.name,
-                          visible: fea.visible,
-                          id: results[0].id,
-                          feat_id: fea.id,
-                          state: "Valid"
-                        });
-                      }
-                    })
-                    .catch(err => reject(err));
-                })
-                .catch(reject("Error 400: Invalid Feat"));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
+    const results = await this.query("SELECT * FROM classes WHERE server_id = $1 AND name = $2", [server.id, clas.name])
 
-  addClassFeat(server, clas, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getClassFeat(server, clas, char, feat)
-        .then(reject("Error 409: Duplicate Class Feat"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getFeat(server, feat)
-              .then(fea => {
-                const sql = "INSERT INTO class_feats (char_id, class_id, feat_id) VALUES ($1, $2, $3)";
-                this.query(sql, [char.id, clas.id, fea.id])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
+    if (results.length === 0) {
+      throw new NotFoundError("Class not found", "Could not find a Class with that name in the Database!");
+    }
 
-  remClassFeat(server, clas, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getClassFeat(server, clas, char, feat)
-        .then(f => {
-          const sql = "DELETE FROM class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3";
-          this.query(sql, [char.id, clas.id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    const dbClass = results[0];
 
-  getClassProf(server, clas, prof) {
-    //TODO: Copy from GitHub
-  }
+    const classProfs = await this.getClassProf(server, clas)
+    const classSaves = await this.getClassSave(server, clas)
+    const classSenses = await this.getClassSense(server, clas)
+    const classTraits = await this.getClassTrait(server, clas)
 
-  addClassProf(server, clas, prof) {
-    //TODO: Copy from GitHub
-  }
+    return {
+      id: dbClass.id,
+      name: dbClass.name,
+      description: dbClass.description,
+      hitdice: dbClass.hitdice,
+      hitdice_size: dbClass.hitdice_size,
+      caster: dbClass.caster,
+      cast_lvl: dbClass.cast_lvl,
+      sub: dbClass.sub,
+      profs: classProfs,
+      saves: classSaves,
+      senses: classSenses,
+      traits: classTraits
+    };
+  };
 
-  remClassProf(server, clas, prof) {
-    //TODO: Copy from GitHub
-  }
+  async classExists(server, clas) {
+    if (clas.id) {
+      const results = await this.query("SELECT * FROM classes WHERE server_id = $1 AND id = $2", [server.id, clas.id])
 
-  updateClassProf(server, clas, prof) {
-    //TODO
-  }
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM classes WHERE server_id = $1 AND name = $2", [server.id, clas.name])
+
+    return results.length === 1;
+  };
+
+  async addClass(server, clas) {
+    if (await this.classExists(server, clas)) {
+      throw new DuplicateError("Duplicate Class", "That Class already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO classes (server_id, name, description, hitdice, hitdice_size, caster, cast_lvl, sub) VALUES($1, $2, $3, $4, $5, $6, $7. $8)";
+    await this.query(sql, [server.id, clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub])
+
+    return "Successfully added Class to Database";
+  };
+
+  async remClass(server, clas) {
+    if (!(await this.classExists(server, clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    await this.query("DELETE FROM classes WHERE server_id = $1 AND id = $2", [server.id, clas.id])
+
+    return "Successfully removed Class from Database";
+  };
+
+  async updateClass(server, clas) {
+    if (!(await this.classExists(server, clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    const sql = "UPDATE classes SET name = $1, description = $2, hitdice = $3, hitdice_size = $4, caster = $5, cast_lvl = $6, sub = $7 WHERE server_id = $8 AND id = $9";
+    await this.query(sql, [clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub, server.id, clas.id])
+
+    return "Successfully updated Class in Database";
+  };
+
+  async getClassTrait(server, clas, trait) {
+    if (!(await this.classExists(server, clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    if (!trait) {
+      const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1", [clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Class Traits found", "Could not find any Traits for that Class in the Database!");
+      }
+
+      return results;
+    }
+
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND id = $2", [clas.id, trait.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Class Trait not found", "Could not find that Trait for that Class in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND name = $2", [clas.id, trait.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Class Trait not found", "Could not find a Trait with that name for that Class in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async classTraitExists(clas, trait) {
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND id = $2", [clas.id, trait.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND name = $2", [clas.id, trait.name])
+    
+    return results.length === 1;
+  };
+
+  async addClassTrait(clas, trait) {
+    if (await this.classTraitExists(clas, trait)) {
+      throw new DuplicateError("Duplicate Class Trait", "That Class already has that trait!");
+    }
+
+    const sql = "INSERT INTO class_traits (class_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [clas.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
+    
+    return "Successfully added Class Trait to Database";
+  };
+
+  async remClassTrait(clas, trait) {
+    if (!(await this.classTraitExists(clas, trait))) {
+      throw new NotFoundError("Class Trait not found", "Could not find that Trait for that Class in the Database!");
+    }
+
+    await this.query("DELETE FROM class_traits WHERE class_id = $1 AND id = $2", [clas.id, trait.id])
+
+    return "Successfully removed Class Trait from Database";
+  };
+
+  async updateClassTrait(clas, trait) {
+    if (!(await this.classTraitExists(clas, trait))) {
+      throw new NotFoundError("Class Trait not found", "Could not find that Trait for that Class in the Database!");
+    }
+
+    const sql = "UPDATE class_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE class_id = $12 AND id = $13";
+    await this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, clas.id, trait.id])
+
+    return "Successfully updated Class Trait in Database";
+  };
+
+  async getCharClassFeat(server, char, clas, feat) {
+    if (!(await this.classExists(server, clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    if (!feat) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2", [char.id, clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character (class-only) Feats found", "Could not find any Feats granted by the Character\'s Class in the Database!")
+      }
+
+      return Promise.all(results.map(async (charFeat) => {
+        const dbFeat = await this.getFeat({id: charFeat.feat_id})
+
+        return {
+          id: charFeat.id,
+          char_id: char.id,
+          class_id: clas.id,
+          feat_id: dbFeat.id,
+          name: dbFeat.name,
+          description: dbFeat.description,
+          visible: dbFeat.visible
+        };
+      }));
+    }
+
+    if (feat.feat_id) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3", [char.id, clas.id, feat.feat_id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character (class-only) Feat not found", "Could not find that Feat granted by that Class for that Character in the Database!");
+      }
+
+      const charFeat = results[0];
+
+      const dbFeat = await this.getFeat(server, {id: feat.feat_id})
+
+      return {
+        id: charFeat.id,
+        char_id: char.id,
+        class_id: clas.id,
+        feat_id: dbFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description,
+        visible: dbFeat.visible
+      };
+    }
+
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, feat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character (class-only) Feat not found", "Could not find that Feat granted by that Class for that Character in the Database!");
+      }
+
+      const charFeat = results[0];
+
+      const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
+
+      return {
+        id: charFeat.id,
+        char_id: char.id,
+        class_id: clas.id,
+        feat_id: dbFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description,
+        visible: dbFeat.visible
+      };
+    }
+
+    const dbFeat = await this.getFeat(server, {name: feat.name})
+
+    const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3", [char.id, clas.id, dbFeat.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character (class-only) Feat not found", "Could not find a Feat granted by that Class with that name for that Character in the Database!");
+    }
+
+    const charFeat = results[0];
+
+    return {
+      id: charFeat.id,
+      char_id: char.id,
+      class_id: clas.id,
+      feat_id: dbFeat.id,
+      name: dbFeat.name,
+      description: dbFeat.description,
+      visible: dbFeat.visible
+    };
+  };
+
+  async charClassFeatExists(char, clas, feat) {
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, feat.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3", [char.id, clas.id, feat.feat_id])
+
+    return results.length === 1;
+  };
+
+  async addCharClassFeat(char, clas, feat) {
+    if (await this.charClassFeatExists(char, clas, feat)) {
+      throw new DuplicateError("Duplicate Character (class-only) Feat", "That Character already has that Feat granted by that Class!");
+    }
+
+    const sql = "INSERT INTO character_class_feats (char_id, class_id, feat_id) VALUES($1, $2, $3)";
+    await this.query(sql, [char.id, clas.id, feat.id])
+
+    return "Successfully added Character (class-only) Feat to Database";
+  };
+
+  async remCharClassFeat(char, clas, feat) {
+    if (!(await this.charClassFeatExists(char, clas, feat))) {
+      throw new NotFoundError("Character (class-only) Feat not found", "Could not find that Feat granted by that Class for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, feat.id])
+
+    return "Successfully removed Character (class-only) Feat from Database";
+  };
+
+  async getCharClassProf(char, clas, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2", [char.id, clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character (class-only) Proficiencies found", "Could not find any Proficiencies granted by that Class for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charProf) => {
+        const dbProf = this.getProficiency({id: charProf.type})
+
+        return {
+          id: charProf.id,
+          char_id: char.id,
+          class_id: clas.id,
+          name: charProf.name,
+          type: dbProf.name,
+          expert: charProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find that Proficiency granted by that Class for that Character in the Database!");
+      }
+
+      const charProf = results[0];
+
+      const dbProf = await this.getProficiency({id: charProf.type})
+
+      return {
+        id: charProf.id,
+        char_id: char.id,
+        class_id: clas.id,
+        name: charProf.name,
+        type: dbProf.name,
+        expert: charProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3", [char.id, clas.id, prof.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find a Proficiency granted by that Class with that name for that Character in the Database!");
+    }
+
+    const charProf = results[0];
+
+    const dbProf = await this.getProficiency({id: charProf.type})
+
+    return {
+      id: charProf.id,
+      char_id: char.id,
+      class_id: clas.id,
+      name: charProf.name,
+      type: dbProf.name,
+      expert: charProf.expert
+    };
+  };
+
+  async charClassProfExists(char, clas, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3", [char.id, clas.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addCharClassProf(char, clas, prof) {
+    if (await this.charClassProfExists(char, clas, prof)) {
+      throw new DuplicateError("Duplicate Character (class-only) Proficiency", "That Character already has that Proficiency granted by that Class!");
+    }
+
+    const sql = "INSERT INTO character_class_profs (char_id, class_id, name, type, expert) VALUES($1, $2, $3, $4, $5)";
+    await this.query(sql, [char.id, clas.id, prof.name, prof.type, prof.expert])
+
+    return "Successfully added Character (class-only) Proficiency to Database";
+  };
+
+  async remCharClassProf(char, clas, prof) {
+    if (!(await this.charClassProfExists(char, clas, prof))) {
+      throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find that Proficiency granted by that Class for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, prof.id])
+
+    return "Successfully removed Character (class-only) Proficiency from Database";
+  };
+
+  async updateCharClassProf(char, clas, prof) {
+    if (!(await this.charClassProfExists(char, clas, prof))) {
+      throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find that Proficiency granted by that Class for that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_class_profs SET name = $1, expert = $2 WHERE char_id = $3 AND class_id = $4 AND id = $5";
+    await this.query(sql, [prof.name, prof.expert, char.id, clas.id, prof.id])
+
+    return "Successfully updated Character (class-only) Proficiency in Database";
+  };
 
   getClassSave(server, clas, save) {
     return new Promise((resolve, reject) => {
