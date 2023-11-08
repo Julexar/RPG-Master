@@ -3175,6 +3175,7 @@ class PSQL {
   };
 
   getClassSave(server, clas, save) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClass(server, clas)
         .then(c => {
@@ -3209,6 +3210,7 @@ class PSQL {
   }
 
   addClassSave(server, clas, save) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClassSave(server, clas, save)
         .then(reject("Error 409: Duplicate Class Saves"))
@@ -3226,6 +3228,7 @@ class PSQL {
   }
 
   remClassSave(server, clas, save) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClassSave(server, clas, save)
         .then(function() {
@@ -3239,6 +3242,7 @@ class PSQL {
   }
 
   updateClassSave(server, clas, save) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClassSave(server, clas, save)
         .then(s => {
@@ -3252,6 +3256,7 @@ class PSQL {
   }
 
   getClassSense(server, clas, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClass(server, clas)
         .then(c => {
@@ -3296,6 +3301,7 @@ class PSQL {
   }
 
   addClassSense(server, clas, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClassSense(server, clas, sense)
         .then(reject("Error 409: Duplicate Class Sense"))
@@ -3317,6 +3323,7 @@ class PSQL {
   }
 
   remClassSense(server, clas, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClassSense(server, clas, sense)
         .then(s => {
@@ -3330,6 +3337,7 @@ class PSQL {
   }
 
   updateClassSense(server, clas, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getCharSense(server, clas, sense)
         .then(s => {
@@ -3343,6 +3351,7 @@ class PSQL {
   }
 
   getSubclass(server, clas, sub) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getClass(server, clas)
         .then(c => {
@@ -3480,10 +3489,11 @@ class PSQL {
   }
 
   addSubclass(server, clas, sub) {
-    //TODO: Copy from GitHub
+    //TODO: Creation & Cleanup
   }
 
   remSubclass(server, clas, sub) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclass(server, clas, sub)
         .then(s => {
@@ -3497,6 +3507,7 @@ class PSQL {
   }
 
   updateSubclass(server, clas, sub) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclass(server, clas, sub)
         .then(s => {
@@ -3510,6 +3521,7 @@ class PSQL {
   }
 
   getSubclassTrait(server, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       if (!trait) {
         const sql = "SELECT * FROM subclass_traits WHERE server_id = $1 AND sub_id = $2";
@@ -3551,6 +3563,7 @@ class PSQL {
   }
 
   addSubclassTrait(server, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclassTrait(server, sub, trait)
         .then(reject("Error 409: Duplicate Subclass Trait"))
@@ -3568,6 +3581,7 @@ class PSQL {
   }
 
   remSubclassTrait(server, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclassTrait(server, sub, trait)
         .then(function() {
@@ -3581,6 +3595,7 @@ class PSQL {
   }
 
   updateSubclassTrait(server, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclassTrait(server, sub, trait)
         .then(function() {
@@ -3593,23 +3608,24 @@ class PSQL {
     })
   }
 
-  getSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
+  getCharSubclassProf(char, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  addSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
+  addCharSubclassProf(char, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  remSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
+  remCharSubclassProf(char, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  updateSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
+  updateCharSubclassProf(char, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
   getSubclassSense(server, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       if (!sense) {
         const sql = "SELECT * FROM subclass_senses WHERE server_id = $1 AND sub_id = $2";
@@ -3651,6 +3667,7 @@ class PSQL {
   }
 
   addSubclassSense(server, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclassSense(server, sub, sense)
         .then(reject("Error 409: Duplicate Subclass Sense"))
@@ -3668,6 +3685,7 @@ class PSQL {
   }
 
   remSubclassSense(server, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclassSense(server, sub, sense)
         .then(s => {
@@ -3681,6 +3699,7 @@ class PSQL {
   }
 
   updateSubclassSense(server, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubclassSense(server, sub, sense)
         .then(s => {
@@ -3694,6 +3713,7 @@ class PSQL {
   }
 
   getRace(server, race) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       if (!race) {
         const sql = "SELECT * FROM races WHERE server_id = $1";
@@ -3865,6 +3885,7 @@ class PSQL {
   }
 
   addRace(server, race) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(reject("Error 409: Duplicate Race"))
@@ -4051,6 +4072,7 @@ class PSQL {
   }
 
   remRace(server, race) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4064,6 +4086,7 @@ class PSQL {
   }
 
   updateRace(server, race) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4077,6 +4100,7 @@ class PSQL {
   }
 
   getRaceASI(server, race, stat) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4109,6 +4133,7 @@ class PSQL {
   }
 
   addRaceASI(server, race, stat) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceASI(server, race, stat)
         .then(s => {
@@ -4134,6 +4159,7 @@ class PSQL {
   }
 
   remRaceASI(server, race, stat) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceASI(server, race, stat)
         .then(function() {
@@ -4147,6 +4173,7 @@ class PSQL {
   }
 
   updateRaceASI(server, race, stat) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceASI(server, race, stat)
         .then(function() {
@@ -4160,6 +4187,7 @@ class PSQL {
   }
 
   getRaceFeat(server, char, race, feat) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4281,6 +4309,7 @@ class PSQL {
   }
 
   addRaceFeat(server, char, race, feat) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceFeat(server, char, race, feat)
         .then(reject("Error 409: Duplicate Race Feat"))
@@ -4306,6 +4335,7 @@ class PSQL {
   }
 
   remRaceFeat(server, char, race, feat) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceFeat(server, char, race, feat)
         .then(f => {
@@ -4323,6 +4353,7 @@ class PSQL {
   }
 
   getRaceImm(server, race, imm) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4425,6 +4456,7 @@ class PSQL {
   }
 
   addRaceImm(server, race, imm) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceImm(server, race, imm)
         .then(reject("Error 409: Duplicate Race Immunity"))
@@ -4460,6 +4492,7 @@ class PSQL {
   }
 
   remRaceImm(server, race, imm) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceImm(server, race, imm)
         .then(i => {
@@ -4477,6 +4510,7 @@ class PSQL {
   }
 
   getRaceRes(server, race, res) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4578,6 +4612,7 @@ class PSQL {
   }
 
   addRaceRes(server, race, res) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getCondOrDmgtype(server, res.type, { name: res.name })
         .then(resist => {
@@ -4607,6 +4642,7 @@ class PSQL {
   }
 
   remRaceRes(server, race, res) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceRes(server, race, res)
         .then(re => {
@@ -4623,23 +4659,24 @@ class PSQL {
     });
   }
 
-  getRaceProf(server, race, prof) {
-    //TODO: Copy from GitHub
+  getCharRaceProf(char, race, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  addRaceProf(server, race, prof) {
-    //TODO: Copy from GitHub
+  addCharRaceProf(char, race, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  remRaceProf(server, race, prof) {
-    //TODO: Copy from GitHub
+  remCharRaceProf(char, race, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  updateRaceProf(server, race, prof) {
-    //TODO
+  updateCharRaceProf(char, race, prof) {
+    //TODO: Creation & Cleanup
   }
 
   getRaceSense(server, race, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4685,6 +4722,7 @@ class PSQL {
   }
 
   addRaceSense(server, race, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceSense(server, race, sense)
         .then(reject("Error 409: Duplicate Race Sense"))
@@ -4706,6 +4744,7 @@ class PSQL {
   }
 
   remRaceSense(server, race, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceSense(server, race, sense)
         .then(s => {
@@ -4723,6 +4762,7 @@ class PSQL {
   }
 
   updateRaceSense(server, race, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceSense(server, race, sense)
         .then(s => {
@@ -4740,6 +4780,7 @@ class PSQL {
   }
 
   getRaceTrait(server, race, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4785,6 +4826,7 @@ class PSQL {
   }
 
   addRaceTrait(server, race, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceTrait(server, race, trait)
         .then(reject("Error 409: Duplicate Race Trait"))
@@ -4806,6 +4848,7 @@ class PSQL {
   }
 
   remRaceTrait(server, race, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceTrait(server, race, trait)
         .then(t => {
@@ -4823,6 +4866,7 @@ class PSQL {
   }
 
   updateRaceTrait(server, race, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRaceTrait(server, race, trait)
         .then(t => {
@@ -4840,6 +4884,7 @@ class PSQL {
   }
 
   getSubrace(server, race, sub) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -4964,6 +5009,7 @@ class PSQL {
   }
 
   addSubrace(server, race, sub) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -5101,6 +5147,7 @@ class PSQL {
   }
 
   remSubrace(server, race, sub) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -5118,6 +5165,7 @@ class PSQL {
   }
 
   updateSubrace(server, race, sub) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -5134,23 +5182,24 @@ class PSQL {
     });
   }
 
-  getSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
+  getCharSubraceProf(char, race, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  addSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
+  addCharSubraceProf(char, race, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  remSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
+  remCharSubraceProf(char, race, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
-  updateSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
+  updateCharSubraceProf(char, race, sub, prof) {
+    //TODO: Creation & Cleanup
   }
 
   getSubraceSense(server, race, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubrace(server, race, sub)
         .then(s => {
@@ -5196,6 +5245,7 @@ class PSQL {
   }
 
   addSubraceSense(server, race, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubrace(server, race, sub)
         .then(s => {
@@ -5217,6 +5267,7 @@ class PSQL {
   }
 
   remSubraceSense(server, race, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubrace(server, race, sub)
         .then(s => {
@@ -5234,6 +5285,7 @@ class PSQL {
   }
 
   updateSubraceSense(server, race, sub, sense) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSubrace(server, race, sub)
         .then(s => {
@@ -5251,6 +5303,7 @@ class PSQL {
   }
 
   getSubraceTrait(server, race, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -5300,6 +5353,7 @@ class PSQL {
   }
 
   addSubraceTrait(server, race, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -5325,6 +5379,7 @@ class PSQL {
   }
 
   remSubraceTrait(server, race, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -5346,6 +5401,7 @@ class PSQL {
   }
 
   updateSubraceTrait(server, race, sub, trait) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getRace(server, race)
         .then(r => {
@@ -5367,6 +5423,7 @@ class PSQL {
   }
 
   getSession(server, user, session) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       if (!user) {
 
@@ -5416,6 +5473,7 @@ class PSQL {
   }
 
   addSession(server, user, session) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getGM(server, user)
         .then(gm => {
@@ -5452,6 +5510,7 @@ class PSQL {
   }
 
   remSession(server, user, session) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getGM(server, user)
         .then(gm => {
@@ -5469,6 +5528,7 @@ class PSQL {
   }
 
   updateSession(server, user, session) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getGM(server, user)
         .then(gm => {
@@ -5486,6 +5546,7 @@ class PSQL {
   }
 
   getPlayers(server, gm, session, player) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getSession(server, gm, session)
         .then(s => {
@@ -5518,6 +5579,7 @@ class PSQL {
   }
 
   joinSession(server, user, char, gm, session) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getPlayer(server, gm, session, { user: user, char: char })
         .then(reject("Error 409: Duplicate Player"))
@@ -5547,6 +5609,7 @@ class PSQL {
   }
 
   leaveSession(server, user, char, gm, session) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getPlayers(server, gm, session, { user: user, char: char })
         .then(p => {
@@ -5560,6 +5623,7 @@ class PSQL {
   }
 
   getLog(server, log) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       if (!log) {
         const sql = "SELECT * FROM server_logs WHERE server_id = $1 ORDER BY id DESC LIMIT 1";
@@ -5588,6 +5652,7 @@ class PSQL {
   }
 
   addLog(server) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       let id = moment().format("YYYY-MM-DDTHH:mm:ss.msZ");
       this.getLog(server, {id: id})
@@ -5636,6 +5701,7 @@ class PSQL {
   }
 
   remLog(server) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       const sql0 = "SELECT COUNT(id) FROM server_logs WHERE server_id = $1";
       this.query(sql0, [server.id])
@@ -5663,6 +5729,7 @@ class PSQL {
   }
 
   writeLog(server, content) {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       this.getLog(server, undefined)
         .then(log => {
@@ -5681,6 +5748,7 @@ class PSQL {
   }
 
   writeDevLog(content) {
+    //TODO: Cleanup
     if (!fs.existsSync("./logs/dev/")) {
       fs.mkdirSync("./logs/dev");
     }
@@ -5693,6 +5761,7 @@ class PSQL {
   }
 
   resetDevLog() {
+    //TODO: Cleanup
     return new Promise((resolve, reject) => {
       if (fs.existsSync("./logs/dev/devlog.log")) {
         fs.writeFileSync("./logs/dev/devlog.log", "\ ");
