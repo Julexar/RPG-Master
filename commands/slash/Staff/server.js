@@ -261,7 +261,7 @@ class Command {
                                                 .setMaxValues(1)
                                                 .setPlaceholder("No GM selected...")
                                         );
-                                    for (async(gm) in gms) {
+                                    for (async(gm) of gms) {
                                         if (count == 24) {
                                             rows.push(row1);
                                             row1 = new ActionRowBuilder()
