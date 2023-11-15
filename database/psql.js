@@ -4937,14 +4937,13 @@ class PSQL {
       }
 
       return Promise.all(results.map(async (raceSense) => {
-        const dbSense = await this.getSense({key: raceSense.key})
+        const dbSense = await this.getSense({key: raceSense.sense_id})
 
         return {
           id: raceSense.id,
           race_id: race.id,
           name: dbSense.name,
-          range: raceSense.range,
-          key: dbSense.key
+          range: raceSense.range
         };
       }));
     }
@@ -4957,14 +4956,13 @@ class PSQL {
       }
 
       const raceSense = results[0];
-      const dbSense = await this.getSense({key: raceSense.key})
+      const dbSense = await this.getSense({id: raceSense.sense_id})
 
       return {
         id: raceSense.id,
         race_id: race.id,
         name: dbSense.name,
-        range: raceSense.range,
-        key: dbSense.key
+        range: raceSense.range
       };
     }
 
@@ -4981,8 +4979,7 @@ class PSQL {
       id: raceSense.id,
       race_id: race.id,
       name: dbSense.name,
-      range: raceSense.range,
-      key: dbSense.key
+      range: raceSense.range
     };
   };
 
@@ -5004,8 +5001,8 @@ class PSQL {
       throw new DuplicateError("Duplicate Race Sense", "That Sense is already linked to that Race in the Database!");
     }
 
-    const sql = "INSERT INTO race_senses (race_id, key, range) VALUES($1, $2, $3)";
-    await this.query(sql, [race.id, sense.key, sense.range])
+    const sql = "INSERT INTO race_senses (race_id, sense_id, range) VALUES($1, $2, $3)";
+    await this.query(sql, [race.id, sense.sense_id, sense.range])
 
     return "Successfully added Race Sense to Database";
   };
@@ -5025,8 +5022,8 @@ class PSQL {
       throw new NotFoundError("Race Sense not found", "Could not find that Sense for that Race in the Database!");
     }
 
-    const sql = "UPDATE race_senses SET range = $1, key = $2 WHERE race_id = $3 AND id = $4";
-    await this.query(sql, [sense.range, sense.key, race.id, sense.id])
+    const sql = "UPDATE race_senses SET range = $1, sense_id = $2 WHERE race_id = $3 AND id = $4";
+    await this.query(sql, [sense.range, sense.sense_id, race.id, sense.id])
 
     return "Successfully updated Race Sense in Database";
   };
@@ -5456,352 +5453,265 @@ class PSQL {
     return "Successfully updated Subrace Proficiency of Character in Database";
   };
 
-  getSubraceSense(server, race, sub, sense) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          if (!sense) {
-            const sql = "SELECT * FROM subrace_senses WHERE server_id = $1 AND sub_id = $2";
-            this.query(sql, [server.id, s.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Subrace Senses found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (sense.id) {
-              const sql = "SELECT * FROM subrace_senses WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-              this.query(sql, [server.id, s.id, sense.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Subrace Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM subrace_senses WHERE server_id = $1 AND sub_id = $2 AND name = $3";
-              this.query(sql, [server.id, s.id, sense.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Subrace Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
+  async getSubraceSense(sub, sense) {
+    if (!sense) {
+      const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1", [sub.id])
 
-  addSubraceSense(server, race, sub, sense) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          this.getSubraceSense(server, race, s, sense)
-            .then(reject("Error 409: Duplicate Subrace Sense"))
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                const sql = "INSERT INTO subrace_senses (server_id, sub_id, name, range) VALUES($1, $2, $3, $4)";
-                this.query(sql, [server.id, s.id, sense.name, sense.range])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remSubraceSense(server, race, sub, sense) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          this.getSubraceSense(server, race, s, sense)
-            .then(sen => {
-              const sql = "DELETE FROM subrace_senses WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-              this.query(sql, [server.id, s.id, sen.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubraceSense(server, race, sub, sense) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          this.getSubraceSense(server, race, s, sense)
-            .then(sen => {
-              const sql = "UPDATE subrace_senses SET name = $1, range = $2 WHERE server_id = $3 AND sub_id = $4 AND id = $5";
-              this.query(sql, [sense.name, sense.range, server.id, s.id, sen.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSubraceTrait(server, race, sub, trait) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              if (!trait) {
-                const sql = "SELECT * FROM subrace_traits WHERE server_id = $1 AND sub_id = $2";
-                this.query(sql, [server.id, s.id])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: No Subrace Traits found");
-                    } else if (results.length >= 1) {
-                      resolve(results);
-                    }
-                  })
-                  .catch(err => reject(err));
-              } else {
-                if (trait.id) {
-                  const sql = "SELECT * FROM subrace_traits WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-                  this.query(sql, [server.id, s.id, trait.id])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Subrace Trait not found");
-                      } else if (results.length === 0) {
-                        resolve(results[0]);
-                      }
-                    })
-                    .catch(err => reject(err));
-                } else {
-                  const sql = "SELECT * FROM subrace_traits WHERE server_id = $1 AND sub_id = $2 AND name = $3";
-                  this.query(sql, [server.id, s.id, trait.name])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Subrace Trait not found");
-                      } else if (results.length === 1) {
-                        resolve(results[0]);
-                      }
-                    })
-                    .catch(err => reject(err));
-                }
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addSubraceTrait(server, race, sub, trait) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              this.getSubraceTrait(server, r, s, trait)
-                .then(reject("Error 409: Duplicate Subrace Trait"))
-                .catch(err => {
-                  if (String(err).includes("Error 404")) {
-                    const sql = "INSERT INTO subrace_traits (server_id, sub_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-                    this.query(sql, [server.id, s.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
-                      .then(resolve("Success"))
-                      .catch(err1 => reject(err1));
-                  } else {
-                    reject(err);
-                  }
-                });
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remSubraceTrait(server, race, sub, trait) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              this.getSubraceTrait(server, r, s, trait)
-                .then(t => {
-                  const sql = "DELETE FROM subrace_traits WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-                  this.query(sql, [server.id, s.id, t.id])
-                    .then(resolve("Success"))
-                    .catch(err => reject(err));
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubraceTrait(server, race, sub, trait) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              this.getSubraceTrait(server, r, s, trait)
-                .then(t => {
-                  const sql = "UPDATE subrace_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE server_id = $12 AND sub_id = $13 AND id = $14";
-                  this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, server.id, s.id, t.id])
-                    .then(resolve("Success"))
-                    .catch(err => reject(err));
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSession(server, user, session) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      if (!user) {
-
-      } else {
-        this.getGM(server, user)
-          .then(gm => {
-            if (!session) {
-              const sql = "SELECT * FROM sessions WHERE server_id = $1 AND dm_id = $2";
-              this.query(sql, [server.id, gm.user_id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: No Sessions found");
-                  } else if (results.length >= 1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              if (session.id) {
-                const sql = "SELECT * FROM sessions WHERE server_id = $1 AND dm_id = $2 AND id = $3";
-                this.query(sql, [server.id, gm.user_id, session.id])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: Session not found");
-                    } else if (results.length === 1) {
-                      resolve(results[0]);
-                    }
-                  })
-                  .catch(err => reject(err));
-              } else {
-                const sql = "SELECT * FROM sessions WHERE server_id = $1 AND dm_id = $2 AND name = $3";
-                this.query(sql, [server.id, gm.user_id, session.name])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: Session not found");
-                    } else if (results.length >= 1) {
-                      resolve(results);
-                    }
-                  })
-                  .catch(err => reject(err));
-              }
-            }
-          })
-          .catch(err => reject(err));
+      if (results.length === 0) {
+        throw new NotFoundError("No Subrace Senses found", "Could not find any Senses for that Subrace in the Database!");
       }
-    });
-  }
 
-  addSession(server, user, session) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          this.getSession(server, user, session)
-            .then(function() {
-              this.getServer(server)
-                .then(s => {
-                  if (s.dup_sessions) {
-                    let date = moment().format("YYYY-MM-DD HH:mm:ss");
-                    const sql = "INSERT INTO sessions (server_id, dm_id, name, description, levels, players, min_runtime, max_runtime, start_time, date, channel, difficulty) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-                    this.query(sql, [server.id, gm.user_id, session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, date, session.channel, session.difficulty])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else {
-                    reject("Error 409: Duplicate Session");
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                let date = moment().format("YYYY-MM-DD HH:mm:ss");
-                const sql = "INSERT INTO sessions (server_id, dm_id, name, description, levels, players, min_runtime, max_runtime, start_time, date, channel, difficulty) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-                this.query(sql, [server.id, gm.user_id, session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, date, session.channel, session.difficulty])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
+      return Promise.all(results.map(async (subSense) => {
+        const dbSense = await this.getSense({id: subSense.sense_id})
 
-  remSession(server, user, session) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          this.getSession(server, user, session)
-            .then(ses => {
-              const sql = "DELETE FROM sessions WHERE server_id = $1 AND dm_id = $2 AND id = $3";
-              this.query(sql, [server.id, gm.user_id, ses.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+        return {
+          id: subSense.id,
+          sub_id: sub.id,
+          name: dbSense.name,
+          range: subSense.range
+        };
+      }));
+    }
 
-  updateSession(server, user, session) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          this.getSession(server, user, session)
-            .then(ses => {
-              const sql = "UPDATE sessions SET name = $1, description = $2, levels = $3, players = $4, min_runtime = $5, max_runtime = $6, start_time = $7, end_time = $8, channel = $9, difficulty = $10, started = $11, ended = $12 WHERE server_id = $13 AND dm_id = $14 AND id = $15";
-              this.query(sql, [session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, session.end_time, session.channel, session.difficulty, session.started, session.ended, server.id, gm.user_id, ses.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subrace Sense not found", "Could not find that Sense for that Subrace in the Database!");
+      }
+
+      const subSense = results[0];
+      const dbSense = await this.getSense({id: subSense.sense_id})
+
+      return {
+        id: subSense.id,
+        sub_id: sub.id,
+        name: dbSense.name,
+        range: subSense.range
+      };
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+    const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND sense_id = $2", [sub.id, dbSense.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subrace Sense not found", "Could not find a Sense with that name for that Subrace in the Database!");
+    }
+
+    const subSense = results[0];
+
+    return {
+      id: subSense.id,
+      sub_id: sub.id,
+      name: dbSense.name,
+      range: subSense.range
+    };
+  };
+
+  async subraceSenseExists(sub, sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+    const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND sense_id = $2", [sub.id, dbSense.id])
+
+    return results.length === 1;
+  };
+
+  async addSubraceSense(sub, sense) {
+    if (await this.subraceSenseExists(sub, sense)) {
+      throw new DuplicateError("Duplicate Subrace Sense", "That Sense is already linked to that Subrace in the Database!");
+    }
+
+    const sql = "INSERT INTO subrace_senses (sub_id, sense_id, range) VALUES($1, $2, $3)";
+    await this.query(sql, [sub.id, sense.sense_id, sense.range])
+
+    return "Successfully added Subrace Sense to Database";
+  };
+
+  async remSubraceSense(sub, sense) {
+    if (!(await this.subraceSenseExists(sub, sense))) {
+      throw new NotFoundError("Subrace Sense not found", "Could not find that Sense for that Subrace in the Database!");
+    }
+
+    await this.query("DELETE FROM subrace_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+    return "Successfully removed Subrace Sense from Database";
+  };
+
+  async updateSubraceSense(sub, sense) {
+    if (!(await this.subraceSenseExists(sub, sense))) {
+      throw new NotFoundError("Subrace Sense not found", "Could not find that Sense for that Subrace in the Database!");
+    }
+
+    const sql = "UPDATE subrace_senses SET sense_id = $1, range = $2 WHERE sub_id = $3 AND id = $4";
+    await this.query(sql, [sense.sense_id, sense.range, sub.id, sense.id])
+
+    return "Successfully updated Subrace Sense in Database";
+  };
+
+  async getSubraceTrait(sub, trait) {
+    if (!trait) {
+      const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1", [sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subrace Traits found", "Could not find any Traits for that Subrace in the Database!");
+      }
+
+      return results;
+    }
+
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subrace Trait not found", "Could not find that Trait for that Subrace in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND name = $2", [sub.id, trait.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subrace Trait not found", "Could not find a Trait with that name for that Subrace in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async subraceTraitExists(sub, trait) {
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND name = $2", [sub.id, trait.name])
+
+    return results.length === 1;
+  };
+
+  async addSubraceTrait(sub, trait) {
+    if (await this.subraceTraitExists(sub, trait)) {
+      throw new DuplicateError("Duplicate Subrace Trait", "That Trait is already linked to that Subrace in the Database!");
+    }
+
+    const sql = "INSERT INTO subrace_traits (sub_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [sub.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
+
+    return "Successfully added Subrace Trait to Database";
+  };
+
+  async remSubraceTrait(sub, trait) {
+    if (!(await this.subraceTraitExists(sub, trait))) {
+      throw new NotFoundError("Subrace Trait not found", "Could not find that Trait for that Subrace in the Database!");
+    }
+
+    await this.query("DELETE FROM subrace_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+    return "Successfully removed Subrace Trait from Database";
+  };
+
+  async updateSubraceTrait(sub, trait) {
+    if (!(await this.subraceTraitExists(sub, trait))) {
+      throw new NotFoundError("Subrace Trait not found", "Could not find that Trait for that Subrace in the Database!");
+    }
+
+    const sql = "UPDATE subrace_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE sub_id = $12 AND id = $13";
+    await this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, sub.id, trait.id])
+
+    return "Successfully updated Subrace Trait in Database";
+  };
+
+  async getSession(server, user, session) {
+    if (!session && !user) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Sessions found", "Could not find any Sessions in the Database!");
+      }
+
+      return results;
+    }
+
+    if (!session && user) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2", [server.id, user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Sessions found", "Could not find any Sessions of that User in the Database!");
+      }
+
+      return results;
+    }
+
+    if (session.id) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND id = $2", [server.id, session.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Session not found", "Could not find that Session in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3", [server.id, user.id, session.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Session not found", "Could not find a Session with that name of that User in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async sessionExists(server, user, session) {
+    if (session.id) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND id = $2", [server.id, session.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3", [server.id, user.id, session.name])
+
+    return results.length === 1;
+  };
+
+  async addSession(server, user, session) {
+    if (await this.sessionExists(server, user, session)) {
+      throw new DuplicateError("Duplicate Session", "A Session with that name already exists in the Database!");
+    }
+
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+
+    const sql = "INSERT INTO sessions (server_id, gm_id, name, description, levels, players, min_runtime, max_runtime, start_time, end_time, date, channel, difficulty, started, finished) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [server.id, user.id, session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, date, session.channel, session.difficulty])
+
+    return "Successfully added Session to Database";
+  };
+
+  async remSession(server, user, session) {
+    if (!(await this.sessionExists(server, user, session))) {
+      throw new NotFoundError("Session not found", "Could not find that Session in the Database!");
+    }
+
+    await this.query("DELETE FROM sessions WHERE server_id = $1 AND id = $2", [server.id, session.id])
+
+    return "Successfully removed Session from Database";
+  };
+
+  async updateSession(server, user, session) {
+    if (!(await this.sessionExists(server, user, session))) {
+      throw new NotFoundError("Session not found", "Could not find that Session in the Database!");
+    }
+
+    const sql = "UPDATE sessions SET name = $1, description = $2, levels = $3, players = $4, min_runtime = $5, max_runtime = $6, start_time = $7, end_time = $8, channel = $9, difficulty = $10, started = $11, ended = $12 WHERE server_id = $13 AND id = $14";
+    await this.query(sql, [session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, session.end_time, session.channel, session.difficulty, session.started, session.ended, server.id, session.id])
+    
+    return "Successfully updated Session in Database";
+  };
 
   getPlayers(server, gm, session, player) {
     //TODO: Cleanup
