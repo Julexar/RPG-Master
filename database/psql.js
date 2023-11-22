@@ -5,7 +5,6 @@ import moment from "moment"
 import { config } from "../config.js"
 import fs from "fs";
 import { BadRequestError, DuplicateError, ForbiddenError, InternalServerError, NotFoundError } from "../custom/errors/index.js";
-import { get } from "http";
 
 class PSQL {
   constructor() {
@@ -5713,233 +5712,178 @@ class PSQL {
     return "Successfully updated Session in Database";
   };
 
-  getPlayers(server, gm, session, player) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getSession(server, gm, session)
-        .then(s => {
-          if (!player) {
-            const sql = "SELECT * FROM session_players WHERE session_id = $1";
-            this.query(sql, [s.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Players found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            const sql = "SELECT * FROM session_players WHERE session_id = $1 AND user_id = $2 AND char_id = $3";
-            this.query(sql, [s.id, player.user.id, player.char.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: Player not found");
-                } else if (results.length === 1) {
-                  resolve(results[0]);
-                }
-              })
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
+  async getPlayers(session, player) {
+    if (!player) {
+      const results = await this.query("SELECT * FROM session_players WHERE session_id = $1", [session.id])
 
-  joinSession(server, user, char, gm, session) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getPlayer(server, gm, session, { user: user, char: char })
-        .then(reject("Error 409: Duplicate Player"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getUser(server, user)
-              .then(u => {
-                this.getChar(u, char)
-                  .then(c => {
-                    this.getSession(server, gm, session)
-                      .then(s => {
-                        const sql = "INSERT INTO session_players (session_id, user_id, char_id) VALUES($1, $2, $3)";
-                        this.query(sql, [s.id, u.id, c.id])
-                          .then(resolve("Success"))
-                          .catch(err1 => reject(err1));
-                      })
-                      .catch(err1 => reject(err1));
-                  })
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  leaveSession(server, user, char, gm, session) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getPlayers(server, gm, session, { user: user, char: char })
-        .then(p => {
-          const sql = "DELETE FROM session_players WHERE session_id = $1 AND user_id = $2 AND char_id = $3";
-          this.query(sql, [p.session_id, p.user_id, p.char_id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getLog(server, log) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      if (!log) {
-        const sql = "SELECT * FROM server_logs WHERE server_id = $1 ORDER BY id DESC LIMIT 1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Logs found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      } else if (log) {
-        const sql = "SELECT * FROM server_logs WHERE server_id = $1 ORDER BY ABS(EXTRACT(epoch FROM id - $2)) LIMIT 1";
-        this.query(sql, [server.id, log.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Logs found");
-            } else {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
+      if (results.length === 0) {
+        throw new NotFoundError("No Session Players found", "Could not find any Players for that Session in the Database!");
       }
-    })
-  }
 
-  addLog(server) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      let id = moment().format("YYYY-MM-DDTHH:mm:ss.msZ");
-      this.getLog(server, {id: id})
-        .then(log => {
-          let olddate = moment(log.id);
-          let newdate = moment();
-          const diff = moment.duration(newdate.diff(olddate));
-          const days = diff.asDays();
-          const hours = diff.asHours();
-          const sql = "INSERT INTO server_logs (server_id, id) VALUES ($1, $2)";
-          if (days>=1) {
-            this.query(sql, [server.id, id])
-              .then(resolve(`New Log has been added to Server \"${server.name}\"!`))
-              .catch(err => reject(err));
-            if (!fs.existsSync(`./logs/server/${server.id}`)) {
-              fs.mkdirSync(`./logs/server/${server.id}`);
-            }
-            fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
-          } else if (hours>=8) {
-            this.query(sql, [server.id, id])
-              .then(resolve(`New Log has been added to Server \"${server.name}\"!`))
-              .catch(err => reject(err));
-            if (!fs.existsSync(`./logs/server/${server.id}`)) {
-              fs.mkdirSync(`./logs/server/${server.id}`);
-            }
-            fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
-          } else {
-            reject("Error 400: Logfile is too new!");
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO server_logs (server_id, id) VALUES ($1, $2)";
-            this.query(sql, [server.id, id])
-              .then(resolve(`New Log has been added to Server \"${server.name}\"!`))
-              .catch(err1 => reject(err1));
-            if (!fs.existsSync(`./logs/server/${server.id}`)) {
-              fs.mkdirSync(`./logs/server/${server.id}`);
-            }
-            fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
-          } else {
-            reject(err);
-          }
-        });
-    })
-  }
-
-  remLog(server) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      const sql0 = "SELECT COUNT(id) FROM server_logs WHERE server_id = $1";
-      this.query(sql0, [server.id])
-        .then(result => {
-          if (result[0]>1) {
-            const sql2 = "SELECT id FROM server_logs WHERE server_id = $1 ORDER BY id ASC LIMIT 1";
-            this.query(sql2, [server.id])
-              .then(results => {
-                let id = results[0].id;
-                const sql1 = "DELETE FROM server_logs WHERE server_id = $1 AND id = $2";
-                this.query(sql1, [server.id, id])
-                  .then(resolve(`Oldest Log of Server \"${server.name}\" has been deleted!`))
-                  .catch(err => reject(err));
-                if (fs.existsSync(`./logs/server/${server.id}/${id}.log`)) {
-                  fs.unlinkSync(`./logs/server/${server.id}/${id}.log`);
-                } else {
-                  reject("Error 404: Logfile not found");
-                }
-              })
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  writeLog(server, content) {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      this.getLog(server, undefined)
-        .then(log => {
-          let time = moment().format("YYYY-MM-DD HH:mm:ss");
-          if (!fs.existsSync(`./logs/server/${server.id}`)) {
-            fs.mkdirSync(`./logs/server/${server.id}`);
-          }
-          if (!fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) {
-            fs.writeFileSync(`./logs/server/${server.id}/${log.id}.log`, "========Beginning of new Log========\n");
-          }
-          fs.appendFileSync(`./logs/server/${server.id}/${log.id}.log`, time + " - " +  content + "\n");
-          resolve(`Successfully wrote into Logfile of Server \"${server.name}\"`);
-        })
-        .catch(err => reject(`Unable to write into Logfile of Server \"${server.name}\"\nReason:\n${err}`));
-    })
-  }
-
-  writeDevLog(content) {
-    //TODO: Cleanup
-    if (!fs.existsSync("./logs/dev/")) {
-      fs.mkdirSync("./logs/dev");
+      return results;
     }
-    if (!fs.existsSync("./logs/dev/devlog.log")) {
-      fs.writeFileSync("./logs/dev/devlog.log", content);
-    } else {
-      let time = moment().format("YYYY-MM-DD HH:mm:ss")
-      fs.appendFileSync("./logs/dev/devlog.log", time + " - " + content + "\n");
-    }
-  }
 
-  resetDevLog() {
-    //TODO: Cleanup
-    return new Promise((resolve, reject) => {
-      if (fs.existsSync("./logs/dev/devlog.log")) {
-        fs.writeFileSync("./logs/dev/devlog.log", "\ ");
-        resolve("Success");
+    const results = await this.query("SELECT * FROM session_players WHERE session_id = $1 AND id = $2", [session.id, player.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Session Player not found", "Could not find that Player for that Session in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async playerExists(session, player) {
+    const results = await this.query("SELECT * FROM session_players WHERE session_id = $1 AND user_id = $2", [session.id, player.id])
+
+    return results.length === 1;
+  };
+
+  async joinSession(session, player, char) {
+    try {
+      const sesPlayer = await this.getPlayers(session, player)
+
+      if (char.id === sesPlayer.char_id) {
+        throw new DuplicateError("Duplicate Session Player", "That User has already joined that Session with that Character!");
+      }
+
+      const sql = "UPDATE session_players SET char_id = $1 WHERE session_id = $2 AND user_id = $3";
+      await this.query(sql, [char.id, session.id, player.id])
+
+      return "Successfullly updated Playerdata for that Session";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO session_players VALUES($1, $2, $3)";
+      await this.query(sql, [session.id, player.id, char.id])
+
+      return "Successfully joined Session";
+    }
+  };
+
+  async leaveSession(session, player) {
+    if (!(await this.playerExists(session, player))) {
+      throw new NotFoundError("Session Player not found", "Could not find that Player for that Session in the Database!");
+    }
+
+    await this.query("DELETE FROM session_players WHERE session_id = $1 AND user_id = $2", [session.id, player.id])
+
+    return "Successfully left Session";
+  };
+
+  async getLog(server, log) {
+    if (!log) {
+      const results = await this.query("SELECT * FROM server_logs WHERE server_id = $1 ORDER BY id DESC LIMIT 1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Logs found", "Could not find any Logs for that Server in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM server_logs WHERE server_id = $1 ORDER BY ABS(EXTRACT(epoch FROM id - $2)) LIMIT 1";
+    const results = await this.query(sql, [server.id, log.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Log not found", "Could not find a recent Log for that Server in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async addLog(server) {
+    const date = moment().format("YYYY-MM-DDTHH:mm:ss.msZ");
+    try {
+      const log = this.getLog(server, {id: date})
+
+      const olddate = moment(log.id);
+
+      const diff = moment.duration(date.diff(olddate));
+      const days = diff.asDays();
+      const hours = diff.asHours();
+
+      const sql = "INSERT INTO server_logs VALUES($1, $2)";
+
+      if (days >= 1 || hours >= 8) {
+        await this.query(sql, [server.id, date])
+
+        if (!fs.existsSync(`./logs/server/${server.id}`)) {
+          fs.mkdirSync(`./logs/server/${server.id}`);
+        }
+
+        fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n")
+
+        return "Successfully added new Log to Server";
       } else {
-        reject("Error 404: Logfile not found");
+        fs.appendFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n")
+
+        throw new BadRequestError("Logfile is too new", "Can\'t create new Log as there is a Logfile newer than 8 hours!");
       }
-    })
-  }
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO server_logs VALUES($1, $2)";
+      await this.query(sql, [server.id, date])
+
+      if (!fs.existsSync(`./logs/server/${server.id}`)) {
+        fs.mkdirSync(`./logs/server/${server.id}`);
+      }
+
+      fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
+
+      return "Successfully added new Log to Server";
+    }
+  };
+
+  async remLog(server) {
+    const date = moment();
+    const result = await this.query("SELECT COUNT(id) FROM server_logs WHERE server_id = $1", [server.id])
+
+    if (result === 0) {
+      throw new NotFoundError("No Logs found", "Could not find any Logs for that Server in the Database!");
+    }
+
+    if (result === 1) {
+      const results = await this.query("SELECT * FROM server_logs WHERE server_id = $1", [server.id])
+
+      const log = results[0];
+
+      if (moment.duration(date.diff(moment(log.id))).asDays() > 7) {
+        await this.query("DELETE FROM server_logs WHERE server_id = $1 AND id = $2", [server.id, log.id])
+
+        if (fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) {
+          fs.unlinkSync(`./logs/server/${server.id}/${log.id}.log`);
+
+          return "Successfully removed Log from Server in Database";
+        } else {
+          throw new NotFoundError("Logfile not found", "Could not find that Logfile in the Bot\'s files!");
+        }
+      }
+
+      throw new BadRequestError("Logfile is too new", "Could not remove Logfile as the existing Logfile is too new!");
+    }
+
+    const results = await this.query("SELECT * FROM server_logs WHERE server_id = $1 ORDER BY id ASC", [server.id])
+
+    results.map(async (log) => {
+      if (moment.duration(date.diff(moment(log.id))).asDays() > 7) {
+        await this.query("DELETE FROM server_logs WHERE server_id = $1 AND id = $2", [server.id, log.id])
+
+        if (fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) {
+          fs.unlinkSync(`./logs/server/${server.id}/${log.id}.log`);
+        } else {
+          throw new NotFoundError("Logfile not found", "Could not find that Logfile in the Bot\'s files!");
+        }
+      }
+    });
+
+    return "Successfully removed all Server Logs older than 1 Week";
+  };
 }
 const psql = new PSQL();
 
-export default psql;
+export { psql };
