@@ -10,7 +10,7 @@ class prefixHandler {
    * @param {import("discord.js").Message} message 
    */
   async run(message) {
-    client.database.getPrefixes(message.guild)
+    client.database.getPrefix(message.guild)
       .then(prefixes => {
         if (prefixes) {
           prefixes = JSON.parse(JSON.stringify(prefixes));
