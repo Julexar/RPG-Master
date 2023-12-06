@@ -7,6 +7,11 @@ import { ClassTrait } from "./class_trait.js";
 const query = psql.query;
 
 class Class {
+    profs = ClassProficiency
+    saves = ClassSave
+    senses = ClassSense
+    traits = ClassTrait
+
     static async getAll() {
         const results = await this.query("SELECT * FROM classes")
 
@@ -140,6 +145,18 @@ class Class {
         await query(sql, [clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub, clas.id])
 
         return "Successfully updated Class in Database";
+    };
+
+    static async hasSub(clas) {
+        if (clas.id) {
+            const results = await this.query("SELECT * FROM classes WHERE id = $1", [clas.id])
+      
+            return results[0].sub;
+        }
+    
+        const results = await this.query("SELECT * FROM classes WHERE name = $2", [clas.name])
+    
+        return results[0].sub;
     };
 };
 
