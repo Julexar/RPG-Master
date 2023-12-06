@@ -4673,7 +4673,7 @@ class PSQL {
 
     let dbResist;
 
-    switch (raceResist.type) {
+    switch (resist.type) {
       case "damagetype":
         dbResist = await this.getDamagetype(server, {name: resist.name})
       break;

@@ -1,11 +1,30 @@
 import { psql } from "./psql.js";
 import { NotFoundError, DuplicateError } from "../custom/errors/index.js";
 import { CharacterStats } from "./character_stats.js";
+import { CharacterFeat } from "./character_feat.js";
+import { CharacterImmunity } from "./character_immunity.js";
+import { CharacterResistance } from "./character_resistance.js";
+import { CharacterProficiency } from "./character_proficiency.js";
+import { CharacterSense } from "./character_sense.js";
+import { CharacterNote } from "./character_note.js";
+import { CharacterAction } from "./character_action.js";
+import { CharacterAttack } from "./character_attack.js";
 import { Class } from "./class.js";
 const query = psql.query;
 
-class Character {
-    static async getAll(user) {
+class character {
+    constructor () {
+        this.actions = CharacterAction
+        this.attacks = CharacterAttack
+        this.feats = CharacterFeat
+        this.immunities = CharacterImmunity
+        this.resistances = CharacterResistance
+        this.notes = CharacterNote
+        this.senses = CharacterSense
+        this.profs = CharacterProficiency
+    };
+
+    async getAll(user) {
         const results = await this.query("SELECT * FROM characters WHERE user_id = $1", [user.id])
 
         if (results.length === 0) {
@@ -64,7 +83,7 @@ class Character {
         }));
     };
 
-    static async getOne(user, char) {
+    async getOne(user, char) {
         if (char.id) {
             const results = await query("SELECT * FROM characters WHERE user_id = $1 AND id = $2", [user.id, char.id])
 
@@ -180,7 +199,7 @@ class Character {
         };
     };
 
-    static async exists(user, char) {
+    async exists(user, char) {
         if (char.id) {
             const results = await query("SELECT * FROM characters WHERE user_id = $1 AND id = $2", [user.id, char.id])
 
@@ -192,7 +211,7 @@ class Character {
         return results.length === 1;
     };
 
-    static async add(user, char) {
+    async add(user, char) {
         if (await this.exists(user, char)) {
             throw new DuplicateError("Duplicate Character", "A Character with that name already exists in the Database!");
         }
@@ -203,7 +222,7 @@ class Character {
         return `Successfully added Character \"${char.name}\" for User \"${user.username}\" to Database`;
     };
 
-    static async remove(user, char) {
+    async remove(user, char) {
         if (!(await this.exists(user, char))) {
             throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
         }
@@ -213,7 +232,7 @@ class Character {
         return `Successfulled removed Character \"${char.name}\" of User \"${user.username}\" from Database`;
     };
 
-    static async update(user, char) {
+    async update(user, char) {
         if (!(await this.exists(user, char))) {
             throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
         }
@@ -247,7 +266,7 @@ class Character {
         return `Successfully updated Character \"${char.name}\" of User \"${user.username}\" in Database`
     };
 
-    static async setXP(user, char, xp) {
+    async setXP(user, char, xp) {
         if (!(await this.exists(user, char))) {
             throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
         }
@@ -257,7 +276,7 @@ class Character {
         return `Successfully set Level of Character \"${char.name}\" to ${Math.ceil(xp/300)-1} (${xp} XP)`;
     };
 
-    static async addXP(user, char, xp) {
+    async addXP(user, char, xp) {
         const dbChar = await this.getOne(user, char)
 
         const newXP = dbChar.xp + xp > 335000 ? 335000 : dbChar.xp + xp
@@ -267,7 +286,7 @@ class Character {
         return `Successfully added ${xp} XP to Character \"${char.name}\". Character is now Level ${Math.ceil(newXP/300)-1} (${newXP} XP)`;
     };
 
-    static async removeXP(user, char, xp) {
+    async removeXP(user, char, xp) {
         const dbChar = await this.getOne(user, char)
 
         const newXP = dbChar.xp - xp < 300 ? 300 : dbChar.xp - xp
@@ -277,13 +296,13 @@ class Character {
         return `Successfully removed ${xp} XP from Character \"${char.name}\". Character is now Level ${Math.ceil(newXP/300)-1} (${newXP} XP)`;
     };
 
-    static async setLevel(user, char, level) {
+    async setLevel(user, char, level) {
         const xp = 300 * (level - 1);
 
         await this.setXP(user, char, xp)
     };
 
-    static async updateHP(user, char) {
+    async updateHP(user, char) {
         const dbChar = await this.getOne(user, char)
         const charClass = await Class.getOne({id: dbChar.class})
         const charConstitution = await CharacterStats.getOne(char, "con")
@@ -308,5 +327,7 @@ class Character {
         return `Successfully set Maximum HP of Character \"${char.name}\" to ${hp}`;
     };
 };
+
+const Character = new character();
 
 export { Character };
