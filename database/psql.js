@@ -95,7 +95,6 @@ class PSQL {
     }
 
     const sql = "UPDATE servers SET name = $1, dm_role = $2 WHERE id = $3";
-
     await this.query(sql, [server.name, server.dm_role, server.id])
 
     return `Successfully updated Server \"${server.name}\" in Database`;
@@ -900,7 +899,7 @@ class PSQL {
       return results[0];
     }
 
-    const results = await this.query("SELECT * FROM users WHERE name = $1")
+    const results = await this.query("SELECT * FROM users WHERE name = $1", [user.username])
 
     if (results.length === 0) {
       throw new NotFoundError("User not found", "Could not find that User in the Database!");
