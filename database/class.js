@@ -6,13 +6,15 @@ import { ClassSense } from "./class_sense.js";
 import { ClassTrait } from "./class_trait.js";
 const query = psql.query;
 
-class Class {
-    profs = ClassProficiency
-    saves = ClassSave
-    senses = ClassSense
-    traits = ClassTrait
+class clas {
+    constructor () {
+        this.profs = ClassProficiency
+        this.saves = ClassSave
+        this.senses = ClassSense
+        this.traits = ClassTrait
+    };
 
-    static async getAll() {
+    async getAll() {
         const results = await this.query("SELECT * FROM classes")
 
         if (results.length === 0) {
@@ -43,7 +45,7 @@ class Class {
         }));
     };
 
-    static async getOne(clas) {
+    async getOne(clas) {
         if (clas.id) {
             const results = await this.query("SELECT * FROM classes WHERE id = $1", [clas.id])
 
@@ -103,7 +105,7 @@ class Class {
         };
     };
 
-    static async exists(clas) {
+    async exists(clas) {
         if (clas.id) {
             const results = await this.query("SELECT * FROM classes WHERE id = $1", [clas.id])
 
@@ -115,7 +117,7 @@ class Class {
         return results.length === 1;
     };
 
-    static async add(clas) {
+    async add(clas) {
         if (await this.exists(clas)) {
             throw new DuplicateError("Duplicate Class", "That Class already exists in the Database!");
         }
@@ -126,7 +128,7 @@ class Class {
         return "Successfully added Class to Database";
     };
 
-    static async remove(clas) {
+    async remove(clas) {
         if (!(await this.exists(clas))) {
             throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
         }
@@ -136,7 +138,7 @@ class Class {
         return "Successfully removed Class from Database";
     };
 
-    static async update(clas) {
+    async update(clas) {
         if (!(await this.exists(clas))) {
             throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
         }
@@ -147,7 +149,7 @@ class Class {
         return "Successfully updated Class in Database";
     };
 
-    static async hasSub(clas) {
+    async hasSub(clas) {
         if (clas.id) {
             const results = await this.query("SELECT * FROM classes WHERE id = $1", [clas.id])
       
@@ -159,5 +161,7 @@ class Class {
         return results[0].sub;
     };
 };
+
+const Class = new clas();
 
 export { Class };
