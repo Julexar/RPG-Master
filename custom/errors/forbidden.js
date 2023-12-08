@@ -1,8 +1,8 @@
-import { CustomError } from "./custom-error.js";
+import { CustomError } from './custom-error.js';
 
 class ForbiddenError extends CustomError {
     constructor(message, cause) {
-        super(message || "Forbidden", 403, cause);
+        super(message || 'Forbidden', 403, cause);
     }
 }
 

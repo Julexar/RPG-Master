@@ -1,5 +1,3 @@
-import { Server } from "./server.js";
+import { Server } from './server.js';
 
-export { 
-    Server
-};
+export { Server };
