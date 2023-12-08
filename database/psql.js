@@ -2,11 +2,13 @@ import pkg from "pg";
 const Pool = pkg.Pool;
 import "dotenv/config";
 import moment from "moment"
-import conf from "../config.js"
+import { config } from "../config.js"
 import fs from "fs";
+import { BadRequestError, DuplicateError, ForbiddenError, InternalServerError, NotFoundError } from "../custom/errors/index.js";
 
 class PSQL {
   constructor() {
+
     this.pool = new Pool({
       user: process.env.PG_USER,
       host: process.env.PG_HOST,
@@ -14,12 +16,12 @@ class PSQL {
       password: process.env.PG_PWD,
       port: process.env.PG_PORT
     });
+
     this.pool.connect((err) => {
       if (err) {
-        this.writeDevLog(`${err}`);
-      } else {
-        this.writeDevLog("Connected to Database!");
+        return this.writeDevLog(`${err}`);
       }
+      this.writeDevLog("Connected to Database!");
     });
   }
 
@@ -27,6177 +29,5861 @@ class PSQL {
     return new Promise((resolve, reject) => {
       this.pool.query(query, params, (err, results) => {
         if (err) {
-          reject(err);
+          return reject(new InternalServerError("Something went wrong!", err));
+        }
+
+        if (query.includes("SELECT")) {
+          results = JSON.parse(JSON.stringify(results.rows));
+        }
+        resolve(results);
+      });
+    });
+  };
+
+  async getServer(server) {
+    if (!server) {
+
+      const results = await this.query("SELECT * FROM servers")
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Servers found", "Could not find any Servers in the Database!");
+      }
+
+      return results;
+    } else {
+
+      const results = await this.query("SELECT * FROM servers WHERE id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+      }
+      
+      return results[0];
+    }
+  };
+
+  async addServer(server) {
+    if (await this.serverExists(server)) {
+      throw new DuplicateError("Duplicate Server", "This Server already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO servers (id, name, dm_role) VALUES ($1, $2, $3)";
+    await this.query(sql, [server.id, server.name, server.dm_role])
+
+    return `Successfully added Server \"${server.name}\" to Database`;
+  };
+
+  async remServer(server) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    await this.query("DELETE FROM servers WHERE id = $1", [server.id])
+
+    return `Successfully removed Server \"${server.name}\" from Database`;
+  };
+
+  async serverExists(server) {
+    const results = await this.query("SELECT * FROM servers WHERE id = $1", [server.id])
+
+    return results.length > 0;
+  };
+
+  async updateServer(server) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET name = $1, dm_role = $2 WHERE id = $3";
+
+    await this.query(sql, [server.name, server.dm_role, server.id])
+
+    return `Successfully updated Server \"${server.name}\" in Database`;
+  };
+
+  async setDupSessions(server, bool) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET dup_sessions = $1 WHERE id = $2";
+    await this.query(sql, [bool, server.id])
+
+    return `Successfully set duplicate Sessions to ${bool}`;
+  };
+
+  async setSumChannel(server, channel) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET sum_chan = $1 WHERE id = $2";
+    await this.query(sql, [channel.id, server.id])
+
+    return `Successfully set Summary Channel to <#${channel.id}>`
+  };
+
+  async setLogChannel(server, channel) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET log_chan = $1 WHERE id = $2";
+    await this.query(sql, [channel.id, server.id])
+
+    return `Succesfully changed the Log Channel to <#${channel.id}>`;
+  };
+
+  async setGMEdit(server, bool) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+    
+    const sql = "UPDATE servers SET gm_edit = $1 WHERE id = $2";
+    await this.query(sql, [bool, server.id]);
+
+    return `Successfully set the Ability for GMs to edit to ${bool}`;
+  };
+
+  async getStaffRole(server, type, role) {
+    if (!type && !role) {
+      const sql = "SELECT admin_role, mod_role FROM servers WHERE id = $1";
+      const results = await this.query(sql, [server.id])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Staff Roles found", "Could not find any Staff Roles in the Database!");
+      }
+
+      return results;
+    } else if (type && !role) {
+      const sql = `SELECT ${type}_role FROM servers WHERE server_id = $1`;
+      const results = await this.query(sql, [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Staff Role not found", "Could not find that Staff Role in the Database!");
+      }
+
+      return results[0];
+    }
+  };
+
+  async setStaffRole(server, type, role) {
+    return await this.getStaffRole(server, type)
+    .then(async (staffRole) => {
+      if ((staffRole.admin_role || staffRole.mod_role) && (staffRole.admin_role == role.id || staffRole.mod_role == role.id)) {
+        throw new DuplicateError("Duplicate Staff Role", "This Staff Role already exists in the Database!");
+      }
+
+      const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set ${type} role to <@&${role.id}>`;
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set ${type} role to <@&${role.id}>`;
+    });
+  };
+
+  async getDMRole(server) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "SELECT dm_role FROM servers WHERE id = $1";
+    const results = await this.query(sql, [server.id])
+
+    if (results.length === 0 || !results[0]) {
+      throw new NotFoundError("No GM Role found", "Could not find a GM Role in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async setDMRole(server, role) {
+    return this.getDMRole(server)
+    .then(async (dmRoleID) => {
+      if (dmRoleID == role.id) {
+        throw new DuplicateError("Duplicate GM Role", "This GM Role already exists in the Database!");
+      }
+
+      const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set gm role to <@&${role.id}>`;
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
+      await this.query(sql, [role.id, server.id])
+
+      return `Successfully set gm role to <@&${role.id}>`;
+    });
+  };
+
+  async toggleLogs(server, bool) {
+    if (!(await this.serverExists(server))) {
+      throw new NotFoundError("Server not found", "Could not find that Server in the Database!");
+    }
+
+    const sql = "UPDATE servers SET print_logs = $1 WHERE id = $2";
+    await this.query(sql, [bool, server.id])
+
+    return `Successfully set automatic printing of logs to ${bool}`;
+  };
+
+  async getGM(server, user) {
+    if (!user) {
+      const results = await this.query("SELECT * FROM gms WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No GMs found", "Could not find any GMs in the Database!");
+      }
+
+      return results;
+    }
+
+    const sql = "SELECT * FROM gms WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("GM not found", "Could not find that GM in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async gmExists(server, user) {
+    const sql = "SELECT * FROM gms WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    return results.length === 1;
+  };
+
+  async addGM(server, user) {
+    if (await this.gmExists(server, user)) {
+      throw new DuplicateError("Duplicate GM", "That GM already exists in the Database!");
+    }
+
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    const sql = "INSERT INTO gms (server_id, user_id, date) VALUES ($1, $2, $3)";
+    await this.query(sql, [server.id, user.id, date])
+    
+    return `Successfully registered \"${user.displayName}\" as GM in Database`;
+  };
+
+  async remGM(server, user) {
+    if (!(await this.gmExists(server, user))) {
+      throw new NotFoundError("GM not found", "Could not find that GM in the Database!");
+    }
+
+    const sql = "DELETE FROM gms WHERE server_id = $1 AND user_id = $2";
+    await this.query(sql, [server.id, user.id])
+    
+    return `Successfully unregistered \"${user.displayName} as GM in Database`;
+  };
+
+  async editGMXP(server, user, xp) {
+    const gm = await this.getGM(server, user)
+
+    if (gm.xp - xp < 0) {
+      throw new ForbiddenError("Not enough XP", "You do not have enough GMXP!");
+    } else {
+      gm.xp += xp;
+    }
+
+    const sql = "UPDATE gms SET xp = $1 WHERE server_id = $2 AND user_id = $3";
+    await this.query(sql, [gm.xp, server.id, user.id])
+    
+    return `Successfully set XP of GM \"${user.displayName}\" to ${gm.xp}`;
+  };
+
+  async toggleGMSuggestion(server, user) {
+    const gm = await this.getGM(server, user)
+    
+    const sql = "UPDATE gms SET suggestions = $1 WHERE server_id = $2 AND user_id = $3";
+    await this.query(sql, [!gm.suggestions, server.id, user.id])
+    
+    return `Successfully set receiving of suggestions to ${!gm.suggestions}`;
+  };
+
+  async getPrefix(server, prefix) {
+    if (!prefix) {
+      const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1";
+      const results = await this.query(sql, [server.id])
+
+      if (results.length === 0) {
+        await this.setPrefixDefault(server)
+        return [config.default_prefix];
+      } 
+      const prefixes = [];
+      for (let i = 0; i < results.length; i++) {
+        prefixes.push(results[i].prefix);
+      }
+
+      return prefixes;
+    }
+
+    const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1 AND prefix = $2";
+    const results = await this.query(sql, [server.id, prefix])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Prefix not found", "Could not find that Prefix in the Database!");
+    }
+
+    return results[0].prefix;
+  };
+
+  async setPrefixDefault(server) {
+    const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
+    await this.query(sql, [server.id, config.default_prefix])
+    
+    return `Successfully added default Prefix \"${config.default_prefix}\" to Server \"${server.name}\"`;
+  };
+
+  async prefixExists(server, prefix) {
+    const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1 AND prefix = $2";
+    const results = await this.query(sql, [server, prefix])
+
+    return results.length === 1;
+  };
+
+  async addPrefix(server, prefix) {
+    if (await this.prefixExists(server, prefix)) {
+      throw new DuplicateError("Duplicate Prefix", "That Prefix already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
+    await this.query(sql, [server.id, prefix]);
+
+    return `Successfully added Prefix \"${prefix}\" to Server \"${server.name}\"`;
+  };
+
+  async remPrefix(server, prefix) {
+    if (!(await this.prefixExists(server, prefix))) {
+      throw new NotFoundError("Prefix not found", "Could not find that Prefix in the Database!");
+    }
+
+    if (!prefix) {
+      const sql = "DELETE FROM server_prefix WHERE server_id = $1";
+      await this.query(sql, [server.id])
+
+      await this.setPrefixDefault(server)
+
+      return `Successfully reset all prefixes of Server \"${server.name}\"`;
+    }
+
+    const sql = "DELETE FROM server_prefix WHERE server_id = $1 AND prefix = $2";
+    await this.query(sql, [server.id, prefix])
+
+    return `Successfully removed Prefix \"${prefix}\" from Server \"${server.name}\"`;
+  };
+
+  async getStat(stat) {
+    if (!stat) {
+      const results = await this.query("SELECT * FROM stats")
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Stats found", "Could not find any Stats in the Database!");
+      }
+
+      return results;
+    }
+
+    if (stat.id) {
+      const results = await this.query("SELECT * FROM stats WHERE id = $1", [stat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Stat not found", "Could not find that Stat in the Database!");
+      }
+
+      return results[0];
+    }
+
+    if (stat.key) {
+      const results = await this.query("SELECT * FROM stats WHERE key = $1", [stat.key])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Stat not found", "Could not find a Stat with that key in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM stats WHERE name = $1", [stat.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Stat not found", "Could not find a Stat with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async statExists(stat) {
+    if (stat.id) {
+      const results = await this.query("SELECT * FROM stats WHERE id = $1", [stat.id])
+
+      return results.length === 1;
+    }
+
+    if (stat.key) {
+      const results = await this.query("SELECT * FROM stats WHERE key = $1", [stat.key])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM stats WHERE name = $1", [stat.name])
+
+    return results.length === 1;
+  };
+
+  async addStat(stat) {
+    if (await this.statExists(stat)) {
+      throw new DuplicateError("Duplicate Stat", "That Stat already exists in the Database!");
+    }
+
+    await this.query("INSERT INTO stats (name, key) VALUES($1, $2)", [stat.name, stat.key])
+
+    return "Successfully added Stat to Database";
+  };
+
+  async remStat(stat) {
+    if (!(await this.statExists(stat))) {
+      throw new NotFoundError("Stat not found", "Could not find that Stat in the Database!");
+    }
+
+    await this.query("DELETE FROM stats WHERE id = $1", [stat.id])
+
+    return "Successfully removed Stat from Database";
+  };
+
+  async getCommand(cmd, type) {
+    if (!cmd) {
+      const results = await this.query("SELECT * FROM commands WHERE type = $1", [type])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Commands found", "Could not find any Commands in the Database!");
+      }
+
+      return results;
+    }
+
+    if (cmd.id) {
+      const results = await this.query("SELECT * FROM commands WHERE id = $1", [cmd.id])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("Command not found", "Could not find that Command in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM commands WHERE type = $1 AND name = $2";
+    const results = await this.query(sql, [type, cmd.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Command not found", "Could not find that Command in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async addCommand(cmd, type) {
+    const command = await this.getCommand(cmd, type)
+    if (command) {
+      throw new DuplicateError("Duplicate Command", "That Command already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO commands (type, name, enabled) VALUES($1, $2, $3)";
+    await this.query(sql, [type, cmd.name, cmd.enabled])
+
+    return `Successfully added ${type} Command \"${cmd.name}\" to Database`;
+  };
+
+  async remCommand(cmd, type) {
+    const command = await this.getCommand(cmd, type)
+
+    await this.query("DELETE FROM commands WHERE id = $1", [command.id])
+
+    return `Successfully removed ${type} Command \"${c.name}\" from Database`;
+  };
+
+  async updateCommand(cmd, type) {
+    const command = await this.getCommand(cmd, type)
+
+    const sql = "UPDATE commands SET name = $1, enabled = $2 WHERE id = $3";
+    await this.query(sql, [cmd.name, cmd.enabled, command.id])
+
+    return `Successfully updated ${type} Command \"${command.name}\" in Database`;
+  };
+
+  async getServCmd(server, cmd) {
+    if (!cmd) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1";
+      const results = await this.query(sql, [server.id])
+
+      if (results.length===0) {
+        throw new NotFoundError("No Server Commands found", "Could not find any Server Commands in the Database!");
+      }
+
+      return results.map(async (servCmd) => {
+        const command = await this.getCommand({id: servCmd.cmd_id})
+
+        if (command && (servCmd.enabled && !command.enabled)) {
+          return {
+            id: servCmd.id,
+            cmd_id: command.id,
+            name: command.name,
+            type: command.type,
+            enabled: false,
+            restricted: servCmd.restricted
+          }
         } else {
-          if (!query.includes("SELECT")) {
-            resolve("Success");
-          } else {
-            results = JSON.parse(JSON.stringify(results.rows));
-            resolve(results);
+          return {
+            id: servCmd.id,
+            cmd_id: command.id,
+            name: command.name,
+            type: command.type,
+            enabled: servCmd.enabled,
+            restricted: servCmd.restricted
           }
         }
       });
-    });
-  }
-
-  getServer(server) {
-    return new Promise((resolve, reject) => {
-      if (!server) {
-        const sql = "SELECT * FROM servers";
-        this.query(sql)
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Servers found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM servers WHERE id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Server not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    })
-  }
-
-  addServer(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(reject("Error 409: Duplicate Server"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO servers (id, name, dm_role) VALUES ($1, $2, $3)";
-            this.query(sql, [server.id, server.name, server.dm_role])
-              .then(resolve(`Successfully added Server \"${server.name}\" to Database`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remServer(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "DELETE FROM servers WHERE id = $1";
-          this.query(sql, [server.id])
-            .then(resolve(`Successfully removed Server \"${server.name}\" from Database`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateServer(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET name = $1, dm_role = $2 WHERE id = $3";
-          this.query(sql, [server.name, server.dm_role, server.id])
-            .then(resolve(`Successfully updated Server \"${server.name}\" in Database`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  setDupSessions(server, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET dup_sessions = $1 WHERE id = $2";
-          this.query(sql, [bool, server.id])
-            .then(resolve(`Successfully set Channel for duplicate Sessions`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  setSumChannel(server, channel) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET sum_chan = $1 WHERE id = $2";
-          this.query(sql, [channel.id, server.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  setLogChannel(server, channel) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET log_chan = $1 WHERE id = $2";
-          this.query(sql, [channel.id, server.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  setGMEdit(server, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "UPDATE servers SET gm_edit = $1 WHERE id = $2";
-          this.query(sql, [bool, server.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    })
-  }
-
-  getStaffRole(server, type, role) {
-    return new Promise((resolve, reject) => {
-      if (!type && !role) {
-        const sql = "SELECT admin_role, mod_role FROM servers WHERE id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Staff Roles found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else if (type && !role) {
-        const sql = `SELECT ${type}_role FROM servers WHERE id = $1`;
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Staff Role not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  setStaffRole(server, type, role) {
-    return new Promise((resolve, reject) => {
-      this.getStaffRole(server, type)
-        .then(r => {
-          if ((r.admin_role || r.mod_role) && (r.admin_role == role.id || r.mod_role == role.id)) {
-            reject("Error 409: Duplicate Staff Role");
-          } else {
-            const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = `UPDATE servers SET ${type}_role = $1 WHERE id = $2`;
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  getDMRole(server) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(() => {
-          const sql = "SELECT dm_role FROM servers WHERE id = $1";
-          this.query(sql, [server.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: No GM Role found");
-              } else if (results.length === 1) {
-                resolve(results[0].dm_role);
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  setDMRole(server, role) {
-    return new Promise((resolve, reject) => {
-      this.getDMRole(server)
-        .then(r => {
-          if (r == role.id) {
-            reject("Error 409: Duplicate GM Role");
-          } else {
-            const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "UPDATE servers SET dm_role = $1 WHERE id = $2";
-            this.query(sql, [role.id, server.id])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  toggleLogs(server, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(s => {
-          const sql = "UPDATE servers SET print_logs = $1 WHERE id = $2";
-          this.query(sql, [bool, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getGM(server, user) {
-    return new Promise((resolve, reject) => {
-      if (!user) {
-        const sql = "SELECT * FROM gms WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No GMs found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM gms WHERE server_id = $1 AND user_id = $2";
-        this.query(sql, [server.id, user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: GM not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  addGM(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(reject("Error 409: Duplicate GM"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            let date = moment().format("YYYY-MM-DD HH:mm:ss");
-            const sql = "INSERT INTO gms (server_id, user_id, date) VALUES ($1, $2, $3)";
-            this.query(sql, [server.id, user.id, date])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remGM(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(() => {
-          const sql = "DELETE FROM gms WHERE server_id = $1 AND user_id = $2";
-          this.query(sql, [server.id, user.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  editGMXP(server, user, xp) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          if (gm.xp - xp < 0) {
-            gm.xp = 0;
-          } else {
-            gm.xp += xp;
-          }
-          const sql = "UPDATE gms SET xp = $1 WHERE server_id = $2 AND user_id = $3";
-          this.query(sql, [gm.xp, server.id, user.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  togGMSug(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          const sql = "UPDATE gms SET suggestions = $1 WHERE server_id = $2 AND user_id = $3";
-          let bool;
-          if (gm.suggestions) {
-            bool = false;
-          } else {
-            bool = true;
-          }
-          this.query(sql, [bool, server.id, user.id])
-            .then(resolve(`Successfully toggled receiving of Suggestions to ${bool}`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getPrefixes(server, prefix) {
-    return new Promise((resolve, reject) => {
-      if (!prefix) {
-        const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              this.setPrefixDefault(server)
-                .then(console.log)
-                .catch(err => reject(err));
-              resolve([conf.default_prefix]);
-            } else if (results.length >= 1) {
-              const prefixes = [];
-              for (let i = 0; i < results.length; i++) {
-                prefixes.push(results[i].prefix);
-              }
-              resolve(prefixes);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT prefix FROM server_prefix WHERE server_id = $1 AND prefix = $2";
-        this.query(sql, [server.id, prefix])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Prefix not found");
-            } else if (results.length === 1) {
-              resolve(results[0].prefix);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  setPrefixDefault(server) {
-    return new Promise((resolve, reject) => {
-      const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
-      this.query(sql, [server.id, conf.default_prefix])
-        .then(resolve(`Added default Prefix "${conf.default_prefix}" to Server "${server.name}"`))
-        .catch(err => reject(err));
-    });
-  }
-
-  addPrefix(server, prefix) {
-    return new Promise((resolve, reject) => {
-      this.getPrefixes(server, prefix)
-        .then(reject("Error 409: Duplicate Prefix"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO server_prefix (server_id, prefix) VALUES ($1, $2)";
-            this.query(sql, [server.id, prefix])
-              .then(resolve(`Added Prefix "${prefix}" to Server "${server.name}"`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    })
-  }
-
-  remPrefix(server, prefix) {
-    return new Promise((resolve, reject) => {
-      if (!prefix) {
-        this.getPrefixes(server)
-          .then(() => {
-            const sql = "DELETE FROM server_prefix WHERE server_id = $1";
-            this.query(sql, [server.id])
-              .then(() => {
-                this.setPrefixDefault(server)
-                  .then(resolve("Success"))
-                  .catch(err => reject(err));
-              })
-              .catch(err => reject(err));
-          })
-          .catch(err => reject(err));
-      } else {
-        this.getPrefixes(server, prefix)
-          .then(() => {
-            const sql = "DELETE FROM server_prefix WHERE server_id = $1 AND prefix = $2";
-            this.query(sql, [server.id, prefix])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  getCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      if (!cmd) {
-        const sql = "SELECT * FROM commands WHERE type = $1";
-        this.query(sql, [type])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Commands found");
-            } else if (results.length>=1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (cmd.id) {
-          const sql = "SELECT * FROM commands WHERE id = $1";
-          this.query(sql, [cmd.id])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Command not found");
-              } else if (results.length===1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM commands WHERE type = $1 AND name = $2";
-          this.query(sql, [type, cmd.name])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Command not found");
-              } else if (results.length===1) {
-                resolve(results[0]);
-              } else if (results.length>1) {
-                resolve(results);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      this.getCommand(cmd, type)
-        .then(reject("Error 409: Duplicate Command"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO commands (type, name, enabled) VALUES($1, $2, $3)";
-            this.query(sql, [type, cmd.name, cmd.enabled])
-              .then(resolve(`Successfully added ${type} Command \"${cmd.name}\" to Database!`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      this.getCommand(cmd, type)
-        .then(c => {
-          const sql = "DELETE FROM commands WHERE id = $1 AND type = $2";
-          this.query(sql, [c.id, type])
-            .then(resolve(`Successfully removed ${type} Command \"${c.name}\" from Database!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    })
-  }
-
-  updateCommand(cmd, type) {
-    return new Promise((resolve, reject) => {
-      this.getCommand(cmd, type)
-        .then(c => {
-          const sql = "UPDATE commands SET name = $1, enabled = $2 WHERE id = $3";
-          this.query(sql, [cmd.name, cmd.enabled, c.id])
-            .then(resolve(`Successfully updated ${type} Command \"${c.name}\" in Database!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getServCmd(server, cmd) {
-    return new Promise((resolve, reject) => {
-      if (!cmd) {
-        const sql = "SELECT * FROM server_commands WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Server Commands found");
-            } else if (results.length>=1) {
-              const cms = [];
-              for (const cm of results) {
-                this.getCommand({id: cm.cmd_id})
-                  .then(c => {
-                    if (cm.enabled && !c.enabled) {
-                      cms.push({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: false,
-                        restricted: cm.restricted,
-                        state: "Success"
-                      });
-                    } else {
-                      cms.push({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted,
-                        state: "Success"
-                      });
-                    }
-                  })
-                  .catch(err => cms.push({
-                    id: cm.id,
-                    cmd_id: cm.cmd_id,
-                    state: "Failed",
-                    reason: `${err}`
-                  }));
-              }
-              resolve(cms);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (cmd.id) {
-          const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, cmd.id])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Server Command not found");
-              } else if (results.length===1) {
-                const cm = results[0];
-                this.getCommand({id: cm.cmd_id})
-                  .then(c => {
-                    if (!c.enabled) {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: c.enabled,
-                        restricted: cm.restricted
-                      });
-                    } else {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted
-                      });
-                    }
-                  })
-                  .catch(err => reject(err));
-              }
-            })
-        } else if (cmd.cmd_id) {
-          this.getCommand({id: cmd.cmd_id})
-            .then(c => {
-              const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
-              this.query(sql, [server.id, c.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Server Command not found");
-                  } else if (results.length===1) {
-                    const cm = results[0];
-                    if (!c.enabled) {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: c.enabled,
-                        restricted: cm.restricted
-                      });
-                    } else {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted
-                      });
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        } else if (cmd.name) {
-          this.getCommand({name: cmd.name}, cmd.type)
-            .then(c => {
-              const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
-              this.query(sql, [server.id, c.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Server Command not found");
-                  } else if (results.length===1) {
-                    const cm = results[0];
-                    if (!c.enabled) {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: c.enabled,
-                        restricted: cm.restricted
-                      });
-                    } else {
-                      resolve({
-                        id: cm.id,
-                        cmd_id: c.id,
-                        name: c.name,
-                        type: c.type,
-                        enabled: cm.enabled,
-                        restricted: cm.restricted
-                      });
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addServCmd(server, cmd) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(reject("Error 409: Duplicate Server Command"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            if (!cmd.cmd_id) {
-              this.getCommand({name: cmd.name}, cmd.type)
-                .then(c => {
-                  const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
-                  this.query(sql, [server.id, c.id, cmd.id, c.enabled])
-                    .then(resolve(`Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database!`))
-                    .catch(err1 => reject(err1));
-                })
-            } else {
-              this.getCommand({id: cmd.cmd_id}, "slash")
-                .then(c => {
-                  const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
-                  this.query(sql, [server.id, c.id, cmd.id, c.enabled])
-                    .then(resolve(`Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database!`))
-                    .catch(err1 => reject(err1));
-                })
-                .catch(err1 => reject(err1));
-            }
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remServCmd(server, cmd) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(cm => {
-          const sql = "DELETE FROM server_commands WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, cm.id])
-            .then(resolve(`Successfully removed Command ${cm.name} from Server ${server.name} in Database!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  toggleServCmd(server, cmd, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(c => {
-          const sql = "UPDATE server_commands SET enabled = $1 WHERE server_id = $2 AND id = $3";
-          this.query(sql, [bool, server.id, c.id])
-            .then(() => {
-              if (bool) {
-                resolve(`Successfully enabled Command \"${c.name}\" in Server \"${server.name}\"!`);
-              } else {
-                resolve(`Successfully disabled Command \"${c.name}\" in Server \"${server.name}\"!`);
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  restrictServCmd(server, cmd, bool) {
-    return new Promise((resolve, reject) => {
-      this.getServCmd(server, cmd)
-        .then(c => {
-          const sql = "UPDATE server_commands SET restricted = $1 WHERE id = $2";
-          this.query(sql, [bool, c.id])
-            .then(() => {
-              if (bool) {
-                resolve(`Successfully enabled restrictions of Command \"${c.name}\" in Server \"${server.name}\"!`);
-              } else {
-                resolve(`Successfully disabled restrictions of Command \"${c.name}\" in Server \"${server.name}\"!`);
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRestriction(cmd, rest) {
-    return new Promise((resolve, reject) => {
-      if (!rest) {
-        const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1";
-        this.query(sql, [cmd.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Restrictions found");
-            } else if (results.length>=1) {
-              const rests = [];
-              for (const res of results) {
-                rests.push({
-                  type: res.type,
-                  id: res.id,
-                  permission: res.permission
-                });
-              }
-              resolve(rests);
-            }
-          })
-          .catch(err => reject(err));
-      } else if (rest) {
-        if (rest.id) {
-          const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND id = $2";
-          this.query(sql, [cmd.id, rest.id])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: Restriction not found");
-              } else if (results.length===1) {
-                resolve([{
-                  type: results[0].type,
-                  id: results[0].id,
-                  permission: results[0].permission
-                }]);
-              }
-            })
-            .catch(err => reject(err));
-        } else if (rest.type) {
-          const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2";
-          this.query(sql, [cmd.id, rest.type])
-            .then(results => {
-              if (results.length===0) {
-                reject("Error 404: No Restrictions found");
-              } else if (results.length>=1) {
-                const rests = [];
-                for (const res of results) {
-                  rests.push([{
-                    type: res.type,
-                    id: res.id,
-                    permission: res.permission
-                  }]);
-                }
-                resolve(rests);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addRestriction(cmd, rest) {
-    return new Promise((resolve, reject) => {
-      this.getRestriction(cmd, rest)
-        .then(res => {
-          if (res[0].permission == rest.permission) {
-            reject("Error 409: Duplicate Restriction");
-          } else {
-            const sql = "UPDATE server_command_restrictions SET permission = $1 WHERE cmd_id = $2 AND id = $3";
-            this.query(sql, [rest.permission, cmd.id, rest.id])
-              .then(resolve(`Successfully updated restrictions of Command \"${cmd.name}\" in Server \"${server.name}\"!`))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO server_command_restrictions VALUES($1, $2, $3, $4)";
-            this.query(sql, [cmd.id, rest.type, rest.id, rest.permission])
-              .then(resolve(`Successfully added restriction to Command \"${cmd.name}\" in Server \"${server.name}\"!`))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRestriction(cmd, rest) {
-    return new Promise((resolve, reject) => {
-      this.getRestriction(cmd, rest)
-        .then(res => {
-          res = res[0];
-          const sql = "DELETE FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2 AND id = $3";
-          this.query(sql, [cmd.id, res.type, res.id])
-            .then(resolve(`Successfully removed restriction of Command \"${cmd.name}\" in Server \"${server.name}\"!`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getMember(server, user) {
-    return new Promise((resolve, reject) => {
-      if (!user) {
-        const sql = "SELECT * FROM server_members WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Server Members found");
-            } else if (results.length >= 1) {
-              const users = [];
-              for (const member of results) {
-                this.getUser({ id: member.user_id })
-                  .then(us => users.push({
-                    id: us.id,
-                    name: us.name,
-                    state: "Success"
-                  }))
-                  .catch(err => users.push({
-                    id: member.user_id,
-                    state: "Failed",
-                    reason: `${err}`
-                  }));
-              }
-              resolve(users);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2";
-        this.query(sql, [server.id, user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: Server Member not found");
-            } else if (results.length === 0) {
-              const member = results[0];
-              this.getUser({ id: member.user_id })
-                .then(us => resolve(us))
-                .catch(err => reject(err));
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  addMember(server, user) {
-    return new Promise((resolve, reject) => {
-      this.getMember(server, user)
-        .then(reject("Error 409: Duplicate Server Member"))
-        .catch(() => {
-          this.getUser(user)
-            .then(() => {
-              const sql = "INSERT INTO server_members (server_id, user_id) VALUES ($1, $2)";
-              this.query(sql, [server.id, user.id])
-                .then(resolve(`Successfully added User \"${user.username}\" to Server \"${server.name}\"`))
-                .catch(err1 => reject(err1));
-            })
-            .catch(err1 => {
-              if (String(err1).includes("Error 404: User")) {
-                this.addUser(user)
-                  .then(() => {
-                    const sql = "INSERT INTO server_members (server_id, user_id) VALUES($1, $2)";
-                    this.query(sql, [server.id, user.id])
-                      .then(() => {
-                        const sql = "INSERT INTO server_members (server_id, user_id) VALUES ($1, $2)";
-                        this.query(sql, [server.id, user.id])
-                          .then(resolve(`Successfully added User \"${user.username}\" to Server \"${server.name}\"`))
-                          .catch(err2 => reject(err2));
-                      })
-                      .catch(err2 => reject(err2));
-                  })
-                  .catch(err2 => reject(err2));
-              } else {
-                reject(err);
-              }
-            });
-        });
-    });
-  }
-
-  remMember(server, member) {
-    return new Promise((resolve, reject) => {
-      this.getMember(server, member)
-        .then(us => {
-          const sql = "DELETE FROM server_members WHERE server_id = $1 AND user_id = $2";
-          this.query(sql, [server.id, us.id])
-            .then(resolve(`Successfully removed User \"${member.username}\" from Server \"${server.name}\"`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getUser(user) {
-    return new Promise((resolve, reject) => {
-      if (user.id) {
-        const sql = "SELECT * FROM users WHERE id = $1";
-        this.query(sql, [user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: User not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = "SELECT * FROM users WHERE name = $1";
-        this.query(sql, [user.username])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: User not found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  addUser(user) {
-    return new Promise((resolve, reject) => {
-      this.getUser(user)
-        .then(reject("Error 409: Duplicate User"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO users (id, name) VALUES($1, $2)";
-            this.query(sql, [user.id, user.username])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remUser(user) {
-    return new Promise((resolve, reject) => {
-      this.getUser(user)
-        .then(us => {
-          const sql = "DELETE FROM users WHERE id = $1";
-          this.query(sql, [us.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateUser(user, char) {
-    return new Promise((resolve, reject) => {
-      this.getUser(user)
-        .then(us => {
-          if (!char) {
-            const sql = "UPDATE users SET name = $1, char_id = $2 WHERE id = $3";
-            this.query(sql, [user.username, char.id, us.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          } else {
-            const sql = "UPDATE users SET name = $1 WHERE id = $2";
-            this.query(sql, [user.username, us.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          if (!note) {
-            const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2";
-            this.query(sql, [server.id, u.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Server Notes found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (note.id) {
-              const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
-              this.query(sql, [server.id, u.id, note.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Server Note not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3";
-              this.query(sql, [server.id, u.id, note.title])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Server Note not found");
-                  } else if (results.length >= 1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          this.getServerNote(server, u, note)
-            .then(n => {
-              if (n.content == note.content) {
-                reject("Error 409: Duplicate Server Note");
-              } else {
-                const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
-                this.query(sql, [server.id, u.id, n.title, note.content, note.private])
-                  .then(resolve("Successfully added Server Note"))
-                  .catch(err => reject(err));
-              }
-            })
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
-                this.query(sql, [server.id, u.id, note.title, note.content, note.private])
-                  .then(resolve("Successfully added Server Note"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          this.getServerNote(server, u, note)
-            .then(n => {
-              const sql = "DELETE FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
-              this.query(sql, [server.id, u.id, n.id])
-                .then(resolve("Successfully removed Server Note"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateServerNote(server, user, note) {
-    return new Promise((resolve, reject) => {
-      this.getUser(server, user)
-        .then(u => {
-          this.getServerNote(server, u, note)
-            .then(n => {
-              const sql = "UPDATE server_notes SET title = $1, content = $2, private = $3 WHERE server_id = $4 AND user_id = $5 AND id = $6";
-              this.query(sql, [note.title, note.content, note.private, server.id, u.id, n.id])
-                .then(resolve("Successfully updated Server Note!"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      if (!note) {
-        const sql = "SELECT * FROM global_notes WHERE user_id = $1";
-        this.query(sql, [user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Global Notes found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (note.id) {
-          const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND id = $2";
-          this.query(sql, [user.id, note.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Global Note not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND title = $2";
-          this.query(sql, [user.id, note.title])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Global Note not found");
-              } else if (results.length >= 1) {
-                resolve(results);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      this.getGlobalNote(user, note)
-        .then(n => {
-          if (n.content == note.content) {
-            reject("Error 409: Duplicate Global Note");
-          } else {
-            const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
-            this.query(sql, [user.id, note.title, note.content, note.private])
-              .then(resolve("Successfully added Global Note"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
-            this.query(sql, [user.id, note.title, note.content, note.private])
-              .then(resolve("Successfully added Global Note"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      this.getGlobalNote(user, note)
-        .then(n => {
-          const sql = "DELETE FROM global_notes WHERE user_id = $1 AND id = $2";
-          this.query(sql, [user.id, n.id])
-            .then(resolve("Successfully removed Global Note"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateGlobalNote(user, note) {
-    return new Promise((resolve, reject) => {
-      this.getGlobalNote(user, note)
-        .then(n => {
-          const sql = "UPDATE global_notes SET title = $1, content = $2, private = $3 WHERE user_id = $4 AND id = $5";
-          this.query(sql, [note.title, note.content, note.private, user.id, n.id])
-            .then(resolve("Successfully updated Global Note"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      if (!armor) {
-        const sql = "SELECT * FROM armors WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Armor found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (armor.id) {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, armor.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, armor.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(reject("Error 409: Duplicate Armor"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-            this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "DELETE FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
-          this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req, server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getChar(user, char) {
-    return new Promise((resolve, reject) => {
-      if (!char) {
-        const sql = "SELECT * FROM characters WHERE user_id = $1";
-        this.query(sql, [user.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Characters found");
-            } else if (results.length >= 1) {
-              let chars = []
-              for (let i = 0; i < results.length; i++) {
-                let char = {
-                  owner: user.id,
-                  name: results[0].name,
-                  ac: results[0].ac,
-                  init: results[0].init,
-                  level: results[0].level,
-                  xp: results[0].xp,
-                  stat: {
-                    str: 0,
-                    dex: 0,
-                    con: 0,
-                    int: 0,
-                    wis: 0,
-                    cha: 0,
-                  },
-                  money: {
-                    pp: results[0].pp,
-                    gp: results[0].gp,
-                    ep: results[0].ep,
-                    sp: results[0].sp,
-                    cp: results[0].cp
-                  },
-                  multi: results[0].multi,
-                  armor: null,
-                  race: null,
-                  subrace: null,
-                  clas: null,
-                  subclass: null,
-                  class_level: results[0].class_level,
-                  mc1: null,
-                  mc1sub: null,
-                  mc1_level: results[0].mc1_level,
-                  mc2: null,
-                  mc2sub: null,
-                  mc2_level: results[0].mc2_level,
-                  mc3: null,
-                  mc3sub: null,
-                  mc3_level: results[0].mc3_level
-                }
-                this.getCharStat()
-                this.getArmor(server, { id: results[0].armor_id })
-                  .then(arm => char.armor = arm.name)
-                  .catch(console.error);
-                this.getRace(server, { id: results[0].race_id })
-                  .then(race => {
-                    char.race = race.name;
-                    if (race.sub) {
-                      this.getSubrace(server, race, { id: results[0].subrace_id })
-                        .then(sub => char.subrace = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                this.getClass(server, { id: results[0].class_id })
-                  .then(clas => {
-                    char.clas = clas.name;
-                    if (clas.sub) {
-                      this.getSubclass(server, clas, { id: results[0].subclass_id })
-                        .then(sub => char.subclass = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                if (char.multi) {
-                  if (results[0].multiclass1_id) {
-                    this.getClass(server, { id: results[0].multiclass1_id })
-                      .then(clas => {
-                        char.mc1 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass1_sub_id })
-                            .then(sub => char.mc1sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass2_id) {
-                    this.getClass(server, { id: results[0].multiclass2_id })
-                      .then(clas => {
-                        char.mc2 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass2_sub_id })
-                            .then(sub => char.mc2sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass3_id) {
-                    this.getClass(server, { id: results[0].multiclass3_id })
-                      .then(clas => {
-                        char.mc3 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass3_sub_id })
-                            .then(sub => char.mc3sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                }
-                chars.push(char);
-              }
-              resolve(chars);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (char.id) {
-          const sql = "SELECT * FROM characters WHERE user_id = $1 AND id = $2";
-          this.query(sql, [user.id, char.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character not found");
-              } else if (results.length === 1) {
-                let char = {
-                  owner: user.id,
-                  name: results[0].name,
-                  ac: results[0].ac,
-                  init: results[0].init,
-                  level: results[0].level,
-                  xp: results[0].xp,
-                  stat: {
-                    str: 0,
-                    dex: 0,
-                    con: 0,
-                    int: 0,
-                    wis: 0,
-                    cha: 0,
-                  },
-                  money: {
-                    pp: results[0].pp,
-                    gp: results[0].gp,
-                    ep: results[0].ep,
-                    sp: results[0].sp,
-                    cp: results[0].cp
-                  },
-                  multi: results[0].multi,
-                  armor: null,
-                  race: null,
-                  subrace: null,
-                  clas: null,
-                  subclass: null,
-                  class_level: results[0].class_level,
-                  mc1: null,
-                  mc1sub: null,
-                  mc1_level: results[0].mc1_level,
-                  mc2: null,
-                  mc2sub: null,
-                  mc2_level: results[0].mc2_level,
-                  mc3: null,
-                  mc3sub: null,
-                  mc3_level: results[0].mc3_level
-                }
-                this.getArmor(server, { id: results[0].armor_id })
-                  .then(arm => char.armor = arm.name)
-                  .catch(console.error);
-                this.getRace(server, { id: results[0].race_id })
-                  .then(race => {
-                    char.race = race.name;
-                    if (race.sub) {
-                      this.getSubrace(server, race, { id: results[0].subrace_id })
-                        .then(sub => char.subrace = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                this.getClass(server, { id: results[0].class_id })
-                  .then(clas => {
-                    char.clas = clas.name;
-                    if (clas.sub) {
-                      this.getSubclass(server, clas, { id: results[0].subclass_id })
-                        .then(sub => char.subclass = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                if (char.multi) {
-                  if (results[0].multiclass1_id) {
-                    this.getClass(server, { id: results[0].multiclass1_id })
-                      .then(clas => {
-                        char.mc1 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass1_sub_id })
-                            .then(sub => char.mc1sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass2_id) {
-                    this.getClass(server, { id: results[0].multiclass2_id })
-                      .then(clas => {
-                        char.mc2 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass2_sub_id })
-                            .then(sub => char.mc2sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass3_id) {
-                    this.getClass(server, { id: results[0].multiclass3_id })
-                      .then(clas => {
-                        char.mc3 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass3_sub_id })
-                            .then(sub => char.mc3sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                }
-                resolve(char);
-              }
-            })
-        } else {
-          const sql = "SELECT * FROM characters WHERE user_id = $1 AND name = $2";
-          this.query(sql, [user.id, char.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character not found");
-              } else if (results.length === 1) {
-                let char = {
-                  id: results[0].id,
-                  owner: user.id,
-                  name: results[0].name,
-                  ac: results[0].ac,
-                  init: results[0].init,
-                  level: results[0].level,
-                  xp: results[0].xp,
-                  stats: {
-                    str: 0,
-                    dex: 0,
-                    con: 0,
-                    int: 0,
-                    wis: 0,
-                    cha: 0,
-                  },
-                  money: {
-                    pp: results[0].pp,
-                    gp: results[0].gp,
-                    ep: results[0].ep,
-                    sp: results[0].sp,
-                    cp: results[0].cp
-                  },
-                  multi: results[0].multi,
-                  armor: null,
-                  race: null,
-                  subrace: null,
-                  clas: null,
-                  subclass: null,
-                  class_level: results[0].class_level,
-                  mc1: null,
-                  mc1sub: null,
-                  mc1_level: results[0].mc1_level,
-                  mc2: null,
-                  mc2sub: null,
-                  mc2_level: results[0].mc2_level,
-                  mc3: null,
-                  mc3sub: null,
-                  mc3_level: results[0].mc3_level
-                }
-                this.getCharStat({id: results[0].id})
-                  .then(stats => char.stats = stats[0])
-                this.getArmor(server, { id: results[0].armor_id })
-                  .then(arm => char.armor = arm.name)
-                  .catch(console.error);
-                this.getRace(server, { id: results[0].race_id })
-                  .then(race => {
-                    char.race = race.name;
-                    if (race.sub) {
-                      this.getSubrace(server, race, { id: results[0].subrace_id })
-                        .then(sub => char.subrace = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                this.getClass(server, { id: results[0].class_id })
-                  .then(clas => {
-                    char.clas = clas.name;
-                    if (clas.sub) {
-                      this.getSubclass(server, clas, { id: results[0].subclass_id })
-                        .then(sub => char.subclass = sub.name)
-                        .catch(console.error);
-                    }
-                  })
-                  .catch(console.error);
-                if (char.multi) {
-                  if (results[0].multiclass1_id) {
-                    this.getClass(server, { id: results[0].multiclass1_id })
-                      .then(clas => {
-                        char.mc1 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass1_sub_id })
-                            .then(sub => char.mc1sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass2_id) {
-                    this.getClass(server, { id: results[0].multiclass2_id })
-                      .then(clas => {
-                        char.mc2 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass2_sub_id })
-                            .then(sub => char.mc2sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                  if (results[0].multiclass3_id) {
-                    this.getClass(server, { id: results[0].multiclass3_id })
-                      .then(clas => {
-                        char.mc3 = clas.name;
-                        if (clas.sub) {
-                          this.getSubclass(server, clas, { id: results[0].multiclass3_sub_id })
-                            .then(sub => char.mc3sub = sub.name)
-                            .catch(console.error);
-                        }
-                      })
-                      .catch(console.error);
-                  }
-                }
-                resolve(char);
-              } else if (results.length > 1) {
-                resolve(results);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addChar(server, user, char) {
-    return new Promise((resolve, reject) => {
-      reject("Character Creation is currently in Development!");
-    });
-  }
-
-  remChar(user, char) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(results => {
-          if (isArray(results)) {
-            reject("Error 409: Found more than 1 Character!")
-          } else {
-            let char = results;
-            const sql = "DELETE FROM characters WHERE user_id = $1 AND id = $2";
-            this.query(sql, [user.id, char.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharXP(user, char, method, xp) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          switch (method) {
-            case "set":
-              const sql = "UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3";
-              this.query(sql, [xp, c.user_id, c.id])
-                .then(() => {
-                  const sql1 = "UPDATE characters SET pb = $1, level = $2 WHERE user_id = $3 AND id = $4";
-                  if (xp<300) {
-                    this.query(sql1, [2,1,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err))
-                  } else if (xp<900) {
-                    this.query(sql1, [2,2,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<2700) {
-                    this.query(sql1, [2,3,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<6500) {
-                    this.query(sql1, [2,4,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<14000) {
-                    this.query(sql1, [3,5,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<23000) {
-                    this.query(sql1, [3,6,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<34000) {
-                    this.query(sql1, [3,7,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<48000) {
-                    this.query(sql1, [3,8,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<64000) {
-                    this.query(sql1, [4,9,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<85000) {
-                    this.query(sql1, [4,10,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<100000) {
-                    this.query(sql1, [4,11,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<120000) {
-                    this.query(sql1, [4,12,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<140000) {
-                    this.query(sql1, [5,13,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<165000) {
-                    this.query(sql1, [5,14,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<195000) {
-                    this.query(sql1, [5,15,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<225000) {
-                    this.query(sql1, [5,16,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<265000) {
-                    this.query(sql1, [6,17,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<305000) {
-                    this.query(sql1, [6,18,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<335000) {
-                    this.query(sql1, [6,19,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp==335000) {
-                    this.query(sql1, [6,20,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            break;
-            case "add":
-              xp+=c.xp;
-              const sql1 = "UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3";
-              this.query(sql1, [xp, c.user_id, c.id])
-                .then(() => {
-                  const sql2 = "UPDATE characters SET pb = $1, level = $2 WHERE user_id = $3 AND id = $4";
-                  if (xp<300) {
-                    this.query(sql2, [2,1,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err))
-                  } else if (xp<900) {
-                    this.query(sql2, [2,2,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<2700) {
-                    this.query(sql2, [2,3,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<6500) {
-                    this.query(sql2, [2,4,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<14000) {
-                    this.query(sql2, [3,5,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<23000) {
-                    this.query(sql2, [3,6,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<34000) {
-                    this.query(sql2, [3,7,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<48000) {
-                    this.query(sql2, [3,8,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<64000) {
-                    this.query(sql2, [4,9,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<85000) {
-                    this.query(sql2, [4,10,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<100000) {
-                    this.query(sql2, [4,11,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<120000) {
-                    this.query(sql2, [4,12,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<140000) {
-                    this.query(sql2, [5,13,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<165000) {
-                    this.query(sql2, [5,14,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<195000) {
-                    this.query(sql2, [5,15,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<225000) {
-                    this.query(sql2, [5,16,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<265000) {
-                    this.query(sql2, [6,17,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<305000) {
-                    this.query(sql2, [6,18,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<335000) {
-                    this.query(sql2, [6,19,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp==335000) {
-                    this.query(sql2, [6,20,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            break;
-            case "rem":
-              xp = c.xp - xp;
-              const sql3 = "UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3";
-              this.query(sql3, [xp, c.user_id, c.id])
-                .then(() => {
-                  const sql2 = "UPDATE characters SET pb = $1, level = $2 WHERE user_id = $3 AND id = $4";
-                  if (xp<300) {
-                    this.query(sql2, [2,1,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err))
-                  } else if (xp<900) {
-                    this.query(sql2, [2,2,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<2700) {
-                    this.query(sql2, [2,3,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<6500) {
-                    this.query(sql2, [2,4,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<14000) {
-                    this.query(sql2, [3,5,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<23000) {
-                    this.query(sql2, [3,6,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<34000) {
-                    this.query(sql2, [3,7,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<48000) {
-                    this.query(sql2, [3,8,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<64000) {
-                    this.query(sql2, [4,9,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<85000) {
-                    this.query(sql2, [4,10,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<100000) {
-                    this.query(sql2, [4,11,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<120000) {
-                    this.query(sql2, [4,12,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<140000) {
-                    this.query(sql2, [5,13,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<165000) {
-                    this.query(sql2, [5,14,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<195000) {
-                    this.query(sql2, [5,15,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<225000) {
-                    this.query(sql2, [5,16,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<265000) {
-                    this.query(sql2, [6,17,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<305000) {
-                    this.query(sql2, [6,18,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp<335000) {
-                    this.query(sql2, [6,19,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else if (xp==335000) {
-                    this.query(sql2, [6,20,c.user_id, c.id])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            break;
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  setCharLvl(server, user, char, lvl) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          const xp = 300 * (lvl - 1);
-          this.updateCharXP(user, char, "set", xp)
-            .then(() => {
-              this.updateCharHP(server, user, char)
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  selectChar(user, char) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          const sql = "UPDATE users SET char_id = $1 WHERE user_id = $2";
-          this.query(sql, [user.id, c.id])
-            .then(resolve(`Changed active Character to \"${c.name}\"`))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharHP(server, user, char) {
-    return new Promise((resolve, reject) => {
-      this.getServer(server)
-        .then(s => {
-          this.getChar(user, char)
-            .then(c => {
-              this.getClass(server, {id: c.class_id})
-                .then(clas => {
-                  let hp;
-                  if (s.hp_method == "fixed") {
-                    if (c.level>1) {
-                      hp = clas.hitdice_size + c.class_level
-                    } else {
-                      hp = clas.hitdice_size;
-                    }
-                  }
-                })
-            })
-        })
-    });
-  }
-
-  getCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          if (!note) {
-            const sql = "SELECT * FROM character_notes WHERE char_id = $1";
-            this.query(sql, [c.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Charcter Notes found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (note.id) {
-              const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, note.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Character Note not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND title = $2";
-              this.query(sql, [c.id, note.title])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Character Note not found");
-                  } else if (results.length >= 1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          this.getCharNote(user, c, note)
-            .then(n => {
-              if (n.content == note.content) {
-                reject("Error 409: Duplicate Character Note");
-              } else {
-                const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
-                this.query(sql, [c.id, note.title, note.content, note.private])
-                  .then(resolve("Success"))
-                  .catch(err => reject(err));
-              }
-            })
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
-                this.query(sql, [c.id, note.title, note.content, note.private])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          this.getCharNote(user, c, note)
-            .then(n => {
-              const sql = "DELETE FROM character_notes WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, n.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharNote(user, char, note) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          this.getCharNote(user, char, note)
-            .then(n => {
-              const sql = "UPDATE character_notes SET title = $1, content = $2, private = $3 WHERE char_id = $4 AND id = $5";
-              this.query(sql, [note.title, note.content, note.private, c.id, n.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharStat(char, stat) {
-    return new Promise((resolve, reject) => {
-      if (!stat) {
-        const sql = "SELECT * FROM character_stats WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: No Character Stats found");
-            } else if (results.length===1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        const sql = `SELECT ${stat} FROM character_stats WHERE char_id = $1`;
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length===0) {
-              reject("Error 404: Character Stat not found");
-            } else if (results.length===1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  setCharStat(char, stat, val) {
-    return new Promise((resolve, reject) => {
-      this.getCharStat(char, stat)
-        .then(s => {
-          if (s.includes(val)) {
-            reject("Error 409: Duplicate Character Stat");
-          } else {
-            const sql = `UPDATE character_stats SET ${stat} = $1 WHERE char_id = $2`;
-            this.query(sql, [val, char.id])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404: No")) {
-            const sql = "INSERT INTO character_stats (char_id, str, dex, con, int, wis, cha) VALUES($1, $2, $3, $4, $5, $6, $7)";
-            this.query(sql, [char.id, val[0], val[1], val[2], val[3], val[4], val[5]])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCharStat(char, stat) {
-    return new Promise((resolve, reject) => {
-      this.getCharStat(char, stat)
-        .then(function() {
-          const sql = "DELETE FROM character_stats WHERE char_id = $1 AND name = $2";
-          this.query(sql, [char.id, stat.name])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          if (!act) {
-            const sql = "SELECT * FROM character_actions WHERE char_id = $1";
-            this.query(sql, [c.id])
-              .then(results => {
-                if (results.length===0) {
-                  reject("Error 404: No Actions found");
-                } else if (results.length>=1) {
-                  const acts = [];
-                  for (const action of results) {
-                    if (action.atk_id) {
-                      this.getCharAttack(c, {id: action.atk_id})
-                        .then(atk => {
-                          this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                            .then(type => acts.push({
-                              id: action.id,
-                              akt_id: atk.id,
-                              name: atk.name,
-                              description: atk.description,
-                              atk_stat: atk.atk_stat,
-                              save: atk.save,
-                              save_stat: atk.save_stat,
-                              on_fail: atk.on_fail,
-                              dmg_dice: akt.dmg_dice,
-                              dmg_dice_size: atk.dmg_dice_size,
-                              dmg: atk.dmg,
-                              dmg_type: type.name,
-                              magical: atk.magical,
-                              magic_bonus: atk.magic_bonus,
-                              state: "Success"
-                            }))
-                            .catch(err => acts.push({
-                              name: action.name,
-                              id: action.id,
-                              state: "Failed",
-                              reason: `${err}`
-                            }));
-                        })
-                        .catch(err => acts.push({
-                          name: action.name,
-                          id: action.id,
-                          state: "Failed",
-                          reason: `${err}`
-                        }));
-                    }
-                  }
-                  resolve(acts);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (act.id) {
-              const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, act.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Action not found");
-                  } else if (results.length===1) {
-                    act = results[0];
-                    if (act.atk_id) {
-                      this.getCharAttack(c, {id: action.atk_id})
-                        .then(atk => {
-                          this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                            .then(type => resolve({
-                              id: act.id,
-                              akt_id: atk.id,
-                              name: atk.name,
-                              description: atk.description,
-                              atk_stat: atk.atk_stat,
-                              save: atk.save,
-                              save_stat: atk.save_stat,
-                              on_fail: atk.on_fail,
-                              dmg_dice: akt.dmg_dice,
-                              dmg_dice_size: atk.dmg_dice_size,
-                              dmg: atk.dmg,
-                              dmg_type: type.name,
-                              magical: atk.magical,
-                              magic_bonus: atk.magic_bonus,
-                              state: "Success"
-                            }))
-                            .catch(err => reject(err));
-                        })
-                        .catch(err => reject(err));
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND name = $2";
-              this.query(sql, [c.id, act.name])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Action not found");
-                  } else if (results.length===1) {
-                    act = results[0];
-                    if (act.atk_id) {
-                      this.getCharAttack(c, {id: act.atk_id})
-                        .then(atk => {
-                          this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                            .then(type => resolve({
-                              id: act.id,
-                              akt_id: atk.id,
-                              name: atk.name,
-                              description: atk.description,
-                              atk_stat: atk.atk_stat,
-                              save: atk.save,
-                              save_stat: atk.save_stat,
-                              on_fail: atk.on_fail,
-                              dmg_dice: akt.dmg_dice,
-                              dmg_dice_size: atk.dmg_dice_size,
-                              dmg: atk.dmg,
-                              dmg_type: type.name,
-                              magical: atk.magical,
-                              magic_bonus: atk.magic_bonus,
-                              state: "Success"
-                            }))
-                            .catch(err => reject(err));
-                        })
-                        .catch(err => reject(err));
-                    } else if (results.length>1) {
-                      const acts = [];
-                      for (const action of results) {
-                        if (action.atk_id) {
-                          this.getCharAttack(c, {id: action.atk_id})
-                            .then(atk => {
-                              this.getCondOrDmgtype(server, "damagetypes", {id: atk.dmg_type_id})
-                                .then(type => acts.push({
-                                  id: action.id,
-                                  akt_id: atk.id,
-                                  name: atk.name,
-                                  description: atk.description,
-                                  atk_stat: atk.atk_stat,
-                                  save: atk.save,
-                                  save_stat: atk.save_stat,
-                                  on_fail: atk.on_fail,
-                                  dmg_dice: akt.dmg_dice,
-                                  dmg_dice_size: atk.dmg_dice_size,
-                                  dmg: atk.dmg,
-                                  dmg_type: type.name,
-                                  magical: atk.magical,
-                                  magic_bonus: atk.magic_bonus,
-                                  state: "Success"
-                                }))
-                                .catch(err => acts.push({
-                                  id: action.id,
-                                  name: action.name,
-                                  state: "Failed",
-                                  reason: `${err}`
-                                }));
-                            })
-                            .catch(err => acts.push({
-                              name: action.name,
-                              id: action.id,
-                              state: "Failed",
-                              reason: `${err}`
-                            }));
-                        }
-                      }
-                      resolve(acts);
-                    }
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getCharAction(server, user, char, act)
-        .then(reject("Error 409: Duplicate Action"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO character_actions (char_id, name, description, type, atk_id) VALUES($1, $2; $3, $4, $5)";
-            this.query(sql, [char.id, act.name, act.description, act.type, act.atk_id])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getCharAction(server, user, char, act)
-        .then(a => {
-          const sql = "DELETE FROM character_actions WHERE char_id = $1 AND id = $2";
-          this.query(sql, [a.char_id, a.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharAction(server, user, char, act) {
-    return new Promise((resolve, reject) => {
-      this.getCharAction(server, user, char, act)
-        .then(a => {
-          const sql = "UPDATE character_actions SET name = $1, description = $2, type = $3 WHERE char_id = $4 AND id = $5";
-          this.query(sql, [act.name, act.description, act.type, a.char_id, a.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharAttack(user, char, atk) {
-    return new Promise((resolve, reject) => {
-      this.getChar(user, char)
-        .then(c => {
-          if (!atk) {
-            const sql = "SELECT * FROM character_attacks WHERE char_id = $1";
-            this.query(sql, [c.id])
-              .then(results => {
-                if (results.length===0) {
-                  reject("Error 404: No Attacks found");
-                } else if (results.length>=1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (atk.id) {
-              const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND id = $2";
-              this.query(sql, [c.id, atk.id])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Attack not found");
-                  } else if (results.length===1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND name = $2";
-              this.query(sql, [c.id, atk.name])
-                .then(results => {
-                  if (results.length===0) {
-                    reject("Error 404: Attack not found");
-                  } else if (results.length===1) {
-                    resolve(results[0]);
-                  } else if (results.length>1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addCharAttack(user, char, atk) {
-    return new Promise((resolve, reject) => {
-      this.getCharAttack(user, char, atk)
-        .then(reject("Error 409: Duplicate Attack"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO character_attacks (char_id, name, description, atk_stat, save, save_stat, on_fail, dmg_dice, dmg_dice_size, dmg, dmg_type_id, magical, magic_bonus) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-            this.query(sql, [char.id, atk.name, atk.description, atk.atk_stat, atk.save, atk.on_fail, atk.dmg_dice, atk.dmg_dice_size, atk.dmg, atk.dmg_type_id, atk.magical, atk.magic_bonus])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCharAttack(user, char, atk) {
-    return new Promise((resolve, reject) => {
-      this.getCharAttack(user, char, atk)
-        .then(a => {
-          const sql = "DELETE FROM character_attacks WHERE char_id = $1 AND id = $2";
-          this.query(sql, [a.char_id, a.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-
-
-  getCharFeat(server, char, feat) {
-    return new Promise((resolve, reject) => {
-      if (!feat) {
-        const sql = "SELECT * FROM character_feats WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Feats found");
-            } else if (results.length >= 1) {
-              let list = [];
-              for (const f of results) {
-                this.getFeat(server, { id: f.feat_id })
-                  .then(feats => {
-                    if (feats.length === 1) {
-                      list.push({
-                        name: feats[0].name,
-                        description: feats[0].description,
-                        feat_id: feats[0].id,
-                        id: f.id,
-                        state: "Valid"
-                      });
-                    } else {
-                      list.push({
-                        name: feats[0].name,
-                        state: "Invalid"
-                      });
-                    }
-                  })
-                  .catch(list.push({
-                    name: f[0].name,
-                    state: "Invalid"
-                  }));
-              }
-              resolve(list);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (feat.id) {
-          const sql = "SELECT * FROM character_feats WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, feat.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Feat not found");
-              } else if (results.length === 1) {
-                this.getFeat(server, { id: results[0].feat_id })
-                  .then(feats => {
-                    if (feats.length === 1) {
-                      resolve({
-                        name: feats[0].name,
-                        description: feats[0].description,
-                        feat_id: feats[0].id,
-                        id: feat.id,
-                        state: "Valid"
-                      });
-                    } else if (feats.length === 0) {
-                      reject("Error 400: Invalid Feat");
-                    }
-                  })
-                  .catch(reject("Error 400: Invalid Feat"));
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          this.getFeat(server, { name: feat.name })
-            .then(f => resolve(f))
-            .catch(reject("Error 400: Invalid Feat"));
-        }
-      }
-    });
-  }
-
-  addCharFeat(server, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getCharFeat(server, char, feat)
-        .then(reject("Error 409: Duplicate Character Feat"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getFeat(server, feat)
-              .then(f => {
-                const sql = "INSERT INTO character_feats (char_id, feat_id) VALUES ($1, $2)";
-                this.query(sql, [char.id, f.id])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              })
-              .catch(reject("Error 400: Invalid Feat"));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCharFeat(server, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getCharFeat(server, char, feat)
-        .then(f => {
-          const sql = "DELETE FROM character_feats WHERE char_id = $1 AND feat_id = $2 AND id = $3";
-          this.query(sql, [char.id, f.feat_id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharProf(char, prof) {
-    //TODO: Copy over from GitHub
-  }
-
-  addCharProf(char, prof) {
-    //TODO: Copy over from GitHub
-  }
-
-  remCharProf(char, prof) {
-    //TODO: Copy over from GitHub
-  }
-
-  getCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      if (!conordmg) {
-        const sql = `SELECT * FROM ${type} WHERE server_id = $1`;
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject(`Error 404: No such ${type} found`);
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (conordmg.id) {
-          const sql = `SELECT * FROM ${type} WHERE server_id = $1 AND id = $2`;
-          this.query(sql, [server.id, conordmg.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject(`Error 404: ${type} not found`);
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = `SELECT * FROM ${type} WHERE server_id = $1 AND name = $2`;
-          this.query(sql, [server.id, conordmg.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject(`Error 404: ${type} not found`);
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      this.getCondOrDmgtype(server, type, conordmg)
-        .then(reject(`Error 409: Duplicate ${type}`))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = `INSERT INTO ${type} (server_id, name) VALUES($1, $2)`;
-            this.query(sql, [server.id, conordmg.name])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      this.getCondOrDmgtype(server, type, conordmg)
-        .then(cod => {
-          const sql = `DELETE FROM ${type} WHERE server_id = $1 AND id = $2`;
-          this.query(sql, [server.id, cod.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCondOrDmgtype(server, type, conordmg) {
-    return new Promise((resolve, reject) => {
-      this.getCondOrDmgtype(server, type, conordmg)
-        .then(cod => {
-          const sql = `UPDATE ${type} SET name = $1 WHERE server_id = $2 AND id = $3`;
-          this.query(sql, [conordmg.name, server.id, cod.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharRes(server, char, res) {
-    return new Promise((resolve, reject) => {
-      if (!res) {
-        const sql = "SELECT * FROM character_resistances WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Resistances found");
-            } else if (results.length >= 1) {
-              const resistances = [];
-              for (const resist of results) {
-                this.getCondOrDmgtype(server, resist.type, resist)
-                  .then(r => resistances.push({
-                    name: r.name,
-                    type: resist.type,
-                    res_id: r.id,
-                    id: resist.id,
-                    state: "Valid"
-                  }))
-                  .catch(resistances.push({
-                    type: resist.type,
-                    state: "Invalid"
-                  }));
-              }
-              resolve(resistances);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (res.res_id) {
-          this.getCondOrDmgtype(server, res.type, { id: res.res_id })
-            .then(r => {
-              const sql = "SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2";
-              this.query(sql, [char.id, r.id])
-                .then(resist => {
-                  if (resist.length === 0) {
-                    reject("Error 404: Character Resistance not found");
-                  } else if (resist.length === 1) {
-                    resolve({
-                      name: r.name,
-                      type: res.type,
-                      res_id: r.id,
-                      id: resist[0].id,
-                      state: "Valid"
-                    });
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(reject("Error 400: Invalid Resistance"));
-        } else if (res.id) {
-          const sql = `SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2`;
-          this.query(sql, [char.id, res.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Resistance not found");
-              } else if (results.length === 1) {
-                this.getCondOrDmgtype(server, res.type, { id: results[0].res_id })
-                  .then(r => resolve({
-                    name: r.name,
-                    type: res.type,
-                    res_id: r.id,
-                    id: res.id,
-                    state: "Valid"
-                  }))
-                  .catch(reject("Error 400: Invalid Resistance"));
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          this.getCondOrDmgtype(server, res.type, { name: res.name })
-            .then(r => {
-              const sql = "SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2";
-              this.query(sql, [server.id, r.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Character Resistance not found");
-                  } else if (results.length === 1) {
-                    resolve({
-                      name: r.name,
-                      type: res.type,
-                      res_id: r.id,
-                      id: results[0].id,
-                      state: "Valid"
-                    });
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(reject("Error 400: Invalid Resistance"));
-        }
-      }
-    });
-  }
-
-  addCharRes(server, char, res) {
-    return new Promise((resolve, reject) => {
-      this.getCharRes(server, char, res)
-        .then(reject("Error 409: Duplicate Character Resistance"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getCharImm(server, char, { name: res.name, type: res.type })
-              .then(reject(`Error 409: Immunity for that ${res.type} already exists!`))
-              .catch(err1 => {
-                if (String(err1).includes("Error 404")) {
-                  this.getCondOrDmgtype(server, res.type, { name: res.name })
-                    .then(r => {
-                      const sql = "INSERT INTO character_resistances (char_id, type, res_id) VALUES ($1, $2, $3)";
-                      this.query(sql, [char.id, res.type, r.id])
-                        .then(resolve("Success"))
-                        .catch(err2 => reject(err2));
-                    })
-                    .catch(reject("Error 400: Invalid Resistance"));
-                } else {
-                  reject(err1);
-                }
-              })
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCharRes(server, char, res) {
-    return new Promise((resolve, reject) => {
-      this.getCharRes(server, char, res)
-        .then(r => {
-          const sql = "DELETE FROM character_resistances WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, r.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharImm(server, char, imm) {
-    return new Promise((resolve, reject) => {
-      if (!imm) {
-        const sql = "SELECT * FROM character_immunities WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Immunities found");
-            } else if (results.length >= 1) {
-              const immunities = [];
-              for (const immune of results) {
-                this.getCondOrDmgtype(server, immune.type, { id: immune.imm_id })
-                  .then(i => immunities.push({
-                    name: i.name,
-                    type: immune.type,
-                    imm_id: i.id,
-                    id: immune.id,
-                    state: "Valid"
-                  }))
-                  .catch(immunities.push({
-                    type: immune.type,
-                    state: "Invalid"
-                  }));
-              }
-              resolve(immunities);
-            }
-          })
-          .catch(reject("Error 400: Invalid Immunity"));
-      } else {
-        if (imm.imm_id) {
-          this.getCondOrDmgtype(server, imm.type, { id: imm.imm_id })
-            .then(i => {
-              if (i.length === 0) {
-                reject("Error 400: Invalid Immunity");
-              } else {
-                const sql = "SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2";
-                this.query(sql, [char.id, i.id])
-                  .then(resist => {
-                    if (resist.length === 0) {
-                      reject("Error 404: Character Immunity not found");
-                    } else if (resist.length === 1) {
-                      resolve({
-                        name: i.name,
-                        type: res.type,
-                        res_id: i.id,
-                        id: resist[0].id,
-                        state: "Valid"
-                      });
-                    }
-                  })
-                  .catch(err => reject(err));
-              }
-            })
-            .catch(reject("Error 400: Invalid Immunity"));
-        } else if (imm.id) {
-          const sql = "SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, imm.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Immunity not found");
-              } else if (results.length === 0) {
-                this.getCondOrDmgtype(server, imm.type, { id: results[0].imm_id })
-                  .then(i => resolve({
-                    name: i.name,
-                    type: imm.type,
-                    imm_id: i.id,
-                    id: imm.id,
-                    state: "Valid"
-                  }))
-                  .catch(reject("Error 400: Invalid Immunity"));
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          this.getCondOrDmgtype(server, imm.type, { name: imm.name })
-            .then(i => {
-              const sql = "SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2";
-              this.query(sql, [char.id, i.id])
-                .then(immune => {
-                  if (immune.length === 0) {
-                    reject("Error 404: Character Immunity not found");
-                  } else if (immune.length === 1) {
-                    resolve({
-                      name: i.name,
-                      type: imm.type,
-                      imm_id: i.id,
-                      id: immune.id,
-                      state: "Valid"
-                    });
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(reject("Error 400: Invalid Immunity"));
-        }
-      }
-    });
-  }
-
-  addCharImm(server, char, imm) {
-    return new Promise((resolve, reject) => {
-      this.getCharImm(server, char, imm)
-        .then(reject("Error 409: Duplicate Character Immunity"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getCharRes(server, char, { name: imm.name, type: imm.type })
-              .then(res => {
-                this.remCharRes(server, char, res)
-                  .then(function() {
-                    const sql = "INSERT INTO character_immunities (char_id, type, imm_id) VALUES ($1, $2, $3)";
-                    this.query(sql, [char.id, imm.type, res.res_id])
-                      .then(resolve("Success"))
-                      .catch(err1 => reject(err1));
-                  })
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => {
-                if (String(err1).includes("Error 404")) {
-                  this.getCondOrDmgtype(server, imm.type, { name: imm.name })
-                    .then(i => {
-                      const sql = "INSERT INTO character_immunities (char_id, type, imm_id) VALUES ($1, $2, $3)";
-                      this.query(sql, [char.id, imm.type, i.id])
-                        .then(resolve("Success"))
-                        .catch(err2 => reject(err2));
-                    })
-                    .catch(reject("Error 400: Invalid Immunity"));
-                }
-              });
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCharImm(server, char, imm) {
-    return new Promise((resolve, reject) => {
-      this.getCharImm(server, char, imm)
-        .then(i => {
-          const sql = "DELETE FROM character_immunities WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, i.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      if (!sense) {
-        const sql = "SELECT * FROM character_senses WHERE char_id = $1";
-        this.query(sql, [char.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Character Senses found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (sense.id) {
-          const sql = "SELECT * FROM character_senses WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, sense.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Sense not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM character_senses WHERE char_id = $1 AND name = $2";
-          this.query(sql, [char.id, sense.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Character Sense not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      this.getCharSense(char, sense)
-        .then(reject("Error 409: Duplicate Character Sense"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO character_senses (char_id, name, range) VALUES ($1, $2, $3)";
-            this.query(sql, [char.id, sense.name, sense.range])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      this.getCharSense(char, sense)
-        .then(sen => {
-          const sql = "DELETE FROM character_senses WHERE char_id = $1 AND id = $2";
-          this.query(sql, [char.id, sen.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateCharSense(char, sense) {
-    return new Promise((resolve, reject) => {
-      this.getCharSense(char, sense)
-        .then(sen => {
-          const sql = "UPDATE character_senses SET name = $1, range = $2 WHERE char_id = $3 AND id = $4";
-          this.query(sql, [sense.name, sense.range, char.id, sen.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      if (!armor) {
-        const sql = "SELECT * FROM armors WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Armor found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (armor.id) {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, armor.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, armor.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Armor not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(reject("Error 409: Duplicate Armor"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-            this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "DELETE FROM armors WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateArmor(server, armor) {
-    return new Promise((resolve, reject) => {
-      this.getArmor(server, armor)
-        .then(arm => {
-          const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
-          this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune, armor.attune_req, server.id, arm.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      if (!feat) {
-        const sql = "SELECT * FROM feats WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Feats found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (feat.id) {
-          const sql = "SELECT * FROM feats WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, feat.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Feat not found");
-              } else if (results.length === 0) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM feats WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, feat.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Feat not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      this.getFeat(server, feat)
-        .then(reject("Error 409: Duplicate Feat"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO feats (server_id, name, description, type, val1, val2, val3) VALUES($1, $2, $3, $4, $5, $6, $7)";
-            this.query(sql, [server.id, feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3])
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      this.getFeat(server, feat)
-        .then(f => {
-          const sql = "DELETE FROM feats WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateFeat(server, feat) {
-    return new Promise((resolve, reject) => {
-      this.getFeat(server, feat)
-        .then(f => {
-          const sql = "UPDATE feats SET name = $1, description = $2, type = $3, val1 = $4, val2 = $5, val3 = $6 WHERE server_id = $7 AND id = $8";
-          this.query(sql, [feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3, server.id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getClass(server, clas) {
-    return new Promise((resolve, reject) => {
-      if (!clas) {
-        const sql = "SELECT * FROM classes WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Classes found");
-            } else if (results.length >= 1) {
-              const classes = []
-              classes.push({
-                name: c.name,
-                hitdice: c.hitdice,
-                hitdice_size: c.hitdice_size,
-                caster: c.caster,
-                cast_lvl: c.cast_lvl,
-                sub: c.sub,
-                profs: {
-                  armor: [],
-                  lang: [],
-                  skill: [],
-                  tool: [],
-                  weapon: []
-                },
-                saves: [],
-                senses: [],
-                traits: []
-              });
-              let num = 0;
-              for (const c of results) {
-                this.getClassProf(server, c)
-                  .then(profs => classes[num].profs = profs)
-                  .catch(console.error);
-                this.getClassSave(server, c)
-                  .then(saves => classes[num].saves = saves)
-                  .catch(console.error);
-                this.getClassSense(server, c)
-                  .then(senses => classes[num].senses = senses)
-                  .catch(console.error);
-                this.getClassTrait(server, c)
-                  .then(traits => classes[num].traits = traits)
-                  .catch(console.error);
-                num++;
-              }
-              resolve(classes);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (clas.id) {
-          const sql = "SELECT * FROM classes WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, clas.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Class not found");
-              } else if (results.length === 1) {
-                const c = results[0];
-                const classes = {
-                  name: c.name,
-                  hitdice: c.hitdice,
-                  hitdice_size: c.hitdice_size,
-                  caster: c.caster,
-                  cast_lvl: c.cast_lvl,
-                  sub: c.sub,
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  saves: [],
-                  senses: [],
-                  traits: []
-                };
-                this.getClassProf(server, c)
-                  .then(profs => classes.profs = profs)
-                  .catch(console.error);
-                this.getClassSave(server, c)
-                  .then(saves => classes.saves = saves)
-                  .catch(console.error);
-                this.getClassSense(server, c)
-                  .then(senses => classes.senses = senses)
-                  .catch(console.error);
-                this.getClassTrait(server, c)
-                  .then(traits => classes.traits = traits)
-                  .catch(console.error);
-                resolve(classes);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM classes WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, clas.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Class not found");
-              } else if (results.length === 1) {
-                const c = results[0];
-                const classes = {
-                  name: c.name,
-                  hitdice: c.hitdice,
-                  hitdice_size: c.hitdice_size,
-                  caster: c.caster,
-                  cast_lvl: c.cast_lvl,
-                  sub: c.sub,
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  saves: [],
-                  senses: [],
-                  traits: []
-                };
-                this.getClassProf(server, c)
-                  .then(profs => classes.profs = profs)
-                  .catch(console.error);
-                this.getClassSave(server, c)
-                  .then(saves => classes.saves = saves)
-                  .catch(console.error);
-                this.getClassSense(server, c)
-                  .then(senses => classes.senses = senses)
-                  .catch(console.error);
-                this.getClassTrait(server, c)
-                  .then(traits => classes.traits = traits)
-                  .catch(console.error);
-                resolve(classes);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addClass(server, clas) {
-    //TODO: Copy from GitHub
-  }
-
-  remClass(server, clas) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          const sql = "DELETE FROM classes WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, c.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateClass(server, clas) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          const sql = "UPDATE classes SET name = $1, description = $2, hitdice = $3, hitdice_size = $4, caster = $5, cast_lvl = $6, sub = $7 WHERE server_id = $8 AND id = $9";
-          this.query(sql, [clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub, server.id, c.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          if (!trait) {
-            const sql = "SELECT * FROM class_traits WHERE server_id = $1 AND class_id = $2";
-            this.query(sql, [server.id, c.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Class Traits found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (trait.id) {
-              const sql = "SELECT * FROM class_traits WHERE server_id = $1 AND class_id = $2 AND id = $3";
-              this.query(sql, [server.id, c.id, trait.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Trait not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM class_traits WHERE server_id = $1 AND class_id = $2 AND name = $3";
-              this.query(sql, [server.id, c.id, trait.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Trait not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClassTrait(server, clas, trait)
-        .then(reject("Error 409: Duplicate Class Trait"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO class_traits (server_id, class_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-            this.query(sql, [server.id, clas.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClassTrait(server, clas, trait)
-        .then(t => {
-          const sql = "DELETE FROM class_traits WHERE server_id = $1 AND class_id = $2 AND id = $3";
-          this.query(sql, [server.id, clas.id, t.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateClassTrait(server, clas, trait) {
-    return new Promise((resolve, reject) => {
-      this.getClassTrait(server, clas, trait)
-        .then(t => {
-          const sql = "UPDATE class_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE server_id = $12 AND class_id = $13 AND id = $14";
-          this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, server.id, clas.id, t.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getClassFeat(server, clas, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          if (!feat) {
-            const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2";
-            this.query(sql, [char.id, c.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Class Feats found");
-                } else if (results.length >= 1) {
-                  const feats = [];
-                  for (const f of results) {
-                    this.getFeat(server, f)
-                      .then(fea => feats.push({
-                        name: fea.name,
-                        description: fea.description,
-                        class: c.name,
-                        visible: fea.visible,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(feats.push({
-                        feat_id: f.id,
-                        class: c.name,
-                        state: "Invalid"
-                      }));
-                  }
-                  resolve(feats);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (feat.feat_id) {
-              const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3";
-              this.query(sql, [char.id, c.id, feat.feat_id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Feat not found");
-                  } else if (results.length === 1) {
-                    const f = results[0];
-                    this.getFeat(server, { id: f.feat_id })
-                      .then(fea => resolve({
-                        name: fea.name,
-                        description: fea.description,
-                        class: c.name,
-                        visible: fea.visible,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(reject("Error 400: Invalid Feat"));
-                  }
-                })
-                .catch(err => reject(err));
-            } else if (feat.id) {
-              const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3";
-              this.query(sql, [char.id, c.id, feat.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Feat not found");
-                  } else if (results.length === 1) {
-                    const f = results[0]
-                    this.getFeat(server, { id: f.feat_id })
-                      .then(fea => resolve({
-                        name: fea.name,
-                        description: fea.description,
-                        class: c.name,
-                        visible: fea.visible,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(reject("Error 400: Invalid Feat"));
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              this.getFeat(server, { name: feat.name })
-                .then(fea => {
-                  const sql = "SELECT * FROM class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3";
-                  this.query(sql, [char.id, c.id, fea.id])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Class Feat not found");
-                      } else if (results.length === 1) {
-                        resolve({
-                          name: fea.name,
-                          description: fea.description,
-                          class: c.name,
-                          visible: fea.visible,
-                          id: results[0].id,
-                          feat_id: fea.id,
-                          state: "Valid"
-                        });
-                      }
-                    })
-                    .catch(err => reject(err));
-                })
-                .catch(reject("Error 400: Invalid Feat"));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addClassFeat(server, clas, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getClassFeat(server, clas, char, feat)
-        .then(reject("Error 409: Duplicate Class Feat"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getFeat(server, feat)
-              .then(fea => {
-                const sql = "INSERT INTO class_feats (char_id, class_id, feat_id) VALUES ($1, $2, $3)";
-                this.query(sql, [char.id, clas.id, fea.id])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remClassFeat(server, clas, char, feat) {
-    return new Promise((resolve, reject) => {
-      this.getClassFeat(server, clas, char, feat)
-        .then(f => {
-          const sql = "DELETE FROM class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3";
-          this.query(sql, [char.id, clas.id, f.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getClassProf(server, clas, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  addClassProf(server, clas, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  remClassProf(server, clas, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  updateClassProf(server, clas, prof) {
-    //TODO
-  }
-
-  getClassSave(server, clas, save) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          if (!save) {
-            const sql = "SELECT * FROM class_saves WHERE server_id = $1 AND class_id = $2";
-            this.query(sql, [server.id, c.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Class Saves");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (save.stat) {
-              const sql = "SELECT * FROM class_saves WHERE server_id = $1 AND class_id = $2 AND stat = $3";
-              this.query(sql, [server.id, c.id, save.stat])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Save not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addClassSave(server, clas, save) {
-    return new Promise((resolve, reject) => {
-      this.getClassSave(server, clas, save)
-        .then(reject("Error 409: Duplicate Class Saves"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO class_saves (class_id, server_id, stat, level) VALUES($1, $2, $3, $4)";
-            this.query(sql, [clas.id, server.id, save.stat, save.level])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remClassSave(server, clas, save) {
-    return new Promise((resolve, reject) => {
-      this.getClassSave(server, clas, save)
-        .then(function() {
-          const sql = "DELETE FROM class_saves WHERE server_id = $1 AND class_id = $2 AND stat = $3";
-          this.query(sql, [server.id, clas.id, save.stat])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateClassSave(server, clas, save) {
-    return new Promise((resolve, reject) => {
-      this.getClassSave(server, clas, save)
-        .then(s => {
-          const sql = "UPDATE clas_saves SET stat = $1, level = $2 WHERE server_id = $3 AND class_id = $4 AND stat = $5";
-          this.query(sql, [save.stat, save.level, server.id, clas.id, s.stat])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getClassSense(server, clas, sense) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          if (!sense) {
-            const sql = "SELECT * FROM class_senses WHERE server_id = $1 AND class_id = $2";
-            this.query(sql, [server.id, clas.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Class Senses found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-          } else {
-            if (sense.id) {
-              const sql = "SELECT * FROM class_senses WHERE server_id = $1 AND class_id = $2 AND id = $3";
-              this.query(sql, [server.id, clas.id, sense.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM class_senses WHERE server_id = $1 AND class_id = $2 AND name = $3";
-              this.query(sql, [server.id, clas.id, sense.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Class Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addClassSense(server, clas, sense) {
-    return new Promise((resolve, reject) => {
-      this.getClassSense(server, clas, sense)
-        .then(reject("Error 409: Duplicate Class Sense"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO class_senses (server_id, class_id, name, range) VALUES($1, $2, $3, $4)";
-            this.getClass(server, clas)
-              .then(c => {
-                this.query(sql, [server.id, c.id, sense.name, sense.range])
-                  .then(resolve("Success"))
-                  .catch(err => reject(err));
-              })
-              .catch(err => reject(err));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remClassSense(server, clas, sense) {
-    return new Promise((resolve, reject) => {
-      this.getClassSense(server, clas, sense)
-        .then(s => {
-          const sql = "DELETE FROM class_senses WHERE server_id = $1 AND class_id = $2 AND id = $3";
-          this.query(sql, [server.id, s.class_id, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateClassSense(server, clas, sense) {
-    return new Promise((resolve, reject) => {
-      this.getCharSense(server, clas, sense)
-        .then(s => {
-          const sql = "UPDATE class_senses name = $1, range = $2 WHERE server_id = $3 AND class_id = $4 AND id = $5";
-          this.query(sql, [sense.name, sense.range, server.id, s.class_id, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSubclass(server, clas, sub) {
-    return new Promise((resolve, reject) => {
-      this.getClass(server, clas)
-        .then(c => {
-          if (!c.sub) {
-            reject("Error 400: Invalid Request");
-          } else {
-            if (!sub) {
-              const sql = "SELECT * FROM subclasses WHERE server_id = $1 AND class_id = $2";
-              this.query(sql, [server.id, c.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: No Subclasses found");
-                  } else if (results.length >= 1) {
-                    const subs = [];
-                    let num = 0;
-                    for (const s of results) {
-                      subs.push({
-                        id: s.id,
-                        name: s.name,
-                        description: s.description,
-                        class: c.name,
-                        class_id: c.id,
-                        caster: s.caster,
-                        cast_lvl: s.cast_lvl,
-                        profs: {
-                          armor: [],
-                          lang: [],
-                          skill: [],
-                          tool: [],
-                          weapon: []
-                        },
-                        senses: [],
-                        traits: []
-                      });
-                      this.getSubclassProf(server, sub)
-                        .then(profs => subs[num].profs = profs)
-                        .catch(console.error);
-                      this.getSubclassSense(server, sub)
-                        .then(senses => subs[num].senses = senses)
-                        .catch(console.error);
-                      this.getSubclassTrait(server, sub)
-                        .then(traits => subs[num].traits = traits)
-                        .catch(console.error);
-                      num++;
-                    }
-                    resolve(subs);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              if (sub.id) {
-                const sql = "SELECT * FROM subclasses WHERE server_id = $1 AND class_id = $2 AND id = $3";
-                this.query(sql, [server.id, c.id, sub.id])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: Subclass not found");
-                    } else if (results.length === 1) {
-                      const s = results[0];
-                      const subs = {
-                        id: s.id,
-                        name: s.name,
-                        description: s.description,
-                        class: c.name,
-                        class_id: c.id,
-                        caster: s.caster,
-                        cast_lvl: s.cast_lvl,
-                        profs: {
-                          armor: [],
-                          lang: [],
-                          skill: [],
-                          tool: [],
-                          weapon: []
-                        },
-                        senses: [],
-                        traits: []
-                      }
-                      this.getSubclassProf(server, sub)
-                        .then(profs => subs.profs = profs)
-                        .catch(console.error);
-                      this.getSubclassSense(server, sub)
-                        .then(senses => subs.senses = senses)
-                        .catch(console.error);
-                      this.getSubclassTrait(server, sub)
-                        .then(traits => subs.traits = traits)
-                        .catch(console.error);
-                      resolve(subs);
-                    }
-                  })
-                  .catch(err => reject(err));
-              } else {
-                const sql = "SELECT * FROM subclasses WHERE server_id = $1 AND class_id = $2 AND name = $3";
-                this.query(sql, [server.id, c.id, sub.name])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: Subclass not found");
-                    } else if (results.length === 1) {
-                      const s = results[0];
-                      const subs = {
-                        id: s.id,
-                        name: s.name,
-                        description: s.description,
-                        class: c.name,
-                        class_id: c.id,
-                        caster: s.caster,
-                        cast_lvl: s.cast_lvl,
-                        profs: {
-                          armor: [],
-                          lang: [],
-                          skill: [],
-                          tool: [],
-                          weapon: []
-                        },
-                        senses: [],
-                        traits: []
-                      }
-                      this.getSubclassProf(server, sub)
-                        .then(profs => subs.profs = profs)
-                        .catch(console.error);
-                      this.getSubclassSense(server, sub)
-                        .then(senses => subs.senses = senses)
-                        .catch(console.error);
-                      this.getSubclassTrait(server, sub)
-                        .then(traits => subs.traits = traits)
-                        .catch(console.error);
-                      resolve(subs);
-                    }
-                  })
-                  .catch(err => reject(err));
-              }
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addSubclass(server, clas, sub) {
-    //TODO: Copy from GitHub
-  }
-
-  remSubclass(server, clas, sub) {
-    return new Promise((resolve, reject) => {
-      this.getSubclass(server, clas, sub)
-        .then(s => {
-          const sql = "DELETE FROM subclasses WHERE server_id = $1 AND class_id = $2 AND id = $3";
-          this.query(sql, [server.id, s.class_id, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubclass(server, clas, sub) {
-    return new Promise((resolve, reject) => {
-      this.getSubclass(server, clas, sub)
-        .then(s => {
-          const sql = "UPDATE subclasses SET name = $1, description = $2, caster = $3, cast_lvl = $4 WHERE server_id = $5 AND class_id = $6 AND id = $7";
-          this.query(sql, [sub.name, sub.description, sub.caster, sub.cast_lvl, server.id, s.class_id, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSubclassTrait(server, sub, trait) {
-    return new Promise((resolve, reject) => {
-      if (!trait) {
-        const sql = "SELECT * FROM subclass_traits WHERE server_id = $1 AND sub_id = $2";
-        this.query(sql, [server.id, sub.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Subclass Traits found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (trait.id) {
-          const sql = "SELECT * FROM subclass_traits WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-          this.query(sql, [server.id, sub.id, trait.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Subclass Trait not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM subclass_traits WHERE server_id = $1 AND sub_id = $2 AND name = $3";
-          this.query(sql, [server.id, sub.id, trait.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Subclass Trait not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addSubclassTrait(server, sub, trait) {
-    return new Promise((resolve, reject) => {
-      this.getSubclassTrait(server, sub, trait)
-        .then(reject("Error 409: Duplicate Subclass Trait"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO subclass_traits (sub_id, server_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-            this.query(sql, [sub.id, server.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remSubclassTrait(server, sub, trait) {
-    return new Promise((resolve, reject) => {
-      this.getSubclassTrait(server, sub, trait)
-        .then(function() {
-          const sql = "DELETE FROM subclass_traits WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-          this.query(sql, [server.id, sub.id, trait.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubclassTrait(server, sub, trait) {
-    return new Promise((resolve, reject) => {
-      this.getSubclassTrait(server, sub, trait)
-        .then(function() {
-          const sql = "UPDATE subclass_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg-dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE server_id = $12 AND sub_id = $13 AND id = $14";
-          this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, server.id, sub.id, trait.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    })
-  }
-
-  getSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  addSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  remSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  updateSubclassProf(server, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  getSubclassSense(server, sub, sense) {
-    return new Promise((resolve, reject) => {
-      if (!sense) {
-        const sql = "SELECT * FROM subclass_senses WHERE server_id = $1 AND sub_id = $2";
-        this.query(sql, [server.id, sub.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Subclass Senses found");
-            } else if (results.length >= 1) {
-              resolve(results);
-            }
-          })
-          .catch(err => reject(err))
-      } else {
-        if (sense.id) {
-          const sql = "SELECT * FROM subclass_senses WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-          this.query(sql, [server.id, sub.id, sense.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Subclass Sense not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM subclass_senses WHERE server_id = $1 AND sub_id = $2 AND name = $3";
-          this.query(sql, [server.id, sub.id, sense.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Subclass Sense not found");
-              } else if (results.length === 1) {
-                resolve(results[0]);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addSubclassSense(server, sub, sense) {
-    return new Promise((resolve, reject) => {
-      this.getSubclassSense(server, sub, sense)
-        .then(reject("Error 409: Duplicate Subclass Sense"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO subclass_senses (server_id, sub_id, name, range) VALUES($1, $2, $3, $4)";
-            this.query(sql, [server.id, sub.id, sense.name, sense.range])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remSubclassSense(server, sub, sense) {
-    return new Promise((resolve, reject) => {
-      this.getSubclassSense(server, sub, sense)
-        .then(s => {
-          const sql = "DELETE FROM subclass_senses WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-          this.query(sql, [server.id, sub.id, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubclassSense(server, sub, sense) {
-    return new Promise((resolve, reject) => {
-      this.getSubclassSense(server, sub, sense)
-        .then(s => {
-          const sql = "UPDATE subclass_senses SET name = $1, range = $2 WHERE server_id = $3 AND sub_id = $4 AND id = $5";
-          this.query(sql, [sense.name, sense.range, server.id, sub.id, s.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRace(server, race) {
-    return new Promise((resolve, reject) => {
-      if (!race) {
-        const sql = "SELECT * FROM races WHERE server_id = $1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Races found");
-            } else if (results.length >= 1) {
-              const list = [];
-              let num = 0;
-              for (const r of results) {
-                list.push({
-                  id: r.id,
-                  name: r.name,
-                  description: r.description,
-                  speed: r.speed,
-                  sub: Boolean(r.sub),
-                  asi: [],
-                  feats: [],
-                  imm: [],
-                  res: [],
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  senses: [],
-                  traits: []
-                });
-                this.getRaceASI(server, race)
-                  .then(asi => list[num].asi = asi)
-                  .catch(console.error);
-                this.getRaceFeat(server, race)
-                  .then(feats => list[num].feats = feats)
-                  .catch(console.error);
-                this.getRaceImm(server, race)
-                  .then(imm => list[num].imm = imm)
-                  .catch(console.error);
-                this.getRaceRes(server, race)
-                  .then(res => list[num].res = res)
-                  .catch(console.error);
-                this.getRaceProf(server, race)
-                  .then(profs => list[num].profs = profs)
-                  .catch(console.error);
-                this.getRaceSense(server, race)
-                  .then(senses => list[num].senses = senses)
-                  .catch(console.error);
-                this.getRaceTrait(server, race)
-                  .then(traits => list[num].traits = traits)
-                  .catch(console.error);
-                num++;
-              }
-              resolve(list);
-            }
-          })
-          .catch(err => reject(err));
-      } else {
-        if (race.id) {
-          const sql = "SELECT * FROM races WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, race.id])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Race not found");
-              } else if (results.length === 1) {
-                const r = results[0];
-                const list = {
-                  id: r.id,
-                  name: r.name,
-                  description: r.description,
-                  speed: r.speed,
-                  sub: Boolean(r.sub),
-                  asi: [],
-                  feats: [],
-                  imm: [],
-                  res: [],
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  senses: [],
-                  traits: []
-                }
-                this.getRaceASI(server, race)
-                  .then(asi => list.asi = asi)
-                  .catch(console.error);
-                this.getRaceFeat(server, race)
-                  .then(feats => list.feats = feats)
-                  .catch(console.error);
-                this.getRaceImm(server, race)
-                  .then(imm => list.imm = imm)
-                  .catch(console.error);
-                this.getRaceRes(server, race)
-                  .then(res => list.res = res)
-                  .catch(console.error);
-                this.getRaceProf(server, race)
-                  .then(profs => list.profs = profs)
-                  .catch(console.error);
-                this.getRaceSense(server, race)
-                  .then(senses => list.senses = senses)
-                  .catch(console.error);
-                this.getRaceTrait(server, race)
-                  .then(traits => list.traits = traits)
-                  .catch(console.error);
-                resolve(list);
-              }
-            })
-            .catch(err => reject(err));
-        } else {
-          const sql = "SELECT * FROM races WHERE server_id = $1 AND name = $2";
-          this.query(sql, [server.id, race.name])
-            .then(results => {
-              if (results.length === 0) {
-                reject("Error 404: Race not found");
-              } else if (results.length === 1) {
-                const r = results[0];
-                const list = {
-                  id: r.id,
-                  name: r.name,
-                  description: r.description,
-                  speed: r.speed,
-                  sub: r.sub,
-                  asi: [],
-                  feats: [],
-                  imm: [],
-                  res: [],
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  senses: [],
-                  traits: []
-                }
-                this.getRaceASI(server, race)
-                  .then(asi => list.asi = asi)
-                  .catch(console.error);
-                this.getRaceFeat(server, race)
-                  .then(feats => list.feats = feats)
-                  .catch(console.error);
-                this.getRaceImm(server, race)
-                  .then(imm => list.imm = imm)
-                  .catch(console.error);
-                this.getRaceRes(server, race)
-                  .then(res => list.res = res)
-                  .catch(console.error);
-                this.getRaceProf(server, race)
-                  .then(profs => list.profs = profs)
-                  .catch(console.error);
-                this.getRaceSense(server, race)
-                  .then(senses => list.senses = senses)
-                  .catch(console.error);
-                this.getRaceTrait(server, race)
-                  .then(traits => list.traits = traits)
-                  .catch(console.error);
-                resolve(list);
-              }
-            })
-            .catch(err => reject(err));
-        }
-      }
-    });
-  }
-
-  addRace(server, race) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(reject("Error 409: Duplicate Race"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO races (server_id, name, description, speed, sub) VALUES($1, $2, $3, $4)";
-            this.query(sql, [server.id, race.name, race.description, race.speed, race.sub])
-              .then(function() {
-                const logs = {
-                  name: race.name,
-                  description: race.description,
-                  speed: race.speed,
-                  sub: race.sub,
-                  asi: [],
-                  feats: [],
-                  imm: [],
-                  res: [],
-                  profs: {
-                    armor: [],
-                    lang: [],
-                    skill: [],
-                    tool: [],
-                    weapon: []
-                  },
-                  senses: [],
-                  traits: []
-                }
-                for (const stat of race.asi) {
-                  this.addRaceASI(server, race, stat)
-                    .then(logs.asi.push({
-                      stat: stat.name,
-                      state: "Success"
-                    }))
-                    .catch(err1 => logs.asi.push({
-                      stat: stat.name,
-                      state: "Failed",
-                      reason: `${err1}`
-                    }));
-                }
-                for (const feat of race.feats) {
-                  this.addRaceFeat(server, race, feat)
-                    .then(logs.feats.push({
-                      name: feat.name,
-                      state: "Success"
-                    }))
-                    .catch(err1 => logs.feats.push({
-                      name: feat.name,
-                      state: "Failed",
-                      reason: `${err1}`
-                    }));
-                }
-                for (const imm of race.imm) {
-                  this.addRaceImm(server, race, imm)
-                    .then(logs.imm.push({
-                      name: imm.name,
-                      state: "Success"
-                    }))
-                    .catch(err1 => logs.imm.push({
-                      name: imm.name,
-                      state: "Failed",
-                      reason: `${err1}`
-                    }));
-                }
-                for (const res of race.res) {
-                  this.addRaceRes(server, race, res)
-                    .then(logs.res.push({
-                      name: res.name,
-                      state: "Success"
-                    }))
-                    .catch(err1 => logs.res.push({
-                      name: imm.name,
-                      state: "Failed",
-                      reason: `${err1}`
-                    }));
-                }
-                for (const prof of race.profs) {
-                  this.addRaceProf(server, race, prof)
-                    .then(function() {
-                      switch (prof.type) {
-                        case "armor":
-                          logs.profs.armor.push({
-                            name: prof.name,
-                            state: "Success"
-                          });
-                          break;
-                        case "language":
-                          logs.profs.lang.push({
-                            name: prof.name,
-                            state: "Success"
-                          });
-                          break;
-                        case "skill":
-                          logs.profs.skill.push({
-                            name: prof.name,
-                            state: "Success"
-                          });
-                          break;
-                        case "tool":
-                          logs.profs.tool.push({
-                            name: prof.name,
-                            state: "Success"
-                          });
-                          break;
-                        case "weapon":
-                          logs.profs.weapon.push({
-                            name: prof.name,
-                            state: "Success"
-                          });
-                          break;
-                      }
-                    })
-                    .catch(err1 => {
-                      switch (prof.type) {
-                        case "armor":
-                          logs.profs.armor.push({
-                            name: prof.name,
-                            state: "Failed",
-                            reason: `${err1}`
-                          });
-                          break;
-                        case "language":
-                          logs.profs.lang.push({
-                            name: prof.name,
-                            state: "Failed",
-                            reason: `${err1}`
-                          });
-                          break;
-                        case "skill":
-                          logs.profs.skill.push({
-                            name: prof.name,
-                            state: "Failed",
-                            reason: `${err1}`
-                          });
-                          break;
-                        case "tool":
-                          logs.profs.tool.push({
-                            name: prof.name,
-                            state: "Failed",
-                            reason: `${err1}`
-                          });
-                          break;
-                        case "weapon":
-                          logs.profs.weapon.push({
-                            name: prof.name,
-                            state: "Failed",
-                            reason: `${err1}`
-                          });
-                          break;
-                      }
-                    });
-                }
-                for (const sense of race.senses) {
-                  this.addRaceSense(server, race, sense)
-                    .then(logs.senses.push({
-                      name: sense.name,
-                      state: "Success"
-                    }))
-                    .catch(err1 => logs.senses.push({
-                      name: sense.name,
-                      state: "Failed",
-                      reason: `${err1}`
-                    }));
-                }
-                for (const trait of race.traits) {
-                  this.addRaceTrait(server, race, trait)
-                    .then(logs.traits.push({
-                      name: trait.name,
-                      state: "Success"
-                    }))
-                    .catch(err1 => logs.traits.push({
-                      name: trait.name,
-                      state: "Failed",
-                      reason: `${err1}`
-                    }));
-                }
-                resolve(logs);
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRace(server, race) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          const sql = "DELETE FROM races WHERE server_id = $1 AND id = $2";
-          this.query(sql, [server.id, r.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateRace(server, race) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          const sql = "UPDATE races SET name = $1, description = $2, speed = $3, sub = $4 WHERE server_id = $5 AND id = $6";
-          this.query(sql, [race.name, race.description, race.speed, race.sub, server.id, r.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRaceASI(server, race, stat) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          if (!stat) {
-            const sql = "SELECT * FROM race_asi WHERE server_id = $1 AND race_id = $2";
-            this.query(sql, [server.id, r.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Race ASI found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else if (stat.name) {
-            const sql = "SELECT * FROM race_asi WHERE server_id = $1 AND race_id = $2 AND name = $3";
-            this.query(sql, [server.id, r.id, stat.name])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: Race ASI not found");
-                } else if (results.length === 1) {
-                  resolve(results[0]);
-                }
-              })
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addRaceASI(server, race, stat) {
-    return new Promise((resolve, reject) => {
-      this.getRaceASI(server, race, stat)
-        .then(s => {
-          if (s.val == stat.val) {
-            reject("Error 409: Duplicate Race ASI");
-          } else {
-            this.updateRaceASI(server, race, stat)
-              .then(resolve("Success"))
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO race_asi (server_id, race_id, name, val) VALUES($1, $2, $3, $4)";
-            this.query(sql, [server.id, race.id, stat.name, stat.val])
-              .then(resolve("Success"))
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRaceASI(server, race, stat) {
-    return new Promise((resolve, reject) => {
-      this.getRaceASI(server, race, stat)
-        .then(function() {
-          const sql = "DELETE FROM race_asi WHERE server_id = $1 AND race_id = $2 AND name = $3";
-          this.query(sql, [server.id, race.id, stat.name])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateRaceASI(server, race, stat) {
-    return new Promise((resolve, reject) => {
-      this.getRaceASI(server, race, stat)
-        .then(function() {
-          const sql = "UPDATE race_asi SET name = $1, val = $2 WHERE server_id = $3 AND race_id = $4";
-          this.query(sql, [stat.newname, stat.val, server.id, race.id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRaceFeat(server, char, race, feat) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          if (!feat) {
-            const sql = "SELECT * FROM race_feats WHERE char_id = $1 AND race_id = $2";
-            this.query(sql, [char.id, r.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Race Feats found");
-                } else if (results.length >= 1) {
-                  const list = [];
-                  for (const f of results) {
-                    this.getFeat(server, f)
-                      .then(fea => list.push({
-                        name: fea.name,
-                        description: fea.description,
-                        type: fea.type,
-                        val1: fea.val1,
-                        val2: fea.val2,
-                        val3: fea.val3,
-                        char_id: f.char_id,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(err => list.push({
-                        id: f.id,
-                        state: "Invalid",
-                        reason: `${err}`
-                      }));
-                  }
-                  resolve(list);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (feat.feat_id) {
-              const sql = "SELECT * FROM race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3";
-              this.query(sql, [server.id, r.id, feat.feat_id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Feat not found");
-                  } else if (results.length === 1) {
-                    const f = results[0];
-                    this.getFeat(server, { id: feat.feat_id })
-                      .then(fea => resolve({
-                        name: fea.name,
-                        description: fea.description,
-                        type: fea.type,
-                        val1: fea.val1,
-                        val2: fea.val2,
-                        val3: fea.val3,
-                        char_id: f.char_id,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            } else if (feat.id) {
-              const sql = "SELECT * FROM race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [char.id, r.id, feat.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Feat not found");
-                  } else if (results.length === 1) {
-                    const f = results[0];
-                    this.getFeat(server, { id: feat.feat_id })
-                      .then(fea => resolve({
-                        name: fea.name,
-                        description: fea.description,
-                        type: fea.type,
-                        val1: fea.val1,
-                        val2: fea.val2,
-                        val3: fea.val3,
-                        char_id: f.char_id,
-                        id: f.id,
-                        feat_id: fea.id,
-                        state: "Valid"
-                      }))
-                      .catch(err => reject(err));
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              this.getFeat(server, { name: feat.name })
-                .then(fea => {
-                  const sql = "SELECT * FROM race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3";
-                  this.query(sql, [char.id, r.id, fea.id])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Race Feat not found");
-                      } else if (results.length === 1) {
-                        const f = results[0];
-                        resolve({
-                          name: fea.name,
-                          description: fea.description,
-                          type: fea.type,
-                          val1: fea.val1,
-                          val2: fea.val2,
-                          val3: fea.val3,
-                          char_id: f.char_id,
-                          id: f.id,
-                          feat_id: fea.id,
-                          state: "Valid"
-                        });
-                      }
-                    })
-                    .catch(err => reject(err));
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addRaceFeat(server, char, race, feat) {
-    return new Promise((resolve, reject) => {
-      this.getRaceFeat(server, char, race, feat)
-        .then(reject("Error 409: Duplicate Race Feat"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getRace(server, race)
-              .then(r => {
-                this.getFeat(server, { name: feat.name })
-                  .then(fea => {
-                    const sql = "INSERT INTO race_feats (char_id, race_id, feat_id) VALUES($1, $2, $3)";
-                    this.query(sql, [char.id, r.id, fea.id])
-                      .then(resolve("Success"))
-                      .catch(err1 => reject(err1));
-                  })
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRaceFeat(server, char, race, feat) {
-    return new Promise((resolve, reject) => {
-      this.getRaceFeat(server, char, race, feat)
-        .then(f => {
-          this.getRace(server, race)
-            .then(r => {
-              const sql = "DELETE FROM race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [char.id, r.id, f.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRaceImm(server, race, imm) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          if (!imm) {
-            const sql = "SELECT * FROM race_immunities WHERE server_id = $1 AND race_id = $2";
-            this.query(sql, [server.id, r.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Race Immunities found");
-                } else if (results.length >= 1) {
-                  const imms = [];
-                  for (const i of results) {
-                    this.getCondOrDmgtype(server, i.type, { id: i.imm_id })
-                      .then(im => imms.push({
-                        name: im.name,
-                        type: i.type,
-                        id: i.id,
-                        imm_id: im.id,
-                        state: "Valid"
-                      }))
-                      .catch(err => imms.push({
-                        type: i.type,
-                        id: i.id,
-                        state: "Invalid",
-                        reason: `${err}`
-                      }));
-                  }
-                  resolve(imms);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (imm.imm_id) {
-              const sql = "SELECT * FROM race_immunities WHERE server_id = $1 AND race_id = $2 AND imm_id = $3";
-              this.query(sql, [server.id, r.id, imm.imm_id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Immunity not found");
-                  } else if (results.length === 1) {
-                    const i = results[0];
-                    this.getCondOrDmgtype(server, i.type, { id: i.imm_id })
-                      .then(im => resolve({
-                        name: im.name,
-                        type: i.type,
-                        id: i.id,
-                        imm_id: im.id,
-                        state: "Valid"
-                      }))
-                      .catch(reject(`Error 400: Invalid Immunity`));
-                  }
-                })
-                .catch(err => reject(err));
-            } else if (imm.id) {
-              const sql = "SELECT * FROM race_immunities WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, imm.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Immunity not found");
-                  } else if (results.length === 1) {
-                    const i = results[0];
-                    this.getCondOrDmgtype(server, i.type, { id: i.imm_id })
-                      .then(im => resolve({
-                        name: im.name,
-                        type: i.type,
-                        id: i.id,
-                        imm_id: i.imm_id,
-                        state: "Valid"
-                      }))
-                      .catch(reject("Error 400: Invalid Immunity"));
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              this.getCondOrDmgtype(server, imm.type, { name: imm.name })
-                .then(im => {
-                  const sql = "SELECT * FROM race_immunities WHERE server_id = $1 AND race_id = $2 AND imm_id = $3";
-                  this.query(sql, [server.id, r.id, im.id])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Race Immunity not found");
-                      } else if (results.length === 1) {
-                        const i = results[0];
-                        resolve({
-                          name: im.name,
-                          type: i.type,
-                          id: i.id,
-                          imm_id: i.imm_id,
-                          state: "Valid"
-                        });
-                      }
-                    })
-                    .catch(err => reject(err));
-                })
-                .catch(reject("Error 400: Invalid Immunity"));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addRaceImm(server, race, imm) {
-    return new Promise((resolve, reject) => {
-      this.getRaceImm(server, race, imm)
-        .then(reject("Error 409: Duplicate Race Immunity"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getRace(server, race)
-              .then(r => {
-                this.getCondOrDmgtype(server, imm.type, { name: imm.name })
-                  .then(im => {
-                    this.getRaceRes(server, r, { res_id: im.id })
-                      .then(function() {
-                        this.remRaceRes(server, r, { res_id: im.id });
-                        const sql = "INSERT INTO race_immunities (server_id, race_id, type, imm_id) VALUES($1, $2, $3, $4)";
-                        this.query(sql, [server.id, r.id, imm.type, im.id])
-                          .then(resolve("Success"))
-                          .catch(err1 => reject(err1));
-                      })
-                      .catch(function() {
-                        const sql = "INSERT INTO race_immunities (server_id, race_id, type, imm_id) VALUES($1, $2, $3, $4)";
-                        this.query(sql, [server.id, r.id, imm.type, im.id])
-                          .then(resolve("Success"))
-                          .catch(err1 => reject(err1));
-                      });
-                  })
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRaceImm(server, race, imm) {
-    return new Promise((resolve, reject) => {
-      this.getRaceImm(server, race, imm)
-        .then(i => {
-          this.getRace(server, race)
-            .then(r => {
-              const sql = "DELETE FROM race_immunities WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, i.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRaceRes(server, race, res) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          if (!res) {
-            const sql = "SELECT * FROM race_resistances WHERE server_id = $1 AND race_id = $2";
-            this.query(sql, [server.id, r.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Race Resistances found");
-                } else if (results.length >= 1) {
-                  const resis = [];
-                  for (const re of results) {
-                    this.getCondOrDmgtype(server, re.type, { id: re.res_id })
-                      .then(resist => resis.push({
-                        name: resist.name,
-                        type: re.type,
-                        id: re.id,
-                        res_id: resist.id,
-                        state: "Valid"
-                      }))
-                      .catch(err => resis.push({
-                        type: re.type,
-                        id: re.id,
-                        state: "Invalid",
-                        reason: `${err}`
-                      }));
-                  }
-                  resolve(resis);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (res.res_id) {
-              const sql = "SELECT * FROM race_resistances WHERE server_id = $1 AND race_id = $2 AND res_id = $3";
-              this.query(sql, [server.id, r.id, res.res_id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Resistance not found");
-                  } else if (results.length === 1) {
-                    const re = results[0];
-                    this.getCondOrDmgtype(server, re.type, { id: re.res_id })
-                      .then(resist => resolve({
-                        name: resist.name,
-                        type: re.type,
-                        id: re.id,
-                        res_id: resist.id,
-                        state: "Valid"
-                      }))
-                      .catch(reject("Error 400: Invalid Resistance"));
-                  }
-                })
-                .catch(err => reject(err));
-            } else if (res.id) {
-              const sql = "SELECT * FROM race_resistances WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, res.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Resistance not found");
-                  } else if (results.length === 1) {
-                    const re = results[0];
-                    this.getCondOrDmgtype(server, re.type, { id: re.res_id })
-                      .then(resist => resolve({
-                        name: resist.name,
-                        type: re.type,
-                        id: re.id,
-                        res_id: resist.id,
-                        state: "Valid"
-                      }))
-                      .catch(reject("Error 400: Invalid Resistance"));
-                  }
-                })
-            } else {
-              this.getCondOrDmgtype(server, res.type, { name: res.name })
-                .then(resist => {
-                  const sql = "SELECT * FROM race_resistances WHERE server_id = $1 AND race_id = $2 AND res_id = $3";
-                  this.query(sql, [server.id, r.id, resist.id])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Race Resistance not found");
-                      } else if (results.length === 1) {
-                        const re = results[0];
-                        resolve({
-                          name: resist.name,
-                          type: re.type,
-                          id: re.id,
-                          res_id: resist.id,
-                          state: "Valid"
-                        });
-                      }
-                    })
-                    .catch(err => reject(err));
-                })
-                .catch(reject("Error 400: Invalid Resistance"));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addRaceRes(server, race, res) {
-    return new Promise((resolve, reject) => {
-      this.getCondOrDmgtype(server, res.type, { name: res.name })
-        .then(resist => {
-          this.getRace(server, race)
-            .then(r => {
-              this.getRaceImm(server, r, { imm_id: resist.res_id })
-                .then(reject("Error 409: Race Immunity of that Type already exists"))
-                .catch(function() {
-                  this.getRaceRes(server, r, res)
-                    .then(reject("Error 409: Duplicate Race Resistance"))
-                    .catch(err => {
-                      if (String(err).includes("Error 404")) {
-                        const sql = "INSERT INTO race_resistances (server_id, race_id, type, res_id) VALUES($1, $2, $3, $4)";
-                        this.query(sql, [server.id, r.id, res.type, resist.id])
-                          .then(resolve("Success"))
-                          .catch(err1 => reject(err1));
-                      } else {
-                        reject(err);
-                      }
-                    });
-                });
-            })
-            .catch(err => reject(err));
-        })
-        .catch(reject("Error 400: Invalid Resistance"));
-    });
-  }
-
-  remRaceRes(server, race, res) {
-    return new Promise((resolve, reject) => {
-      this.getRaceRes(server, race, res)
-        .then(re => {
-          this.getRace(server, race)
-            .then(r => {
-              const sql = "DELETE FROM race_resistances WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, re.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRaceProf(server, race, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  addRaceProf(server, race, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  remRaceProf(server, race, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  updateRaceProf(server, race, prof) {
-    //TODO
-  }
-
-  getRaceSense(server, race, sense) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          if (!sense) {
-            const sql = "SELECT * FROM race_senses WHERE server_id = $1 AND race_id = $2";
-            this.query(sql, [server.id, r.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Race Senses found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (sense.id) {
-              const sql = "SELECT * FROM race_senses WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, sense.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM race_senses WHERE server_id = $1 AND race_id = $2 AND name = $3";
-              this.query(sql, [server.id, r.id, sense.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addRaceSense(server, race, sense) {
-    return new Promise((resolve, reject) => {
-      this.getRaceSense(server, race, sense)
-        .then(reject("Error 409: Duplicate Race Sense"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getRace(server, race)
-              .then(r => {
-                const sql = "INSERT INTO race_senses (server_id, race_id, name, range) VALUES($1, $2, $3, $4)";
-                this.query(sql, [server.id, r.id, sense.name, sense.range])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRaceSense(server, race, sense) {
-    return new Promise((resolve, reject) => {
-      this.getRaceSense(server, race, sense)
-        .then(s => {
-          this.getRace(server, race)
-            .then(r => {
-              const sql = "DELETE FROM race_senses WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, s.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateRaceSense(server, race, sense) {
-    return new Promise((resolve, reject) => {
-      this.getRaceSense(server, race, sense)
-        .then(s => {
-          this.getRace(server, race)
-            .then(r => {
-              const sql = "UPDATE race_senses SET name = $1, range = $2 WHERE server_id = $3 AND race_id = $4 AND id = $5";
-              this.query(sql, [sense.name, sense.range, server.id, r.id, s.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getRaceTrait(server, race, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          if (!trait) {
-            const sql = "SELECT * FROM race_traits WHERE server_id = $1 AND race_id = $2";
-            this.query(sql, [server.id, r.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Race Traits found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (trait.id) {
-              const sql = "SELECT * FROM race_traits WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, trait.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Trait not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM race_traits WHERE server_id = $1 AND race_id = $2 AND name = $3";
-              this.query(sql, [server.id, r.id, trait.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Race Trait not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0])
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addRaceTrait(server, race, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRaceTrait(server, race, trait)
-        .then(reject("Error 409: Duplicate Race Trait"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getRace(server, race)
-              .then(r => {
-                const sql = "INSERT INTO race_traits (server_id, race_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-                this.query(sql, [server.id, r.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  remRaceTrait(server, race, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRaceTrait(server, race, trait)
-        .then(t => {
-          this.getRace(server, race)
-            .then(r => {
-              const sql = "DELETE FROM race_traits WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, t.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateRaceTrait(server, race, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRaceTrait(server, race, trait)
-        .then(t => {
-          this.getRace(server, race)
-            .then(r => {
-              const sql = "UPDATE race_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE server_id = $12 AND race_id = $13 AND id = $14";
-              this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, server.id, r.id, t.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSubrace(server, race, sub) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          if (!sub) {
-            const sql = "SELECT * FROM subraces WHERE server_id = $1 AND race_id = $2";
-            this.query(sql, [server.id, r.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Subraces found");
-                } else if (results.length >= 1) {
-                  const subs = [];
-                  let num = 0;
-                  for (const s of results) {
-                    subs.push({
-                      id: s.id,
-                      name: s.name,
-                      description: s.description,
-                      race: s.race_id,
-                      profs: {
-                        armor: [],
-                        lang: [],
-                        skill: [],
-                        tool: [],
-                        weapon: []
-                      },
-                      senses: [],
-                      traits: []
-                    });
-                    this.getSubraceProf(server, r, s)
-                      .then(profs => subs[num].profs = profs)
-                      .catch(console.error);
-                    this.getSubraceSense(server, r, s)
-                      .then(senses => subs[num].senses = senses)
-                      .catch(console.error);
-                    this.getSubraceTrait(server, r, s)
-                      .then(traits => subs[num].traits = traits)
-                      .catch(console.error);
-                    num++;
-                  }
-                  resolve(subs);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (sub.id) {
-              const sql = "SELECT * FROM subraces WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, sub.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Subrace not found");
-                  } else if (results.length === 1) {
-                    const s = results[0];
-                    const subs = {
-                      id: s.id,
-                      name: s.name,
-                      description: s.description,
-                      race: s.race_id,
-                      profs: {
-                        armor: [],
-                        lang: [],
-                        skill: [],
-                        tool: [],
-                        weapon: []
-                      },
-                      senses: [],
-                      traits: []
-                    }
-                    this.getSubraceProf(server, r, s)
-                      .then(profs => subs.profs = profs)
-                      .catch(console.error);
-                    this.getSubraceSense(server, r, s)
-                      .then(senses => subs.senses = senses)
-                      .catch(console.error);
-                    this.getSubraceTrait(server, r, s)
-                      .then(traits => subs.traits = traits)
-                      .catch(console.error);
-                    resolve(subs);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM subraces WHERE server_id = $1 AND race_id = $2 AND name = $3";
-              this.query(sql, [server.id, r.id, sub.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Subrace not found");
-                  } else if (results.length === 1) {
-                    const s = results[0];
-                    const subs = {
-                      id: s.id,
-                      name: s.name,
-                      description: s.description,
-                      race: s.race_id,
-                      profs: {
-                        armor: [],
-                        lang: [],
-                        skill: [],
-                        tool: [],
-                        weapon: []
-                      },
-                      senses: [],
-                      traits: []
-                    }
-                    this.getSubraceProf(server, r, s)
-                      .then(profs => subs.profs = profs)
-                      .catch(console.error);
-                    this.getSubraceSense(server, r, s)
-                      .then(senses => subs.senses = senses)
-                      .catch(console.error);
-                    this.getSubraceTrait(server, r, s)
-                      .then(traits => subs.traits = traits)
-                      .catch(console.error);
-                    resolve(subs);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addSubrace(server, race, sub) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(reject("Error 409: Duplicate Subrace"))
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                const sql = "INSERT INTO subraces (server_id, race_id, name, description) VALUES($1, $2, $3, $4)";
-                this.query(sql, [server.id, r.id, sub.name, sub.description])
-                  .then(function() {
-                    const logs = {
-                      name: sub.name,
-                      description: sub.description,
-                      race: s.race_id,
-                      prof: {
-                        armor: [],
-                        lang: [],
-                        skill: [],
-                        tool: [],
-                        weapon: []
-                      },
-                      sense: [],
-                      trait: []
-                    }
-                    for (const prof of sub.profs) {
-                      this.addSubraceProf(server, r, sub, prof)
-                        .then(function() {
-                          switch (prof.type) {
-                            case "armor":
-                              logs.prof.armor.push({
-                                name: prof.name,
-                                state: "Success"
-                              });
-                              break;
-                            case "language":
-                              logs.prof.lang.push({
-                                name: prof.name,
-                                state: "Success"
-                              });
-                              break;
-                            case "skill":
-                              logs.prof.skill.push({
-                                name: prof.name,
-                                state: "Success"
-                              });
-                              break;
-                            case "tool":
-                              logs.prof.tool.push({
-                                name: prof.name,
-                                state: "Success"
-                              });
-                              break;
-                            case "weapon":
-                              logs.prof.weapon.push({
-                                name: prof.name,
-                                state: "Success"
-                              });
-                              break;
-                          }
-                        })
-                        .catch(err1 => {
-                          switch (prof.type) {
-                            case "armor":
-                              logs.prof.armor.push({
-                                name: prof.name,
-                                state: "Failed",
-                                reason: `${err1}`
-                              });
-                              break;
-                            case "language":
-                              logs.prof.lang.push({
-                                name: prof.name,
-                                state: "Failed",
-                                reason: `${err1}`
-                              });
-                              break;
-                            case "skill":
-                              logs.prof.skill.push({
-                                name: prof.name,
-                                state: "Failed",
-                                reason: `${err1}`
-                              });
-                              break;
-                            case "tool":
-                              logs.prof.tool.push({
-                                name: prof.name,
-                                state: "Failed",
-                                reason: `${err1}`
-                              });
-                              break;
-                            case "weapon":
-                              logs.prof.weapon.push({
-                                name: prof.name,
-                                state: "Failed",
-                                reason: `${err1}`
-                              });
-                              break;
-                          }
-                        });
-                    }
-                    for (const sense of sub.senses) {
-                      this.addSubraceSense(server, r, sub, sense)
-                        .then(logs.sense.push({
-                          name: sense.name,
-                          state: "Success"
-                        }))
-                        .catch(err1 => logs.sense.push({
-                          name: sense.name,
-                          state: "Failed",
-                          reason: `${err1}`
-                        }));
-                    }
-                    for (const trait of sub.traits) {
-                      this.addSubraceTrait(server, r, sub, trait)
-                        .then(logs.trait.push({
-                          name: trait.name,
-                          state: "Success"
-                        }))
-                        .catch(err1 => logs.trait.push({
-                          name: trait.name,
-                          state: "Failed",
-                          reason: `${err1}`
-                        }));
-                    }
-                    resolve(logs);
-                  })
-                  .catch(err => reject(err));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remSubrace(server, race, sub) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              const sql = "DELETE FROM subraces WHERE server_id = $1 AND race_id = $2 AND id = $3";
-              this.query(sql, [server.id, r.id, s.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubrace(server, race, sub) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              const sql = "UPDATE subraces SET name = $1, description = $2 WHERE server_id = $3 AND race_id = $4 AND id = $5";
-              this.query(sql, [sub.name, sub.description, server.id, r.id, s.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  addSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  remSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  updateSubraceProf(server, race, sub, prof) {
-    //TODO: Copy from GitHub
-  }
-
-  getSubraceSense(server, race, sub, sense) {
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          if (!sense) {
-            const sql = "SELECT * FROM subrace_senses WHERE server_id = $1 AND sub_id = $2";
-            this.query(sql, [server.id, s.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Subrace Senses found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            if (sense.id) {
-              const sql = "SELECT * FROM subrace_senses WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-              this.query(sql, [server.id, s.id, sense.id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Subrace Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              const sql = "SELECT * FROM subrace_senses WHERE server_id = $1 AND sub_id = $2 AND name = $3";
-              this.query(sql, [server.id, s.id, sense.name])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: Subrace Sense not found");
-                  } else if (results.length === 1) {
-                    resolve(results[0]);
-                  }
-                })
-                .catch(err => reject(err));
-            }
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addSubraceSense(server, race, sub, sense) {
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          this.getSubraceSense(server, race, s, sense)
-            .then(reject("Error 409: Duplicate Subrace Sense"))
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                const sql = "INSERT INTO subrace_senses (server_id, sub_id, name, range) VALUES($1, $2, $3, $4)";
-                this.query(sql, [server.id, s.id, sense.name, sense.range])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remSubraceSense(server, race, sub, sense) {
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          this.getSubraceSense(server, race, s, sense)
-            .then(sen => {
-              const sql = "DELETE FROM subrace_senses WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-              this.query(sql, [server.id, s.id, sen.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubraceSense(server, race, sub, sense) {
-    return new Promise((resolve, reject) => {
-      this.getSubrace(server, race, sub)
-        .then(s => {
-          this.getSubraceSense(server, race, s, sense)
-            .then(sen => {
-              const sql = "UPDATE subrace_senses SET name = $1, range = $2 WHERE server_id = $3 AND sub_id = $4 AND id = $5";
-              this.query(sql, [sense.name, sense.range, server.id, s.id, sen.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSubraceTrait(server, race, sub, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              if (!trait) {
-                const sql = "SELECT * FROM subrace_traits WHERE server_id = $1 AND sub_id = $2";
-                this.query(sql, [server.id, s.id])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: No Subrace Traits found");
-                    } else if (results.length >= 1) {
-                      resolve(results);
-                    }
-                  })
-                  .catch(err => reject(err));
-              } else {
-                if (trait.id) {
-                  const sql = "SELECT * FROM subrace_traits WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-                  this.query(sql, [server.id, s.id, trait.id])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Subrace Trait not found");
-                      } else if (results.length === 0) {
-                        resolve(results[0]);
-                      }
-                    })
-                    .catch(err => reject(err));
-                } else {
-                  const sql = "SELECT * FROM subrace_traits WHERE server_id = $1 AND sub_id = $2 AND name = $3";
-                  this.query(sql, [server.id, s.id, trait.name])
-                    .then(results => {
-                      if (results.length === 0) {
-                        reject("Error 404: Subrace Trait not found");
-                      } else if (results.length === 1) {
-                        resolve(results[0]);
-                      }
-                    })
-                    .catch(err => reject(err));
-                }
-              }
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  addSubraceTrait(server, race, sub, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              this.getSubraceTrait(server, r, s, trait)
-                .then(reject("Error 409: Duplicate Subrace Trait"))
-                .catch(err => {
-                  if (String(err).includes("Error 404")) {
-                    const sql = "INSERT INTO subrace_traits (server_id, sub_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
-                    this.query(sql, [server.id, s.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
-                      .then(resolve("Success"))
-                      .catch(err1 => reject(err1));
-                  } else {
-                    reject(err);
-                  }
-                });
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remSubraceTrait(server, race, sub, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              this.getSubraceTrait(server, r, s, trait)
-                .then(t => {
-                  const sql = "DELETE FROM subrace_traits WHERE server_id = $1 AND sub_id = $2 AND id = $3";
-                  this.query(sql, [server.id, s.id, t.id])
-                    .then(resolve("Success"))
-                    .catch(err => reject(err));
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSubraceTrait(server, race, sub, trait) {
-    return new Promise((resolve, reject) => {
-      this.getRace(server, race)
-        .then(r => {
-          this.getSubrace(server, r, sub)
-            .then(s => {
-              this.getSubraceTrait(server, r, s, trait)
-                .then(t => {
-                  const sql = "UPDATE subrace_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE server_id = $12 AND sub_id = $13 AND id = $14";
-                  this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, server.id, s.id, t.id])
-                    .then(resolve("Success"))
-                    .catch(err => reject(err));
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getSession(server, user, session) {
-    return new Promise((resolve, reject) => {
-      if (!user) {
-
-      } else {
-        this.getGM(server, user)
-          .then(gm => {
-            if (!session) {
-              const sql = "SELECT * FROM sessions WHERE server_id = $1 AND dm_id = $2";
-              this.query(sql, [server.id, gm.user_id])
-                .then(results => {
-                  if (results.length === 0) {
-                    reject("Error 404: No Sessions found");
-                  } else if (results.length >= 1) {
-                    resolve(results);
-                  }
-                })
-                .catch(err => reject(err));
-            } else {
-              if (session.id) {
-                const sql = "SELECT * FROM sessions WHERE server_id = $1 AND dm_id = $2 AND id = $3";
-                this.query(sql, [server.id, gm.user_id, session.id])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: Session not found");
-                    } else if (results.length === 1) {
-                      resolve(results[0]);
-                    }
-                  })
-                  .catch(err => reject(err));
-              } else {
-                const sql = "SELECT * FROM sessions WHERE server_id = $1 AND dm_id = $2 AND name = $3";
-                this.query(sql, [server.id, gm.user_id, session.name])
-                  .then(results => {
-                    if (results.length === 0) {
-                      reject("Error 404: Session not found");
-                    } else if (results.length >= 1) {
-                      resolve(results);
-                    }
-                  })
-                  .catch(err => reject(err));
-              }
-            }
-          })
-          .catch(err => reject(err));
-      }
-    });
-  }
-
-  addSession(server, user, session) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          this.getSession(server, user, session)
-            .then(function() {
-              this.getServer(server)
-                .then(s => {
-                  if (s.dup_sessions) {
-                    let date = moment().format("YYYY-MM-DD HH:mm:ss");
-                    const sql = "INSERT INTO sessions (server_id, dm_id, name, description, levels, players, min_runtime, max_runtime, start_time, date, channel, difficulty) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-                    this.query(sql, [server.id, gm.user_id, session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, date, session.channel, session.difficulty])
-                      .then(resolve("Success"))
-                      .catch(err => reject(err));
-                  } else {
-                    reject("Error 409: Duplicate Session");
-                  }
-                })
-                .catch(err => reject(err));
-            })
-            .catch(err => {
-              if (String(err).includes("Error 404")) {
-                let date = moment().format("YYYY-MM-DD HH:mm:ss");
-                const sql = "INSERT INTO sessions (server_id, dm_id, name, description, levels, players, min_runtime, max_runtime, start_time, date, channel, difficulty) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-                this.query(sql, [server.id, gm.user_id, session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, date, session.channel, session.difficulty])
-                  .then(resolve("Success"))
-                  .catch(err1 => reject(err1));
-              } else {
-                reject(err);
-              }
-            });
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  remSession(server, user, session) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          this.getSession(server, user, session)
-            .then(ses => {
-              const sql = "DELETE FROM sessions WHERE server_id = $1 AND dm_id = $2 AND id = $3";
-              this.query(sql, [server.id, gm.user_id, ses.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  updateSession(server, user, session) {
-    return new Promise((resolve, reject) => {
-      this.getGM(server, user)
-        .then(gm => {
-          this.getSession(server, user, session)
-            .then(ses => {
-              const sql = "UPDATE sessions SET name = $1, description = $2, levels = $3, players = $4, min_runtime = $5, max_runtime = $6, start_time = $7, end_time = $8, channel = $9, difficulty = $10, started = $11, ended = $12 WHERE server_id = $13 AND dm_id = $14 AND id = $15";
-              this.query(sql, [session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, session.end_time, session.channel, session.difficulty, session.started, session.ended, server.id, gm.user_id, ses.id])
-                .then(resolve("Success"))
-                .catch(err => reject(err));
-            })
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getPlayers(server, gm, session, player) {
-    return new Promise((resolve, reject) => {
-      this.getSession(server, gm, session)
-        .then(s => {
-          if (!player) {
-            const sql = "SELECT * FROM session_players WHERE session_id = $1";
-            this.query(sql, [s.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: No Players found");
-                } else if (results.length >= 1) {
-                  resolve(results);
-                }
-              })
-              .catch(err => reject(err));
-          } else {
-            const sql = "SELECT * FROM session_players WHERE session_id = $1 AND user_id = $2 AND char_id = $3";
-            this.query(sql, [s.id, player.user.id, player.char.id])
-              .then(results => {
-                if (results.length === 0) {
-                  reject("Error 404: Player not found");
-                } else if (results.length === 1) {
-                  resolve(results[0]);
-                }
-              })
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  joinSession(server, user, char, gm, session) {
-    return new Promise((resolve, reject) => {
-      this.getPlayer(server, gm, session, { user: user, char: char })
-        .then(reject("Error 409: Duplicate Player"))
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            this.getUser(server, user)
-              .then(u => {
-                this.getChar(u, char)
-                  .then(c => {
-                    this.getSession(server, gm, session)
-                      .then(s => {
-                        const sql = "INSERT INTO session_players (session_id, user_id, char_id) VALUES($1, $2, $3)";
-                        this.query(sql, [s.id, u.id, c.id])
-                          .then(resolve("Success"))
-                          .catch(err1 => reject(err1));
-                      })
-                      .catch(err1 => reject(err1));
-                  })
-                  .catch(err1 => reject(err1));
-              })
-              .catch(err1 => reject(err1));
-          } else {
-            reject(err);
-          }
-        });
-    });
-  }
-
-  leaveSession(server, user, char, gm, session) {
-    return new Promise((resolve, reject) => {
-      this.getPlayers(server, gm, session, { user: user, char: char })
-        .then(p => {
-          const sql = "DELETE FROM session_players WHERE session_id = $1 AND user_id = $2 AND char_id = $3";
-          this.query(sql, [p.session_id, p.user_id, p.char_id])
-            .then(resolve("Success"))
-            .catch(err => reject(err));
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  getLog(server, log) {
-    return new Promise((resolve, reject) => {
-      if (!log) {
-        const sql = "SELECT * FROM server_logs WHERE server_id = $1 ORDER BY id DESC LIMIT 1";
-        this.query(sql, [server.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Logs found");
-            } else if (results.length === 1) {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      } else if (log) {
-        const sql = "SELECT * FROM server_logs WHERE server_id = $1 ORDER BY ABS(EXTRACT(epoch FROM id - $2)) LIMIT 1";
-        this.query(sql, [server.id, log.id])
-          .then(results => {
-            if (results.length === 0) {
-              reject("Error 404: No Logs found");
-            } else {
-              resolve(results[0]);
-            }
-          })
-          .catch(err => reject(err));
-      }
-    })
-  }
-
-  addLog(server) {
-    return new Promise((resolve, reject) => {
-      let id = moment().format("YYYY-MM-DDTHH:mm:ss.msZ");
-      this.getLog(server, {id: id})
-        .then(log => {
-          let olddate = moment(log.id);
-          let newdate = moment();
-          const diff = moment.duration(newdate.diff(olddate));
-          const days = diff.asDays();
-          const hours = diff.asHours();
-          const sql = "INSERT INTO server_logs (server_id, id) VALUES ($1, $2)";
-          if (days>=1) {
-            this.query(sql, [server.id, id])
-              .then(resolve(`New Log has been added to Server \"${server.name}\"!`))
-              .catch(err => reject(err));
-            if (!fs.existsSync(`./logs/server/${server.id}`)) {
-              fs.mkdirSync(`./logs/server/${server.id}`);
-            }
-            fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
-          } else if (hours>=8) {
-            this.query(sql, [server.id, id])
-              .then(resolve(`New Log has been added to Server \"${server.name}\"!`))
-              .catch(err => reject(err));
-            if (!fs.existsSync(`./logs/server/${server.id}`)) {
-              fs.mkdirSync(`./logs/server/${server.id}`);
-            }
-            fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
-          } else {
-            reject("Error 400: Logfile is too new!");
-          }
-        })
-        .catch(err => {
-          if (String(err).includes("Error 404")) {
-            const sql = "INSERT INTO server_logs (server_id, id) VALUES ($1, $2)";
-            this.query(sql, [server.id, id])
-              .then(resolve(`New Log has been added to Server \"${server.name}\"!`))
-              .catch(err1 => reject(err1));
-            if (!fs.existsSync(`./logs/server/${server.id}`)) {
-              fs.mkdirSync(`./logs/server/${server.id}`);
-            }
-            fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
-          } else {
-            reject(err);
-          }
-        });
-    })
-  }
-
-  remLog(server) {
-    return new Promise((resolve, reject) => {
-      const sql0 = "SELECT COUNT(id) FROM server_logs WHERE server_id = $1";
-      this.query(sql0, [server.id])
-        .then(result => {
-          if (result[0]>1) {
-            const sql2 = "SELECT id FROM server_logs WHERE server_id = $1 ORDER BY id ASC LIMIT 1";
-            this.query(sql2, [server.id])
-              .then(results => {
-                let id = results[0].id;
-                const sql1 = "DELETE FROM server_logs WHERE server_id = $1 AND id = $2";
-                this.query(sql1, [server.id, id])
-                  .then(resolve(`Oldest Log of Server \"${server.name}\" has been deleted!`))
-                  .catch(err => reject(err));
-                if (fs.existsSync(`./logs/server/${server.id}/${id}.log`)) {
-                  fs.unlinkSync(`./logs/server/${server.id}/${id}.log`);
-                } else {
-                  reject("Error 404: Logfile not found");
-                }
-              })
-              .catch(err => reject(err));
-          }
-        })
-        .catch(err => reject(err));
-    });
-  }
-
-  writeLog(server, content) {
-    return new Promise((resolve, reject) => {
-      this.getLog(server, undefined)
-        .then(log => {
-          let time = moment().format("YYYY-MM-DD HH:mm:ss");
-          if (!fs.existsSync(`./logs/server/${server.id}`)) {
-            fs.mkdirSync(`./logs/server/${server.id}`);
-          }
-          if (!fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) {
-            fs.writeFileSync(`./logs/server/${server.id}/${log.id}.log`, "========Beginning of new Log========\n");
-          }
-          fs.appendFileSync(`./logs/server/${server.id}/${log.id}.log`, time + " - " +  content + "\n");
-          resolve(`Successfully wrote into Logfile of Server \"${server.name}\"`);
-        })
-        .catch(err => reject(`Unable to write into Logfile of Server \"${server.name}\"\nReason:\n${err}`));
-    })
-  }
-
-  writeDevLog(content) {
-    if (!fs.existsSync("./logs/dev/")) {
-      fs.mkdirSync("./logs/dev");
     }
-    if (!fs.existsSync("./logs/dev/devlog.log")) {
-      fs.writeFileSync("./logs/dev/devlog.log", content);
+
+    if (cmd.id) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, cmd.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Command not found", "Could not find that Server Command in the Database!");
+      }
+      cmd = results[0];
+      const command = await this.getCommand({id: cmd.cmd_id})
+
+      if (!command.enabled) {
+        return [{
+          id: cmd.id,
+          cmd_id: command.id,
+          name: command.name,
+          type: command.type,
+          enabled: false,
+          restricted: cmd.restricted
+        }];
+      }
+
+      return [{
+        id: cmd.id,
+        cmd_id: command.id,
+        name: command.name,
+        type: command.type,
+        enabled: cmd.enabled,
+        restricted: cmd.restricted
+      }];
+    }
+
+    if (cmd.cmd_id) {
+      const command = await this.getCommand({id: cmd.cmd_id})
+
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
+      const results = await this.query(sql, [server.id, command.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Command not found", "Could not find that Server Command in the Database!");
+      }
+
+      cmd = results[0];
+
+      if (!command.enabled) {
+        return [{
+          id: cmd.id,
+          cmd_id: command.id,
+          name: command.name,
+          type: command.type,
+          enabled: false,
+          restricted: cmd.restricted
+        }];
+      }
+
+      return [{
+        id: cmd.id,
+        cmd_id: command.id,
+        name: command.name,
+        type: command.type,
+        enabled: cmd.enabled,
+        restricted: cmd.restricted
+      }];
+    }
+
+    if (cmd.name && cmd.type) {
+      const command = await this.getCommand(cmd, type)
+
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
+      const results = await this.query(sql, [server.id, command.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Command not found", "Could not find that Server Command in the Database!");
+      }
+
+      cmd = results[0];
+
+      if (!command.enabled) {
+        return [{
+          id: cmd.id,
+          cmd_id: command.id,
+          name: command.name,
+          type: command.type,
+          enabled: false,
+          restricted: cmd.restricted
+        }];
+      }
+
+      return [{
+        id: cmd.id,
+        cmd_id: command.id,
+        name: command.name,
+        type: command.type,
+        enabled: cmd.enabled,
+        restricted: cmd.restricted
+      }];
+    }
+  };
+
+  async servCmdExists(server, cmd) {
+    if (cmd.id) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, cmd.id])
+
+      return results.length === 1;
+    }
+
+    if (cmd.cmd_id) {
+      const sql = "SELECT * FROM server_commands WHERE server_id = $1 AND cmd_id = $2";
+      const results = await this.query(sql, [server.id, cmd.cmd_id])
+
+      return results.length === 1;
+    }
+  };
+
+  async addServCmd(server, cmd) {
+    if (await this.servCmdExists(server, cmd)) {
+      throw new DuplicateError("Duplicate Server Command", "That Server Command already exists in the Database!");
+    }
+
+    if (!cmd.cmd_id && cmd.name) {
+      const command = await this.getCommand({name: cmd.name}, cmd.type)
+
+      const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [server.id, command.id, cmd.id, command.enabled])
+
+      return `Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database`;
+    }
+
+    const command = await this.getCommand({id: cmd.cmd_id}, "slash")
+
+    const sql = "INSERT INTO server_commands (server_id, cmd_id, id, enabled) VALUES($1, $2, $3, $4)";
+    await this.query(sql, [server.id, command.id, cmd.id, command.enabled])
+
+    return `Successfully added Command \"${c.name}\" to Server \"${server.name}\" in Database`;
+  };
+
+  async remServCmd(server, cmd) {
+    const command = await this.getServCmd(server, cmd)
+
+    const sql = "DELETE FROM server_commands WHERE server_id = $1 AND id = $2";
+    await this.query(sql, [server.id, command.id])
+
+    return `Successfully removed ${command.type} Command \"${command.name}\" from Server \"${server.name}\" in Database`;
+  };
+
+  async toggleServCmd(server, cmd) {
+    const command = await this.getServCmd(server, cmd)
+
+    const sql = "UPDATE server_commands SET enabled = $1 WHERE server_id = $2 AND id = $3";
+    await this.query(sql, [!command.enabled, server.id, command.id])
+
+    const action = !command.enabled ? "enabled" : "disabled"
+    return `Successfully ${action} Command \"${command.name}\" in Server \"${server.name}\"`;
+  };
+
+  async restrictServCmd(server, cmd) {
+    const command = await this.getServCmd(server, cmd);
+
+    await this.query("UPDATE server_commands SET restricted = $1 WHERE id = $2", [!command.restricted, command.id])
+
+    const action = !command.restricted ? "enabled" : "disabled"
+    return `Successfully ${action} restrictions of Command \"${command.name}\" in Server \"${server.name}\"`;
+  };
+
+  async getRestriction(cmd, rest) {
+    if (!rest) {
+      const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1";
+      const results = await this.query(sql, [cmd.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Restrictions found", "Could not find any Restrictions for that Server Command in the Database!");
+      }
+
+      return results.map(restriction => {
+        return {
+          type: restriction.type,
+          id: restriction.id,
+          permission: restriction.permission
+        }
+      });
+    }
+
+    if (rest.id) {
+      const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND id = $2";
+      const results = await this.query(sql, [cmd.id, rest.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Restriction not found", "Could not find that Restriction for that Server Command in the Database!");
+      }
+
+      return [{
+        type: results[0].type,
+        id: results[0].id,
+        permission: results[0].permission
+      }];
+    }
+
+    const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2";
+    const results = await this.query(sql, [cmd.id, rest.type])
+
+    if (results.length === 0) {
+      throw new NotFoundError("No Restrictions found", "Could not find any Restrictions of that Type for the Server Command in the Database!");
+    }
+
+    return results.map(restriction => {
+      return {
+        type: restriction.type,
+        id: restriction.id,
+        permission: restriction.permission
+      }
+    });
+  };
+
+  async restrictionExists(cmd, rest) {
+    if (rest.id) {
+      const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND id = $2";
+      const results = await this.query(sql, [cmd.id, rest.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2";
+    const results = await this.query(sql, [cmd.id, rest.type])
+
+    return results.length > 0;
+  };
+
+  async addRestriction(cmd, rest) {
+    const restriction = await this.getRestriction(cmd, rest)
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO server_command_restrictions VALUES($1, $2, $3, $4)";
+      await this.query(sql, [cmd.id, rest.type, rest.id, rest.permission])
+
+      return `Successfully added restriction to Command \"${cmd.name}\" in Server \"${server.name}\"`;
+    });
+
+    if (restriction[0].permission == rest.permission) {
+      throw new DuplicateError("Duplicate Restriction", "That Restriction already exists for that Server Command in the Database!");
+    }
+
+    const sql = "UPDATE server_command_restrictions SET permission = $1 WHERE cmd_id = $2 AND id = $3";
+    await this.query(sql, [rest.permission, cmd.id, rest.id])
+
+    return `Successfully updated restrictions of Command \"${cmd.name}\" in Server \"${server.name}\"`;
+  };
+
+  async remRestriction(cmd, rest) {
+    if (!(await this.restrictionExists(cmd, rest))) {
+      throw new NotFoundError("Restriction not found", "Could not find that Restriction for that Server Command in the Database!");
+    }
+
+    const sql = "DELETE FROM server_command_restrictions WHERE cmd_id = $1 AND type = $2 AND id = $3";
+    await this.query(sql, [cmd.id, rest.type, rest.id])
+
+    return `Successfully removed restriction of Command \"${cmd.name}\" in Server \"${server.name}\"`;
+  };
+
+  async getMember(server, user) {
+    if (!user) {
+      const sql = "SELECT * FROM server_members WHERE server_id = $1";
+      const results = await this.query(sql, [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Server Members found", "Could not find any Members for that Server in the Database!");
+      }
+
+      const query = "SELECT * FROM users WHERE id IN ($1)";
+      const users = await this.query(query, [results.map(member => `'${member.user_id}'`).join(',')])
+      return users.map(dbUser => {
+        return {
+          id: dbUser.id,
+          name: dbUser.name
+        };
+      });
+    }
+
+    const sql = "SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Server Member not found", "Could not find that Server Member in the Database!");
+    }
+
+    const dbUser = await this.getUser({ id: results[0].user_id });
+    return dbUser;
+  };
+
+  async memberExists(server, user) {
+    const sql = "SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2";
+    const results = await this.query(sql, [server.id, user.id])
+
+    return results.length === 1;
+  };
+
+  async addMember(server, user) {
+    if (await this.memberExists(server, user)) {
+      throw new DuplicateError("Duplicate Server Member", `The User \"${user.username}\" is already a Member of the Server \"${server.name}\"!`);
+    }
+    
+    const add_member = "INSERT INTO server_members (server_id, user_id) VALUES ($1, $2)";
+
+    if (await this.userExists(user)) {
+      await this.query(add_member, [server.id, user.id])
+
+      return `Successfully added User \"${user.username}\" to Server \"${server.name}\"`;
+    }
+
+    await this.addUser(user)
+
+    await this.query(add_member, [server.id, user.id])
+
+    return `Successfully added User \"${user.username}\" to Server \"${server.name}\"`;
+  };
+
+  async remMember(server, user) {
+    if (!(await this.memberExists())) {
+      throw new NotFoundError("Server Member not found", "Could not find that Server Member in the Database!");
+    }
+
+    const sql = "DELETE FROM server_members WHERE server_id = $1 AND user_id = $2";
+    await this.query(sql, [server.id, user.id])
+
+    return `Successfully removed User \"${user.username}\" from Server \"${server.name}\"`;
+  };
+
+  async getUser(user) {
+    if (user.id) {
+      const results = await this.query("SELECT * FROM users WHERE id = $1", [user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("User not found", "Could not find that User in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM users WHERE name = $1")
+
+    if (results.length === 0) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async userExists(user) {
+    const results = await this.query("SELECT * FROM users WHERE id = $1", [user.id]);
+
+    return results.length === 1;
+  };
+
+  async addUser(user) {
+    if (await this.userExists(user)) {
+      throw new DuplicateError("Duplicate User", "This User already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO users (id, name) VALUES($1, $2)";
+    await this.query(sql, [user.id, user.username])
+
+    return `Successfully added User \"${user.username}\" to the Database!`;
+  };
+
+  async remUser(user) {
+    if (!(await this.userExists(user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    await this.query("DELETE FROM users WHERE id = $1", [user.id])
+
+    return `Successfully removed User \"${user.username}\" from the Database!`;
+  };
+
+  async updateUser(user, char) {
+    if (!(await this.userExists(user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    const sql = "UPDATE users SET char_id = $1 WHERE id = $2";
+    await this.query(sql, [char.id, user.id])
+
+    return `Successfully updated Character for User \"${user.username}\" in Database`;
+  };
+
+  async getServerNote(server, user, note) {
+    if (!(await this.userExists(server, user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    if (!note) {
+      const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2";
+      const results = await this.query(sql, [server.id, user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Server Notes found", "Could not find any Server Notes in the Database!");
+      }
+
+      return results;
+    }
+
+    if (note.id) {
+      const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
+      const results = await this.query(sql, [server.id, user.id, note.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3";
+    const results = await this.query(sql, [server.id, user.id, note.title])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async serverNoteExists(server, user, note) {
+    if (note.id) {
+      const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
+      const results = await this.query(sql, [server.id, user.id, note.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3";
+    const results = await this.query(sql, [server.id, user.id, note.title])
+
+    return results.length === 1;
+  };
+
+  async addServerNote(server, user, note) {
+    if (!(await this.userExists(user))) {
+      throw new NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    await this.getServerNote(server, user, note)
+    .then(async (serverNote) => {
+      if (note.content == serverNote.content) {
+        throw new DuplicateError("Duplicate Server Note", "A Server Note with that title and content already exists in the Database!");
+      }
+
+      const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
+      await this.query(sql, [server.id, user.id, note.title, note.content, note.private])
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO server_notes (server_id, user_id, title, content, private) VALUES($1, $2, $3, $4, $5)";
+      await this.query(sql, [server.id, user.id, note.title, note.content, note.private])
+    });
+
+    return "Succcessfully added Server Note to Database";
+  };
+
+  async remServerNote(server, user, note) {
+    if (!(await this.serverNoteExists(server, user, note))) {
+      throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+    }
+
+    const sql = "DELETE FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3";
+    await this.query(sql, [server.id, user.id, note.id])
+
+    return "Successfully removed Server Note from Database";
+  };
+
+  async updateServerNote(server, user, note) {
+    if (!(await this.serverNoteExists(server, user, note))) {
+      throw new NotFoundError("Server Note not found", "Could not find that Server Note in the Database!");
+    }
+
+    const sql = "UPDATE server_note SET title = $1, content = $2, private = $3 WHERE server_id = $4 AND user_id = $5 AND id = $6";
+    await this.query(sql, [note.title, note.content, note.private, server.id, user.id, note.id])
+
+    return "Successfully updated Server Note in Database";
+  };
+
+  async getGlobalNote(user, note) {
+    if (!(await this.userExists(user))) {
+      throw NotFoundError("User not found", "Could not find that User in the Database!");
+    }
+
+    if (!note) {
+      const results = await this.query("SELECT * FROM global_notes WHERE user_id = $1", [user.id])
+      
+      if (results.length === 0) {
+        throw new NotFoundError("No Global Notes found", "Could not find any Global Notes in the Database!");
+      }
+
+      return results;
+    }
+
+    if (note.id) {
+      const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND id = $2";
+      const results = await this.query(sql, [user.id, note.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND title = $2";
+    const results = await this.query(sql, [user.id, note.title])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async globalNoteExists(user, note) {
+    if (note.id) {
+      const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND id = $2";
+      const results = await this.query(sql, [user.id, note.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM global_notes WHERE user_id = $1 AND title = $2";
+    const results = await this.query(sql, [user.id, note.title])
+
+    return results.length === 1;
+  };
+
+  async addGlobalNote(user, note) {
+    await this.getGlobalNote(user, note)
+    .then(async (globalNote) => {
+      if (globalNote.content == note.content) {
+        throw new DuplicateError("Duplicate Global Note", "A Global Note with that title and content already exists in the Database!");
+      }
+
+      const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [user.id, note.title, note.content, note.private])
+    })
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO global_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [user.id, note.title, note.content, note.private])
+    });
+
+    return "Successfully added Global Note to Database";
+  };
+
+  async remGlobalNote(user, note) {
+    if (!(await this.globalNoteExists(user, note))) {
+      throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+    }
+
+    await this.query("DELETE FROM global_notes WHERE user_id = $1 AND id = $2", [user.id, note.id])
+
+    return "Successfully removed Global Note from Database";
+  };
+
+  async updateGlobalNote(user, note) {
+    if (!(await this.globalNoteExists(user, note))) {
+      throw new NotFoundError("Global Note not found", "Could not find that Global Note in the Database!");
+    }
+
+    const sql = "UPDATE global_notes SET title = $1, content = $2, private = $3 WHERE user_id = $4 AND id = $5";
+    await this.query(sql, [note.title, note.content, note.private, user.id, note.id])
+
+    return "Successfully updated Global Note in Database";
+  };
+
+  async getArmor(server, armor) {
+    if (!armor) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Armor found", "Could not find any Armor in the Database!");
+      }
+
+      return results;
+    }
+
+    if (armor.id) {
+      const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, armor.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+      }
+
+      return results[0];
+    }
+    
+    const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
+    const results = await this.query(sql, [server.id, armor.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async armorExists(server, armor) {
+    if (armor.id) {
+      const sql = "SELECT * FROM armors WHERE server_id = $1 AND id = $2";
+      const results = await this.query(sql, [server.id, armor.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM armors WHERE server_id = $1 AND name = $2";
+    const results = await this.query(sql, [server.id, armor.id])
+
+    return results.length === 1;
+  };
+
+  async addArmor(server, armor) {
+    if (await this.armorExists(server, armor)) {
+      throw new DuplicateError("Duplicate Armor", "This Armor already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
+
+    return "Successfully added Armor to Database";
+  };
+
+  async remArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    const sql = "DELETE FROM armors WHERE server_id = $1 AND id = $2";
+    await this.query(sql, [server.id, armor.id])
+
+    return "Successfully removed Armor from Database";
+  };
+
+  async updateArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
+    await this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req, server.id, arm.id])
+    
+    return "Successfully updated Armor in Database";
+  };
+
+  async getProficiency(prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM proficiency_types")
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Proficiencies found", "Could not find any Proficiencies in the Database!");
+      }
+
+      return results;
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM proficiency_types WHERE id = $1", [prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Proficiency not found", "Could not find that Proficiency in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM proficiency_types WHERE key = $1", [prof.key])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Proficiency not found", "Could not find a Proficiency with that key in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async getChar(user, char) {
+    if (!char) {
+      const results = await this.query("SELECT * FROM characters WHERE user_id = $1", [user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Characters found", "Could not find any Characters in the Database!");
+      }
+
+      return results.map(async (character) => {
+        return {
+          owner: user.id,
+          name: character.name,
+          ac: character.ac,
+          hp: {
+            current: character.hp,
+            max: character.hp_max,
+            temp: character.hp_temp
+          },
+          portrait: character.portrait,
+          init: character.init,
+          level: character.level,
+          stats: await this.getCharStat(char),
+          money: {
+            pp: character.pp,
+            gp: character.gp,
+            ep: character.ep,
+            sp: character.sp,
+            cp: character.cp
+          },
+          multi: character.multi,
+          armor: character.armor_id,
+          race: character.race_id,
+          subrace: character.subrace_id,
+          class: character.class_id,
+          subclass: character.subclass_id,
+          class_level: character.class_level,
+          mc: [
+            {
+              id: character.mc1_id,
+              level: character.mc1_level,
+              sub: character.mc1_sub_id
+            },
+            {
+              id: character.mc2_id,
+              level: character.mc2_level,
+              sub: character.mc2_sub_id
+            },
+            {
+              id: character.mc2_id,
+              level: character.mc2_level,
+              sub: character.mc3_sub_id
+            }
+          ]
+        }
+      });
+    }
+
+    if (char.id) {
+      const sql = "SELECT * FROM characters WHERE user_id = $1 AND id = $2";
+      const results = await this.query(sql, [user.id, char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+      }
+
+      const dbChar = results[0];
+      return {
+        owner: user.id,
+        name: dbChar.name,
+        ac: dbChar.ac,
+        hp: {
+          current: dbChar.hp,
+          max: dbChar.hp_max,
+          temp: dbChar.hp_temp
+        },
+        portrait: dbChar.portrait,
+        init: dbChar.init,
+        level: dbChar.level,
+        stats: await this.getCharStat(char),
+        money: {
+          pp: dbChar.pp,
+          gp: dbChar.gp,
+          ep: dbChar.ep,
+          sp: dbChar.sp,
+          cp: dbChar.cp
+        },
+        multi: dbChar.multi,
+        armor: dbChar.armor_id,
+        race: dbChar.race_id,
+        subrace: dbChar.subrace_id,
+        class: dbChar.class_id,
+        subclass: dbChar.subclass_id,
+        class_level: dbChar.class_level,
+        mc: [
+          {
+            id: dbChar.mc1_id,
+            level: dbChar.mc1_level,
+            sub: dbChar.mc1_sub_id
+          },
+          {
+            id: dbChar.mc2_id,
+            level: dbChar.mc2_level,
+            sub: dbChar.mc2_sub_id
+          },
+          {
+            id: dbChar.mc2_id,
+            level: dbChar.mc2_level,
+            sub: dbChar.mc3_sub_id
+          }
+        ]
+      };
+    }
+
+    const sql = "SELECT * FROM characters WHERE user_id = $1 AND name = $2";
+    const results = await this.query(sql, [user.id, char.name])
+
+    const dbChar = results[0];
+    return {
+      owner: user.id,
+      name: dbChar.name,
+      ac: dbChar.ac,
+      hp: {
+        current: dbChar.hp,
+        max: dbChar.hp_max,
+        temp: dbChar.hp_temp,
+        method: dbChar.hp_method
+      },
+      portrait: dbChar.portrait,
+      init: dbChar.init,
+      level: dbChar.level,
+      stats: await this.getCharStat(char),
+      money: {
+        pp: dbChar.pp,
+        gp: dbChar.gp,
+        ep: dbChar.ep,
+        sp: dbChar.sp,
+        cp: dbChar.cp
+      },
+      multi: dbChar.multi,
+      armor: dbChar.armor_id,
+      race: dbChar.race_id,
+      subrace: dbChar.subrace_id,
+      class: dbChar.class_id,
+      subclass: dbChar.subclass_id,
+      class_level: dbChar.class_level,
+      mc: [
+        {
+          id: dbChar.mc1_id,
+          level: dbChar.mc1_level,
+          sub: dbChar.mc1_sub_id,
+          enabled: dbChar.mc1_enabled
+        },
+        {
+          id: dbChar.mc2_id,
+          level: dbChar.mc2_level,
+          sub: dbChar.mc2_sub_id,
+          enabled: dbChar.mc2_enabled
+        },
+        {
+          id: dbChar.mc2_id,
+          level: dbChar.mc2_level,
+          sub: dbChar.mc3_sub_id,
+          enabled: dbChar.mc3_enabled
+        }
+      ]
+    };
+  };
+
+  async charExists(user, char) {
+    if (char.id) {
+      const sql = "SELECT * FROM characters WHERE user_id = $1 and id = $2";
+      const results = await this.query(sql, [user.id, char.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM characters WHERE user_id = $1 AND name = $2";
+    const results = await this.query(sql, [user.id, char.name])
+
+    return results.length > 0;
+  };
+
+  async addChar(user, char) {
+    if (await this.charExists(user, char)) {
+      throw new DuplicateError("Duplicate Character", "A Character with that name already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO characters (user_id, name, ac, hp, hp_max, hp_temp, init, level, xp, pp, gp, ep, sp, cp, armor_id, race_id, subrace_id, class_id, subclass_id, class_level, multi, mc1_id, mc1_sub_id, mc1_level, mc2_id, mc2_sub_id, mc2_level, mc3_id, mc3_sub_id, mc3_level) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)";
+    await this.query(sql, [user.id, char.name, char.ac, char.hp, char.hp_max, char.hp_temp, char.init, char.level, char.xp, char.money.pp, char.money.gp, char.money.ep, char.money.sp, char.money.cp, char.armor, char.race, char.subrace, char.class, char.subclass, char.class_level, char.multi, char.mc[0].id, char.mc[0].sub, char.mc[0].level, char.mc[1].id, char.mc[1].sub, char.mc[1].level, char.mc[2].id, char.mc[2].sub, char.mc[2].level])
+
+    return `Successfully added Character \"${char.name}\" for User \"${user.username}\" to Database`;
+  };
+
+  async remChar(user, char) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    const sql = "DELETE FROM characters WHERE user_id = $1 AND id = $2";
+    await this.query(sql, [user.id, char.id])
+
+    return `Successfully removed Character \"${char.name}\" of User \"${user.username}\" from Database`;
+  };
+
+  async setCharXP(user, char, xp) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    const sql = "UPDATE characters SET xp = $1 WHERE user_id = $3 AND id = $4";
+    await this.query(sql, [xp, user.id, char.id])
+
+    return `Successfully set Level of Character \"${char.name}\" to ${Math.ceil(xp/300)-1} (${xp} XP)`;
+  };
+
+  async addCharXP(user, char, xp) {
+    const dbChar = await this.getChar(user, char)
+
+    const sql = "UPDATE characters SET xp = $1 WHERE user_id = $3 AND id = $4";
+
+    if (dbChar.xp + xp > 335000) {
+      dbChar.xp = 335000;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
     } else {
-      let time = moment().format("YYYY-MM-DD HH:mm:ss")
-      fs.appendFileSync("./logs/dev/devlog.log", time + " - " + content + "\n");
+      dbChar.xp += xp;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
     }
-  }
 
-  resetDevLog() {
-    return new Promise((resolve, reject) => {
-      if (fs.existsSync("./logs/dev/devlog.log")) {
-        fs.writeFileSync("./logs/dev/devlog.log", "\ ");
-        resolve("Success");
-      } else {
-        reject("Error 404: Logfile not found");
+    return `Successfully added ${xp} XP to Character \"${char.name}\". Character is now Level ${Math.ceil(dbChar.xp/300)-1} (${dbChar.xp} XP)`;
+  };
+
+  async remCharXP(user, char, xp) {
+    const dbChar = await this.getChar(user, char)
+
+    const sql = "UPDATE characters SET xp = $1 WHERE user_id = $3 AND id = $4";
+    if (dbChar.xp - xp < 300) {
+      dbChar.xp = 300;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
+    } else {
+      dbChar.xp -= xp;
+      await this.query(sql, [dbChar.xp, user.id, char.id])
+    }
+
+    return `Successfully removed ${xp} XP from Character \"${char.name}\". Character is now Level ${Math.ceil(dbChar.xp/300)-1} (${dbChar.xp} XP)`;
+  };
+
+  async setCharLvl(user, char, lvl) {
+    const xp = 300 * (lvl - 1);
+
+    return await this.setCharXP(user, char, xp)
+  };
+
+  async selectChar(user, char) {
+    const dbChar = await this.getChar(user, char)
+
+    await this.query("UPDATE users SET char_id = $1 WHERE id = $2", [dbChar.id, user.id])
+
+    return `Successfully changed active Character to \"${dbChar.name}\"`;
+  };
+
+  async updateCharHP(user, char) {
+    const dbChar = await this.getChar(user, char)
+    const charClass = await this.getClass({id: dbChar.class})
+    const charConstitution = await this.getCharStat(char, "con")
+    let hp = charClass.hitdice_size + charConstitution;
+
+    const modifier = dbChar.hp_method === "fixed" ? 0.5 : Math.random()
+
+    if (!dbChar.multi) {
+      hp += dbChar.class_level-1 * (Math.ceil(charClass.hitdice_size * modifier) + charConstitution);
+    } else {
+      await Promise.all(dbChar.mc.map(async (mc) => {
+        if (mc.enabled) {
+          const charMC = await this.getClass({id: mc.id})
+
+          hp += mc.level-1 * (Math.ceil(charMC.hitdice_size * modifier) + charConstitution);
+        }
+      }));
+    }
+
+    await this.query("UPDATE characters SET hp_max = $1 WHERE user_id = $2 AND id = $3", [hp, user.id, dbChar.id])
+
+    return `Successfully set Maximum HP of Character \"${char.name}\" to ${hp}`;
+  };
+
+  async getCharNote(user, char, note) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!")
+    }
+
+    if (!note) {
+      const results = await this.query("SELECT * FROM character_notes WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Notes found", "Could not find any Notes for this Character in the Database!");
       }
+
+      return results;
+    }
+
+    if (note.id) {
+      const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, note.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Note not found", "Could not find that Character Note in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND title = $2";
+    const results = await this.query(sql, [c.id, note.title])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Note not found", "Could not find a Character Note with that title in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async charNoteExists(char, note) {
+    if (note.id) {
+      const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, note.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM character_notes WHERE char_id = $1 AND title = $2";
+    const results = await this.query(sql, [char.id, note.title])
+
+    return results.length === 1;
+  };
+
+  async addCharNote(user, char, note) {
+    await this.getCharNote(user, char, note)
+    .then(async (charNote) => {
+      if (charNote.content == note.content) {
+        throw new DuplicateError("Duplicate Character Note", "A Character Note with that title and content already exists in the Database!");
+      }
+
+      const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [char.id, note.title, note.content, note.private])
     })
-  }
+    .catch(async (err) => {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_notes (char_id, title, content, private) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [char.id, note.title, note.content, note.private])
+    });
+
+    return "Successfully added Character Note to Database";
+  };
+
+  async remCharNote(char, note) {
+    if (!(await this.charNoteExists(char, note))) {
+      throw new NotFoundError("Character Note not found", "Could not find that Character Note in the Database!");
+    }
+
+    const sql = "DELETE FROM character_notes WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, note.id])
+
+    return "Successfully removed Character Note from Database";
+  };
+
+  async updateCharNote(char, note) {
+    if (!(await this.charNoteExists(char, note))) {
+      throw new NotFoundError("Character Note not found", "Could not find that Character Note in the Database!");
+    }
+
+    const sql = "UPDATE character_notes SET title = $1, content = $2, private = $3 WHERE char_id = $4 AND id = $5";
+    await this.query(sql, [note.title, note.content, note.private, char.id, note.id])
+
+    return "Successfully updated Character Note in Database";
+  };
+
+  async getCharStat(char, stat) {
+    if (!stat) {
+      const results = await this.query("SELECT * FROM character_stats WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Stats found", "Could not find any Stats for that Character in the Database!");
+      }
+
+      return results;
+    }
+
+    const sql = "SELECT * FROM character_stats WHERE char_id = $1 AND key = $2";
+    const results = await this.query(sql, [char.id, stat.key])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Stat not found", "Could not find that Stat for that Character in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async setCharStats(char, stats) {
+    try {
+      const charStats = await this.getCharStat(char)
+      stats = stats.filter(stat => !stat.key.inlcudes(charStats.map(charStat => charStat.key)))
+      
+      await Promise.all(stats.map(stat => this.setCharStat(char, stat)));
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+  
+      stats.map(async (stat) => {
+        await this.setCharStat(char, stat)
+      });
+    }
+  
+    return "Successfully added Character Stats to Database";
+  };
+
+  async charStatExists(char, stat) {
+    const sql = "SELECT * FROM character_stats WHERE char_id = $1 AND key = $2";
+    const results = await this.query(sql, [char.id, stat.key])
+
+    return results.length === 1;
+  };
+
+  async setCharStat(char, stat) {
+    if (!(await this.charStatExists(char, stat))) {
+      const sql = "INSERT INTO character_stats (char_id, key, value) VALUES($1, $2, $3)";
+      await this.query(sql, [char.id, stat.key, stat.val]);
+
+      return "Successfully added Character Stat to Database";
+    }
+
+    const sql = "UPDATE character_stats SET val = $1 WHERE char_id = $2 AND name = $3";
+    await this.query(sql, [stat.val, char.id, stat.key])
+
+    return "Successfully updated Character Stat in Database";
+  };
+
+  async remCharStat(char, stat) {
+    if (!(await this.charStatExists(char, stat))) {
+      throw new NotFoundError("Character Stat not found", "Could not find that Character Stat in the Database!")
+    }
+
+    const sql = "DELETE FROM character_stats WHERE char_id = $1 AND key = $2";
+    await this.query(sql, [char.id, stat.key])
+
+    return "Successfully removed Character Stat from Database";
+  };
+
+  async getCharAction(server, user, char, act) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    if (!act) {
+      const results = await this.query("SELECT * FROM character_actions WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Actions found", "Could not find any Actions for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (action) => {
+        if (action.atk_id) {
+          const attack = await this.getCharAttack(user, char, {id: action.atk_id})
+
+          const dmgtype = await this.getDamagetype(server, {id: attack.dmg_type_id})
+
+          return {
+            id: action.id,
+            atk_id: attack.id,
+            name: attack.name,
+            description: attack.description,
+            atk_stat: attack.stat,
+            save: attack.save,
+            save_stat: attack.save_stat,
+            on_fail: attack.on_fail,
+            dmg_dice: attack.dmg_dice,
+            dmg_dice_size: attack.dmg_dice_size,
+            dmg: attack.dmg,
+            dmg_type: dmgtype.name,
+            magical: attack.magical,
+            magic_bonus: attack.magic_bonus
+          };
+        }
+
+        return {
+          id: action.id,
+          name: action.name,
+          description: action.description,
+          type: action.type
+        };
+      }));
+    }
+
+    if (act.id) {
+      const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, act.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Action not found", "Could not find that Character Action in the Database!");
+      }
+
+      const action = results[0];
+
+      if (action.atk_id) {
+        const attack = await this.getCharAttack(user, char, {id: action.atk_id})
+
+        const dmgtype = await this.getDamagetype(server, {id: attack.dmg_type_id})
+
+        return {
+          id: action.id,
+          atk_id: attack.id,
+          name: attack.name,
+          description: attack.description,
+          atk_stat: attack.stat,
+          save: attack.save,
+          save_stat: attack.save_stat,
+          on_fail: attack.on_fail,
+          dmg_dice: attack.dmg_dice,
+          dmg_dice_size: attack.dmg_dice_size,
+          dmg: attack.dmg,
+          dmg_type: dmgtype.name,
+          magical: attack.magical,
+          magic_bonus: attack.magic_bonus
+        };
+      }
+
+      return {
+        id: action.id,
+        name: action.name,
+        description: action.description,
+        type: action.type
+      };
+    }
+
+    const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND name = $2";
+    const results = await this.query(sql, [char.id, act.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Action not found", "Could not find a Character Action with that name in the Database!");
+    }
+
+    const action = results[0];
+
+    if (action.atk_id) {
+      const attack = await this.getCharAttack(user, char, {id: action.atk_id})
+
+      const dmgtype = await this.getDamagetype(server, {id: attack.dmg_type_id})
+
+      return {
+        id: action.id,
+        atk_id: attack.id,
+        name: attack.name,
+        description: attack.description,
+        atk_stat: attack.stat,
+        save: attack.save,
+        save_stat: attack.save_stat,
+        on_fail: attack.on_fail,
+        dmg_dice: attack.dmg_dice,
+        dmg_dice_size: attack.dmg_dice_size,
+        dmg: attack.dmg,
+        dmg_type: dmgtype.name,
+        magical: attack.magical,
+        magic_bonus: attack.magic_bonus
+      };
+    }
+
+    return {
+      id: action.id,
+      name: action.name,
+      description: action.description,
+      type: action.type
+    };
+  };
+
+  async charActionExists(char, act) {
+    if (act.id) {
+      const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, act.id])
+
+      return results.length === 1;
+    }
+
+    const sql = "SELECT * FROM character_actions WHERE char_id = $1 AND name = $2";
+    const results = await this.query(sql, [char.id, act.name])
+
+    return results.length === 1;
+  };
+
+  async addCharAction(char, act) {
+    if (await this.charActionExists(char, act)) {
+      throw new DuplicateError("Duplicate Character Action", "A Character Action with that name already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO character_actions (char_id, name, description, type, atk_id) VALUES($1, $2; $3, $4, $5)";
+    await this.query(sql, [char.id, act.name, act.description, act.type, act.atk_id])
+
+    return "Successfully added Character Action into Database";
+  };
+
+  async remCharAction(char, act) {
+    if (!(await this.charActionExists(char, act))) {
+      throw new NotFoundError("Character Action not found", "Could not find that Character Action in the Database!");
+    }
+
+    const sql = "DELETE FROM character_actions WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, act.id])
+
+    return "Successfully removed Character Action from Database";
+  };
+
+  async updateCharAction(char, act) {
+    if (!(await this.charActionExists(char, act))) {
+      throw new NotFoundError("Character Action not found", "Could not find that Character Action in the Database!");
+    }
+
+    const sql = "UPDATE character_actions SET name = $1, description = $2, type = $3 WHERE char_id = $4 AND id = $5";
+    await this.query(sql, [act.name, act.description, act.type, char.id, act.id])
+
+    return "Successfully updated Character Action in Database";
+  };
+
+  async getCharAttack(user, char, atk) {
+    if (!(await this.charExists(user, char))) {
+      throw new NotFoundError("Character not found", "Could not find that Character in the Database!");
+    }
+
+    if (!atk) {
+      const results = await this.query("SELECT * FROM character_attacks WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Attacks found", "Could not find any Attacks for that Character in the Database!");
+      }
+
+      return results;
+    }
+
+    if (atk.id) {
+      const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND id = $2";
+      const results = await this.query(sql, [char.id, atk.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Attack not found", "Could not find that Attack for that Character in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM character_attacks WHERE char_id = $1 AND name = $2";
+    const results = await this.query(sql, [char.id, atk.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Attack not found", "Could not find an Attack with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async charAtkExists(char, atk) {
+    if (atk.id) {
+      const results = await this.query("SELECT * FROM character_attacks WHERE char_id = $1 AND id = $2", [char.id, atk.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_attacks WHERE char_id = $1 AND name = $2", [char.id, atk.name])
+
+    return results.length === 1;
+  };
+
+  async addCharAttack(char, atk) {
+    if (await this.charAtkExists(char, atk)) {
+      throw new DuplicateError("Duplicate Attack", "An Attack with that name already exists for that Character!");
+    }
+
+    const sql = "INSERT INTO character_attacks (char_id, name, description, atk_stat, save, save_stat, on_fail, dmg_dice, dmg_dice_size, dmg, dmg_type_id, magical, magic_bonus) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)";
+    await this.query(sql, [char.id, atk.name, atk.description, atk.atk_stat, atk.save, atk.on_fail, atk.dmg_dice, atk.dmg_dice_size, atk.dmg, atk.dmg_type_id, atk.magical, atk.magic_bonus])
+
+    return "Successfully added Attack to Character in Database";
+  };
+
+  async remCharAttack(char, atk) {
+    if (!(await this.charAtkExists(char, atk))) {
+      throw new NotFoundError("Attack not found", "Could not find that Attack for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_attacks WHERE char_id = $1 AND id = $2", [char.id, atk.id])
+
+    return "Successfully removed Attack from Character in Database";
+  };
+
+  async getCharFeat(server, char, feat) {
+    if (!feat) {
+      const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1", [char.id])
+  
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Feats found", "Could not find any Feats for that Character in the Database!");
+      }
+  
+      return Promise.all(results.map(async (charFeat) => {
+        const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
+  
+        return {
+          id: charFeat.id,
+          name: dbFeat.name,
+          description: dbFeat.description,
+          feat_id: dbFeat.id
+        };
+      }));
+    }
+  
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND id = $2", [char.id, feat.id])
+  
+      if (results.length === 0) {
+        throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
+      }
+  
+      const charFeat = results[0];
+      const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
+  
+      return {
+        id: charFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description,
+        feat_id: dbFeat.id
+      };
+    }
+  
+    const dbFeat = await this.getFeat(server, feat)
+    const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND feat_id = $2", [char.id, dbFeat.id])
+  
+    if (results.length === 0) {
+      throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
+    }
+  
+    const charFeat = results[0];
+  
+    return {
+      id: charFeat.id,
+      name: dbFeat.name,
+      description: dbFeat.description,
+      feat_id: dbFeat.id
+    };
+  };
+
+  async charFeatExists(server, char, feat) {
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_feats WHERE char_id = $1 AND id = $2", [char.id, feat.id])
+
+      return results.length === 1;
+    }
+
+    return await this.featExists(server, feat)
+  };
+
+  async addCharFeat(server, char, feat) {
+    if (await this.charFeatExists(server, char, feat)) {
+      throw new DuplicateError("Duplicate Character Feat", "That Feat is already linked to that Character!");
+    }
+  
+    const sql = "INSERT INTO character_feats (char_id, feat_id) VALUES ($1, $2)";
+  
+    if (feat.feat_id) {
+      await this.query(sql, [char.id, feat.feat_id])
+    }
+  
+    const dbFeat = await this.getFeat(server, {name: feat.name})
+    .catch(() => { throw new BadRequestError("Invalid Feat", "That Feat does not exist in the Database!") });
+  
+    await this.query(sql, [char.id, dbFeat.id])
+
+    return "Successfully added Feat to Character";
+  };
+
+  async remCharFeat(server, char, feat) {
+    if (!(await this.charFeatExists(server, char, feat))) {
+      throw new NotFoundError("Character Feat not found", "Could not find that Feat for that Character in the Database!");
+    }
+
+    const sql = "DELETE FROM character_feats WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, feat.id])
+
+    return "Successfully removed Feat from Character";
+  };
+
+  async getCharProficiency(char, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Proficiencies found", "Could not find any Proficiencies for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charProf) => {
+        const dbProf = await this.getProficiency({id: charProf.type})
+
+        return {
+          id: charProf.id,
+          char_id: char.id,
+          name: charProf.name,
+          type: dbProf.name,
+          expert: charProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2", [char.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Proficiency not found", "Could not find that Proficiency for that Character in the Database!");
+      }
+
+      const charProf = results[0];
+
+      const dbProf = await this.getProficiency({id: charProf.type})
+
+      return {
+        id: charProf.id,
+        char_id: char.id,
+        name: charProf.name,
+        type: dbProf.name,
+        expert: charProf.expert
+      };
+    }
+
+    if (prof.type) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND type = $2", [char.id, prof.type])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Proficiencies not found", "Could not find any Proficiencies of that type for that Character in the Database!");
+      }
+
+      const dbProf = await this.getProficiency({id: prof.type})
+
+      return results.map(charProf => {
+        return {
+          id: charProf.id,
+          char_id: char.id,
+          name: charProf.name,
+          type: dbProf.name,
+          expert: charProf.expert
+        };
+      });
+    }
+
+    const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2", [char.id, prof.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Proficiency not found", "Could not find a Character Proficiency with that name in the Database!");
+    }
+
+    const charProf = results[0];
+
+    const dbProf = await this.getProficiency({id: charProf.type})
+
+    return {
+      id: charProf.id,
+      char_id: char.id,
+      name: charProf.name,
+      type: dbProf.name,
+      expert: charProf.expert
+    };
+  };
+
+  async charProfExists(char, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2", [char.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2", [char.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addCharProficiency(char, prof) {
+    try {
+      const charProf = await this.getCharProficiency(char, prof)
+
+      if (charProf.expert == prof.expert) {
+        throw new DuplicateError("Duplicate Character Proficiency", "That Character already has that Proficiency!");
+      }
+
+      const sql = "UPDATE character_proficiencies SET expert = $1 WHERE char_id = $2 AND id = $3";
+      await this.query(sql, [prof.expert, char.id, charProf.id])
+
+      return "Successfully updated Character Proficiency in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_proficiencies (char_id, name, type, expert) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [char.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Character Proficiency to Database";
+    }
+  };
+
+  async remCharProficiency(char, prof) {
+    if (!(await this.charProfExists(char, prof))) {
+      throw new NotFoundError("Character Proficiency not found", "Could not find that Proficiency for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_proficiencies WHERE char_id = $1 AND id = $2", [char.id, prof.id])
+
+    return "Successfully removed Character Proficiency from Database";
+  };
+
+  async getCondition(server, condition) {
+    if (!condition) {
+      const results = await this.query("SELECT * FROM conditions WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No conditions found", "Could not find any Conditions in the Database!");
+      }
+
+      return results;
+    }
+
+    if (condition.id) {
+      const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND id = $2", [server.id, condition.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Condition not found", "Could not find that Condition in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND name = $2", [server.id, condition.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Condition not found", "Could not find a Condition with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async conditionExists(server, condition) {
+    if (condition.id) {
+      const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND id = $2", [server.id, condition.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM conditions WHERE server_id = $1 AND name = $2", [server.id, condition.name])
+
+    return results.length === 1;
+  };
+
+  async addCondition(server, condition) {
+    if (await this.conditionExists(server, condition)) {
+      throw new DuplicateError("Duplicate Condition", "That Condition already exists in the Database!");
+    }
+
+    await this.query("INSERT INTO conditions (server_id, name) VALUES($1, $2)", [server.id, condition.name])
+
+    return "Successfully added Condition to Database";
+  };
+
+  async remCondition(server, condition) {
+    if (!(await this.conditionExists(server, condition))) {
+      throw new NotFoundError("Condition not found", "Could not find that Condition in the Database!");
+    }
+
+    await this.query("DELETE FROM conditions WHERE server_id = $1 AND id = $2", [server.id, condition.id])
+
+    return "Successfully removed Condition from Database";
+  };
+
+  async updateCondition(server, condition) {
+    if (!(await this.conditionExists(server, condition))) {
+      throw new NotFoundError("Condition not found", "Could not find that Condition in the Database!");
+    }
+
+    await this.query("UPDATE conditions SET name = $1 WHERE server_id = $2 AND id = $3", [condition.name, server.id, condition.id])
+
+    return "Successfully updated Condition in Database";
+  };
+
+  async getDamagetype(server, dmgtype) {
+    if (!dmgtype) {
+      const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Damagetypes found", "Could not find any Damagetypes in the Database!");
+      }
+
+      return results;
+    }
+
+    if (dmgtype.id) {
+      const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND id = $2", [server.id, dmgtype.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Damagetype not found", "Could not find that Damagetype in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND name = $2", [server.id, dmgtype.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Damagetype not found", "Could not find a Damagetype with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async dmgtypeExists(server, dmgtype) {
+    if (dmgtype.id) {
+      const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND id = $2", [server.id, dmgtype.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM damagetypes WHERE server_id = $1 AND name = $2", [server.id, dmgtype.name])
+
+    return results.length === 1;
+  };
+
+  async addDamagetype(server, dmgtype) {
+    if (await this.dmgtypeExists(server, dmgtype)) {
+      throw new DuplicateError("Duplicate Damagetype", "That Damagetype already exists in the Database!");
+    }
+
+    await this.query("INSERT INTO damagetypes (server_id, name) VALUES($1, $2)", [server.id, dmgtype.name])
+
+    return "Successfully added Damagetype to Database";
+  };
+
+  async remDamagetype(server, dmgtype) {
+    if (!(await this.dmgtypeExists(server, dmgtype))) {
+      throw new NotFoundError("Damagetype not found", "Could not find that Damagetype in the Database!");
+    }
+
+    await this.query("DELETE FROM damagetypes WHERE server_id = $1 AND id = $2", [server.id, dmgtype.id])
+
+    return "Successfully removed Damagetype from Database";
+  };
+
+  async updateDamagetype(server, dmgtype) {
+    if (!(await this.dmgtypeExists(server, dmgtype))) {
+      throw new NotFoundError("Damagetype not found", "Could not find that Damagetype in the Database!");
+    }
+
+    await this.query("UPDATE damagetypes SET name = $1 WHERE server_id = $2 AND id = $3", [dmgtype.name, server.id, dmgtype.id])
+
+    return "Successfully updated Damagetype in Database";
+  };
+
+  async getCharResistance(server, char, resistance) {
+    if (!resistance) {
+      const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Resistances found", "Could not find any Resistances for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charResist) => {
+        let dbResist;
+
+        switch (charResist.type) {
+          case "damagetype":
+            dbResist = await this.getDamagetype(server, {id: charResist.res_id})
+          break;
+          case "condition":
+            dbResist = await this.getCondition(server, {id: charResist.res_id})
+          break;
+        }
+
+        return {
+          id: charResist.id,
+          name: dbResist.name,
+          type: charResist.type,
+          name: dbResist.name,
+          res_id: dbResist.id
+        };
+      }));
+    }
+
+    if (resistance.id) {
+      const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2", [char.id, resistance.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Resistance not found", "Could not find that Resistance for that Character in the Database!");
+      }
+
+      const charResist = results[0];
+      let dbResist;
+
+      switch (charResist.type) {
+        case "damagetype":
+          dbResist = await this.getDamagetype(server, {id: charResist.res_id})
+        break;
+        case "condition":
+          dbResist = await this.getCondition(server, {id: charResist.res_id})
+        break;
+      }
+
+      return {
+        id: charResist.id,
+        name: dbResist.name,
+        type: charResist.type,
+        name: dbResist.name,
+        res_id: dbResist.id
+      };
+    }
+
+    let dbResist;
+
+    switch (resistance.type) {
+      case "damagetype":
+        dbResist = await this.getDamagetype(server, {name: resistance.name})
+      break;
+      case "condition":
+        dbResist = await this.getCondition(server, {name: resistance.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2", [char.id, dbResist.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Resistance not found", "Could not find a Resistance with that name for that Character in the Database!");
+    }
+
+    const charResist = results[0];
+
+    return {
+      id: charResist.id,
+      name: dbResist.name,
+      type: charResist.type,
+      name: dbResist.name,
+      res_id: dbResist.id
+    };
+  };
+
+  async charResistExists(server, char, resistance) {
+    if (resistance.id) {
+      const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2", [char.id, resistance.id])
+
+      return results.length === 1;
+    }
+
+    let dbResist;
+
+    switch (resistance.type) {
+      case "damagetype":
+        dbResist = await this.getDamagetype(server, {name: resistance.name})
+      break;
+      case "condition":
+        dbResist = await this.getCondition(server, {name: resistance.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2", [char.id, dbResist.id])
+
+    return results.length === 1;
+  };
+
+  async addCharResistance(server, char, resistance) {
+    if (await this.charResistExists(server, char, resistance)) {
+      throw new DuplicateError("Duplicate Character Resistance", "That Resistance is already linked to that Character!");
+    }
+
+    const sql = "INSERT INTO character_resistances (char_id, type, res_id) VALUES($1, $2, $3)";
+    await this.query(sql, [char.id, resistance.type, dbResist.id])
+
+    return "Successfully added Resistance to Character in Database";
+  };
+
+  async remCharReistance(server, char, resistance) {
+    if (!(await this.charResistExists(server, char, resistance))) {
+      throw new NotFoundError("Character Resistance not found", "Could not find that Resistance for that Character in the Database!");
+    }
+
+    const sql = "DELETE FROM character_resistances WHERE char_id = $1 AND id = $2";
+    await this.query(sql, [char.id, resistance.id])
+
+    return "Successfully removed Resistance from Character in Database";
+  };
+
+  async getCharImmunity(server, char, immunity) {
+    if (!immunity) {
+      const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1", [char.id])
+  
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Immunities found", "Could not find any Immunities for that Character in the Database!");
+      }
+  
+      return Promise.all(results.map(async (charImmune) => {
+        let dbImmune;
+  
+        switch (charImmune.type) {
+          case "damagetype":
+            dbImmune = await this.getDamagetype(server, {id: charImmune.imm_id})
+          break;
+          case "condition":
+            dbImmune = await this.getCondition(server, {id: charImmune.imm_id})
+          break;
+        }
+  
+        return {
+          id: charImmune.id,
+          name: dbImmune.name,
+          type: charImmune.type,
+          name: dbImmune.name,
+          imm_id: dbImmune.id
+        };
+      }));
+    }
+  
+    if (immunity.id) {
+      const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2", [char.id, immunity.id])
+  
+      if (results.length === 0) {
+        throw new NotFoundError("Character Immunity not found", "Could not find that Immunity for that Character in the Database!");
+      }
+  
+      const charImmune = results[0];
+      let dbImmune;
+  
+      switch (charImmune.type) {
+        case "damagetype":
+          dbImmune = await this.getDamagetype(server, {id: charImmune.imm_id})
+        break;
+        case "condition":
+          dbImmune = await this.getCondition(server, {id: charImmune.imm_id})
+        break;
+      }
+  
+      return {
+        id: charImmune.id,
+        name: dbImmune.name,
+        type: charImmune.type,
+        name: dbImmune.name,
+        imm_id: dbImmune.id
+      };
+    }
+  
+    let dbImmune;
+  
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immunity.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immunity.name})
+      break;
+    }
+  
+    const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2", [char.id, dbImmune.id])
+  
+    if (results.length === 0) {
+      throw new NotFoundError("Character Immunity not found", "Could not find an Immunity with that name for that Character in the Database!");
+    }
+  
+    const charImmune = results[0];
+  
+    return {
+      id: charImmune.id,
+      name: dbImmune.name,
+      type: charImmune.type,
+      name: dbImmune.name,
+      imm_id: dbImmune.id
+    };
+  };
+
+  async charImmuneExists(server, char, immunity) {
+    if (immunity.id) {
+      const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2", [char.id, immunity.id])
+
+      return results.length === 1;
+    }
+
+    let dbImmune;
+
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immunity.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immunity.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2", [char.id, dbImmune.id])
+
+    return results.length === 1;
+  };
+
+  async addCharImmunity(server, char, immunity) {
+    if (await this.charImmuneExists(server, char, immunity)) {
+      throw new DuplicateError("Duplicate Character Immunity", "That Immunity is already linked to that Character!");
+    }
+
+    let dbImmune;
+
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immunity.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immunity.name})
+      break;
+    }
+
+    const sql = "INSERT INTO character_immunities (char_id, type, imm_id) VALUES($1, $2, $3)";
+    await this.query(sql, [char.id, immunity.type, dbImmune.id])
+
+    return "Successfully added Character Immunity to Database";
+  };
+
+  async remCharImmunity(server, char, immunity) {
+    if (!(await this.charImmuneExists(server, char, immunity))) {
+      throw new NotFoundError("Character Immunity not found", "Could not find that Immunity for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_immunities WHERE char_id = $1 AND id = $2", [char.id, immunity.id])
+
+    return "Successfully removed Character Immunity from Database";
+  };
+
+  async getCharSense(char, sense) {
+    if (!sense) {
+      const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1", [char.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Senses found", "Could not find any Senses for that Character in the Database!");
+      }
+
+      return results;
+    }
+
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND id = $2", [char.id, sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Sense not found", "Could not find that Sense for that Character in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND name = $2", [char.id, sense.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Sense not found", "Could not find a Sense with that name for that Character in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async charSenseExists(char, sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND id = $2", [char.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_senses WHERE char_id = $1 AND name = $2", [char.id, sense.name])
+
+    return results.length === 1;
+  };
+
+  async addCharSense(char, sense) {
+    try {
+      const charSense = await this.getCharSense(char, sense)
+  
+      if (charSense.range <= sense.range) {
+        throw new DuplicateError("Duplicate Character Sense", "That Character already has that Sense with the same or a larger range!");
+      }
+  
+      await this.query("UPDATE character_senses SET range = $1 WHERE char_id = $2 AND name = $3", [sense.range, char.id, sense.name])
+  
+      return "Successfully updated Character Sense in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+  
+      const sql = "INSERT INTO character_senses (char_id, name, range) VALUES($1, $2, $3)";
+      await this.query(sql, [char.id, sense.name, sense.range])
+  
+      return "Successfully added Character Sense to Database";
+    }
+  };
+
+  async remCharSense(char, sense) {
+    if (!(await this.charSenseExists(char, sense))) {
+      throw new NotFoundError("Character Sense not found", "Could not find that Sense for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_senses WHERE char_id = $1 AND id = $2", [char.id, sense.id])
+
+    return "Successfully removed Character Sense from Database";
+  };
+
+  async updateCharSense(char, sense) {
+    if (!(await this.charSenseExists(char, sense))) {
+      throw new NotFoundError("Character Sense not found", "Could not find that Sense for that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_senses SET name = $1, range = $2 WHERE char_id = $3 AND id = $4";
+    await this.query(sql, [sense.name, sense.range, char.id, sense.id])
+
+    return "Successfully updated Character Sense in Database";
+  };
+
+  async getArmor(server, armor) {
+    if (!armor) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Armor found", "Could not find any Armor in the Database!");
+      }
+
+      return results;
+    }
+
+    if (armor.id) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND id = $2", [server.id, armor.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND name = $2", [server.id, armor.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Armor not found", "Could not find an Armor with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async armorExists(server, armor) {
+    if (armor.id) {
+      const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND id = $2", [server.id, armor.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM armors WHERE server_id = $1 AND name = $2", [server.id, armor.name])
+
+    return results.length === 1;
+  };
+
+  async addArmor(server, armor) {
+    if (await this.armorExists(server, armor)) {
+      throw new DuplicateError("Duplicate Armor", "That Armor already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO armors (server_id, name, description, type, rarity, dex_bonus, ac, str_req, magical, magic_bonus, attune, attune_req) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [server.id, armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune_req])
+
+    return "Successfully added Armor to Database";
+  };
+
+  async remArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    await this.query("DELETE FROM armors WHERE server_id = $1 AND id = $2", [server.id, armor.id])
+
+    return "Successfully removed Armor from Database";
+  };
+
+  async updateArmor(server, armor) {
+    if (!(await this.armorExists(server, armor))) {
+      throw new NotFoundError("Armor not found", "Could not find that Armor in the Database!");
+    }
+
+    const sql = "UPDATE armors SET name = $1, description = $2, type = $3, rarity = $4, dex_bonus = $5, ac = $6, str_req = $7, magical = $8, magic_bonus = $9, attune = $10, attune_req = $11 WHERE server_id = $12 AND id = $13";
+    await this.query(sql, [armor.name, armor.description, armor.type, armor.rarity, armor.dex_bonus, armor.ac, armor.str_req, armor.magical, armor.magic_bonus, armor.attune, armor.attune, armor.attune_req, server.id, armor.id])
+    
+    return "Successfully updated Armor in Database";
+  };
+
+  async getFeat(server, feat) {
+    if (!feat) {
+      const results = await this.query("SELECT * FROM feats WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Feats found", "Could not find any Feats in the Database!");
+      }
+
+      return results;
+    }
+
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Feat not found", "Could not find that Feat in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND name = $2", [server.id, feat.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Feat not found", "Could not find a Feat with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async featExists(server, feat) {
+    let results;
+  
+    if (feat.id) {
+      results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
+    } else {
+      results = await this.query("SELECT * FROM feats WHERE server_id = $1 AND name = $2", [server.id, feat.name])
+    }
+  
+    return results.length === 1;
+  };
+
+  async addFeat(server, feat) {
+    if (await this.featExists(server, feat)) {
+      throw new DuplicateError("Duplicate Feat", "That Feat already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO feats (server_id, name, description, type, val1, val2, val3) VALUES($1, $2, $3, $4, $5, $6, $7)";
+    await this.query(sql, [server.id, feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3])
+
+    return "Successfully added Feat to Database";
+  };
+
+  async remFeat(server, feat) {
+    if (!(await this.featExists(server, feat))) {
+      throw new NotFoundError("Feat not found", "Could not find that Feat in the Database!");
+    }
+
+    await this.query("DELETE FROM feats WHERE server_id = $1 AND id = $2", [server.id, feat.id])
+
+    return "Successfully removed Feat from Database";
+  };
+
+  async updateFeat(server, feat) {
+    if (!(await this.featExists(server, feat))) {
+      throw new NotFoundError("Feat not found", "Could not find that Feat in the Database!");
+    }
+
+    const sql = "UPDATE feats SET name = $1, description = $2, type = $3, val1 = $4, val2 = $5, val3 = $6 WHERE server_id = $7 AND id = $8";
+    await this.query(sql, [feat.name, feat.description, feat.type, feat.val1, feat.val2, feat.val3, server.id, feat.id])
+
+    return "Successfully updated Feat in Database";
+  };
+
+  async getSense(sense) {
+    if (!sense) {
+      const results = await this.query("SELECT * FROM senses")
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Senses found", "Could not find any Senses in the Database!");
+      }
+
+      return results;
+    }
+
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM senses WHERE id = $1", [sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Sense not found", "Could not find that Sense in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM senses WHERE name = $1", [sense.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Sense not found", "Could not find a Sense with that name in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async senseExists(sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM senses WHERE id = $1", [sense.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM senses WHERE name = $1", [sense.name])
+
+    return results.length === 1;
+  };
+
+  async addSense(sense) {
+    if (await this.senseExists(sense)) {
+      throw new DuplicateError("Duplicate Sense", "That Sense already exists in the Database!");
+    }
+
+    await this.query("INSERT INTO senses (name) VALUES($1)", [sense.name])
+
+    return "Successfully added Sense to Database";
+  };
+
+  async remSense(sense) {
+    if (!(await this.senseExists(sense))) {
+      throw new NotFoundError("Sense not found", "Could not find that Sense in the Database!");
+    }
+
+    await this.query("DELETE FROM senses WHERE id = $1", [sense.id])
+
+    return "Successfully removed Sense from Database";
+  };
+
+  async getClass(clas) {
+    if (!clas) {
+      const results = await this.query("SELECT * FROM classes")
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Classes found", "Could not find any Classes in the Database!");
+      }
+
+      return Promise.all(results.map(async (dbClass) => {
+        const classProfs = await this.getClassProf(clas)
+        const classSaves = await this.getClassSave(clas)
+        const classSenses = await this.getClassSense(clas)
+        const classTraits = await this.getClassTrait(clas)
+
+        return {
+          id: dbClass.id,
+          name: dbClass.name,
+          hitdice: dbClass.hitdice,
+          hitdice_size: dbClass.hitdice_size,
+          caster: dbClass.caster,
+          cast_lvl: dbClass.cast_lvl,
+          sub: dbClass.sub,
+          profs: classProfs,
+          saves: classSaves,
+          senses: classSenses,
+          traits: classTraits
+        };
+      }));
+    }
+
+    if (clas.id) {
+      const results = await this.query("SELECT * FROM classes WHERE id = $1", [clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+      }
+
+      const dbClass = results[0];
+
+      const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
+        this.getClassProf(clas),
+        this.getClassSave(clas),
+        this.getClassSense(clas),
+        this.getClassTrait(clas)
+      ]);
+
+      return {
+        id: dbClass.id,
+        name: dbClass.name,
+        hitdice: dbClass.hitdice,
+        hitdice_size: dbClass.hitdice_size,
+        caster: dbClass.caster,
+        cast_lvl: dbClass.cast_lvl,
+        sub: dbClass.sub,
+        profs: classProfs,
+        saves: classSaves,
+        senses: classSenses,
+        traits: classTraits
+      };
+    }
+
+    const results = await this.query("SELECT * FROM classes WHERE name = $1", [clas.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Class not found", "Could not find a Class with that name in the Database!");
+    }
+
+    const dbClass = results[0];
+
+    const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
+      this.getClassProf(clas),
+      this.getClassSave(clas),
+      this.getClassSense(clas),
+      this.getClassTrait(clas)
+    ]);
+
+    return {
+      id: dbClass.id,
+      name: dbClass.name,
+      description: dbClass.description,
+      hitdice: dbClass.hitdice,
+      hitdice_size: dbClass.hitdice_size,
+      caster: dbClass.caster,
+      cast_lvl: dbClass.cast_lvl,
+      sub: dbClass.sub,
+      profs: classProfs,
+      saves: classSaves,
+      senses: classSenses,
+      traits: classTraits
+    };
+  };
+
+  async classExists(clas) {
+    if (clas.id) {
+      const results = await this.query("SELECT * FROM classes WHERE server_id = $1 AND id = $2", [server.id, clas.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM classes WHERE server_id = $1 AND name = $2", [server.id, clas.name])
+
+    return results.length === 1;
+  };
+
+  async addClass(clas) {
+    if (await this.classExists(clas)) {
+      throw new DuplicateError("Duplicate Class", "That Class already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO classes (name, description, hitdice, hitdice_size, caster, cast_lvl, sub) VALUES($1, $2, $3, $4, $5, $6, $7. $8)";
+    await this.query(sql, [clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub])
+
+    return "Successfully added Class to Database";
+  };
+
+  async remClass(clas) {
+    if (!(await this.classExists(clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    await this.query("DELETE FROM classes WHERE id = $1", [clas.id])
+
+    return "Successfully removed Class from Database";
+  };
+
+  async updateClass(clas) {
+    if (!(await this.classExists(clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    const sql = "UPDATE classes SET name = $1, description = $2, hitdice = $3, hitdice_size = $4, caster = $5, cast_lvl = $6, sub = $7 WHERE id = $8";
+    await this.query(sql, [clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub, clas.id])
+
+    return "Successfully updated Class in Database";
+  };
+
+  async getClassTrait(clas, trait) {
+    if (!(await this.classExists(clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    if (!trait) {
+      const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1", [clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Class Traits found", "Could not find any Traits for that Class in the Database!");
+      }
+
+      return results;
+    }
+
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND id = $2", [clas.id, trait.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Class Trait not found", "Could not find that Trait for that Class in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND name = $2", [clas.id, trait.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Class Trait not found", "Could not find a Trait with that name for that Class in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async classTraitExists(clas, trait) {
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND id = $2", [clas.id, trait.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM class_traits WHERE class_id = $1 AND name = $2", [clas.id, trait.name])
+    
+    return results.length === 1;
+  };
+
+  async addClassTrait(clas, trait) {
+    if (await this.classTraitExists(clas, trait)) {
+      throw new DuplicateError("Duplicate Class Trait", "That Class already has that trait!");
+    }
+
+    const sql = "INSERT INTO class_traits (class_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [clas.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
+    
+    return "Successfully added Class Trait to Database";
+  };
+
+  async remClassTrait(clas, trait) {
+    if (!(await this.classTraitExists(clas, trait))) {
+      throw new NotFoundError("Class Trait not found", "Could not find that Trait for that Class in the Database!");
+    }
+
+    await this.query("DELETE FROM class_traits WHERE class_id = $1 AND id = $2", [clas.id, trait.id])
+
+    return "Successfully removed Class Trait from Database";
+  };
+
+  async updateClassTrait(clas, trait) {
+    if (!(await this.classTraitExists(clas, trait))) {
+      throw new NotFoundError("Class Trait not found", "Could not find that Trait for that Class in the Database!");
+    }
+
+    const sql = "UPDATE class_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE class_id = $12 AND id = $13";
+    await this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, clas.id, trait.id])
+
+    return "Successfully updated Class Trait in Database";
+  };
+
+  async getCharClassFeat(char, clas, feat) {
+    if (!(await this.classExists(clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    if (!feat) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2", [char.id, clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character (class-only) Feats found", "Could not find any Feats granted by the Character\'s Class in the Database!")
+      }
+
+      return Promise.all(results.map(async (charFeat) => {
+        const dbFeat = await this.getFeat({id: charFeat.feat_id})
+
+        return {
+          id: charFeat.id,
+          char_id: char.id,
+          class_id: clas.id,
+          feat_id: dbFeat.id,
+          name: dbFeat.name,
+          description: dbFeat.description,
+          visible: dbFeat.visible
+        };
+      }));
+    }
+
+    if (feat.feat_id) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3", [char.id, clas.id, feat.feat_id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character (class-only) Feat not found", "Could not find that Feat granted by that Class for that Character in the Database!");
+      }
+
+      const charFeat = results[0];
+
+      const dbFeat = await this.getFeat(server, {id: feat.feat_id})
+
+      return {
+        id: charFeat.id,
+        char_id: char.id,
+        class_id: clas.id,
+        feat_id: dbFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description,
+        visible: dbFeat.visible
+      };
+    }
+
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, feat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character (class-only) Feat not found", "Could not find that Feat granted by that Class for that Character in the Database!");
+      }
+
+      const charFeat = results[0];
+
+      const dbFeat = await this.getFeat(server, {id: charFeat.feat_id})
+
+      return {
+        id: charFeat.id,
+        char_id: char.id,
+        class_id: clas.id,
+        feat_id: dbFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description,
+        visible: dbFeat.visible
+      };
+    }
+
+    const dbFeat = await this.getFeat(server, {name: feat.name})
+
+    const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3", [char.id, clas.id, dbFeat.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character (class-only) Feat not found", "Could not find a Feat granted by that Class with that name for that Character in the Database!");
+    }
+
+    const charFeat = results[0];
+
+    return {
+      id: charFeat.id,
+      char_id: char.id,
+      class_id: clas.id,
+      feat_id: dbFeat.id,
+      name: dbFeat.name,
+      description: dbFeat.description,
+      visible: dbFeat.visible
+    };
+  };
+
+  async charClassFeatExists(char, clas, feat) {
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, feat.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3", [char.id, clas.id, feat.feat_id])
+
+    return results.length === 1;
+  };
+
+  async addCharClassFeat(char, clas, feat) {
+    if (await this.charClassFeatExists(char, clas, feat)) {
+      throw new DuplicateError("Duplicate Character (class-only) Feat", "That Character already has that Feat granted by that Class!");
+    }
+
+    const sql = "INSERT INTO character_class_feats (char_id, class_id, feat_id) VALUES($1, $2, $3)";
+    await this.query(sql, [char.id, clas.id, feat.id])
+
+    return "Successfully added Character (class-only) Feat to Database";
+  };
+
+  async remCharClassFeat(char, clas, feat) {
+    if (!(await this.charClassFeatExists(char, clas, feat))) {
+      throw new NotFoundError("Character (class-only) Feat not found", "Could not find that Feat granted by that Class for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, feat.id])
+
+    return "Successfully removed Character (class-only) Feat from Database";
+  };
+
+  async getCharClassProf(char, clas, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2", [char.id, clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character (class-only) Proficiencies found", "Could not find any Proficiencies granted by that Class for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charProf) => {
+        const dbProf = this.getProficiency({id: charProf.type})
+
+        return {
+          id: charProf.id,
+          char_id: char.id,
+          class_id: clas.id,
+          name: charProf.name,
+          type: dbProf.name,
+          expert: charProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find that Proficiency granted by that Class for that Character in the Database!");
+      }
+
+      const charProf = results[0];
+
+      const dbProf = await this.getProficiency({id: charProf.type})
+
+      return {
+        id: charProf.id,
+        char_id: char.id,
+        class_id: clas.id,
+        name: charProf.name,
+        type: dbProf.name,
+        expert: charProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3", [char.id, clas.id, prof.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find a Proficiency granted by that Class with that name for that Character in the Database!");
+    }
+
+    const charProf = results[0];
+
+    const dbProf = await this.getProficiency({id: charProf.type})
+
+    return {
+      id: charProf.id,
+      char_id: char.id,
+      class_id: clas.id,
+      name: charProf.name,
+      type: dbProf.name,
+      expert: charProf.expert
+    };
+  };
+
+  async charClassProfExists(char, clas, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3", [char.id, clas.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addCharClassProf(char, clas, prof) {
+    if (await this.charClassProfExists(char, clas, prof)) {
+      throw new DuplicateError("Duplicate Character (class-only) Proficiency", "That Character already has that Proficiency granted by that Class!");
+    }
+
+    const sql = "INSERT INTO character_class_profs (char_id, class_id, name, type, expert) VALUES($1, $2, $3, $4, $5)";
+    await this.query(sql, [char.id, clas.id, prof.name, prof.type, prof.expert])
+
+    return "Successfully added Character (class-only) Proficiency to Database";
+  };
+
+  async remCharClassProf(char, clas, prof) {
+    if (!(await this.charClassProfExists(char, clas, prof))) {
+      throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find that Proficiency granted by that Class for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3", [char.id, clas.id, prof.id])
+
+    return "Successfully removed Character (class-only) Proficiency from Database";
+  };
+
+  async updateCharClassProf(char, clas, prof) {
+    if (!(await this.charClassProfExists(char, clas, prof))) {
+      throw new NotFoundError("Character (class-only) Proficiency not found", "Could not find that Proficiency granted by that Class for that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_class_profs SET name = $1, expert = $2 WHERE char_id = $3 AND class_id = $4 AND id = $5";
+    await this.query(sql, [prof.name, prof.expert, char.id, clas.id, prof.id])
+
+    return "Successfully updated Character (class-only) Proficiency in Database";
+  };
+
+  async getClassSave(clas, save) {
+    if (!(await this.classExists(clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    if (!save) {
+      const results = await this.query("SELECT * FROM class_saves WHERE class_id = $1", [clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Class Saves found", "Could not find any Saves for that Class in the Database!");
+      }
+
+      return results;
+    }
+
+    if (save.id) {
+      const results = await this.query("SELECT * FROM class_saves WHERE class_id = $1 AND id = $2", [clas.id, save.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Class Save not found", "Could not find that Save for that Class in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM class_saves WHERE class_id = $1 AND stat = $2", [clas.id, save.stat])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Class Save not found", "That Class does not have a Save for that Stat!");
+    }
+
+    return results[0];
+  };
+
+  async classSaveExists(clas, save) {
+    if (save.id) {
+      const results = await this.query("SELECT * FROM class_saves WHERE class_id = $1 AND id = $2", [clas.id, save.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM class_saves WHERE class_id = $1 AND stat = $2", [clas.id, save.stat])
+
+    return results.length === 1;
+  };
+
+  async addClassSave(clas, save) {
+    if (await this.classSaveExists(clas, save)) {
+      throw new DuplicateError("Duplicate Class Save", "That Class already has a Save for that Stat in the Database!");
+    }
+
+    const sql = "INSERT INTO class_saves (class_id, stat, level) VALUES($1, $2, $3)";
+    await this.query(sql, [clas.id, save.stat, save.level])
+
+    return "Successfully added Class Save to Database";
+  };
+
+  async remClassSave(clas, save) {
+    if (!(await this.classSaveExists(clas, save))) {
+      throw new NotFoundError("Class Save not found", "Could not find that Save for that Class in the Database!");
+    }
+
+    await this.query("DELETE FROM class_saves WHERE class_id = $1 AND id = $2", [clas.id, save.id])
+
+    return "Successfully removed Class Save from Database";
+  };
+
+  async updateClassSave(clas, save) {
+    if (!(await this.classSaveExists(clas, save))) {
+      throw new NotFoundError("Class Save not found", "Could not find that Save for that Class in the Database!");
+    }
+
+    const sql = "UPDATE class_saves SET stat = $1, level = $2 WHERE class_id = $3 AND id = $4";
+    await this.query(sql, [save.stat, save.level, clas.id, save.id])
+
+    return "Successfully updated Class Save in Database";
+  };
+
+  async getClassSense(clas, sense) {
+    if (!(await this.classExists(clas))) {
+      throw new NotFoundError("Class not found", "Could not find that Class in the Database!");
+    }
+
+    if (!sense) {
+      const results = await this.query("SELECT * FROM class_senses WHERE class_id = $1", [clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Class Senses found", "Could not find any Senses for that Class in the Database!");
+      }
+
+      return Promise.all(results.map(async (classSense) => {
+        const dbSense = await this.getSense({id: classSense.sense_id})
+
+        return {
+          id: classSense.id,
+          class_id: clas.id,
+          name: dbSense.name,
+          range: classSense.range
+        };
+      }));
+    }
+
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM class_senses WHERE class_id = $1 AND id = $2", [clas.id, sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Class Sense not found", "Could not find that Sense for that Class in the Database!");
+      }
+
+      const classSense = results[0];
+
+      const dbSense = await this.getSense({id: classSense.sense_id})
+
+      return {
+        id: classSense.id,
+        class_id: clas.id,
+        name: dbSense.name,
+        range: classSense.range
+      };
+    }
+
+    const results = await this.query("SELECT * FROM class_senses WHERE class_id = $1 AND sense_id = $2", [clas.id, sense.sense_id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Class Sense not found", "Could not find that Sense for that Class in the Database!");
+    }
+
+    const classSense = results[0];
+
+    const dbSense = await this.getSense({id: classSense.sense_id})
+
+    return {
+      id: classSense.id,
+      class_id: clas.id,
+      name: dbSense.name,
+      range: classSense.range
+    };
+  };
+
+  async classSenseExists(clas, sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM class_senses WHERE class_id = $1 AND id = $2", [clas.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM class_senses WHERE class_id = $1 AND sense_id = $2", [clas.id, sense.sense_id])
+
+    return results.length === 1;
+  };
+
+  async addClassSense(clas, sense) {
+    if (await this.classSenseExists(clas, sense)) {
+      throw new DuplicateError("Duplicate Class Sense", "That Class already has that Sense in the Database!");
+    }
+
+    const sql = "INSERT INTO class_senses (class_id, sense_id, range) VALUES($1, $2, $3)";
+    await this.query(sql, [clas.id, sense.sense_id, sense.range])
+
+    return "Successfully added Class Sense to Database";
+  };
+
+  async remClassSense(clas, sense) {
+    if (!(await this.classSenseExists(clas, sense))) {
+      throw new NotFoundError("Class Sense not found", "Could not find that Sense for that Class in the Database!");
+    }
+
+    await this.query("DELETE FROM class_senses WHERE class_id = $1 AND id = $2", [clas.id, sense.id])
+
+    return "Successfully removed Class Sense from Database";
+  };
+
+  async updateClassSense(clas, sense) {
+    if (!(await this.classSaveExists(clas, sense))) {
+      throw new NotFoundError("Class Sense not found", "Could not find that Sense for that Class in the Database!");
+    }
+
+    await this.query("UPDATE class_senses SET range = $1 WHERE class_id = $2 AND id = $3", [sense.range, clas.id, sense.id])
+
+    return "Successfully updated Class Saves in Database";
+  };
+
+  async classHasSub(clas) {
+    if (clas.id) {
+      const results = await this.query("SELECT * FROM classes WHERE id = $1", [clas.id])
+
+      return results[0].sub;
+    }
+
+    const results = await this.query("SELECT * FROM classes WHERE name = $2", [clas.name])
+
+    return results[0].sub;
+  };
+
+  async getSubclass(clas, sub) {
+    if (!(await this.classHasSub(clas))) {
+      throw new BadRequestError("Invalid Request", "This Class does not have Subclasses enabled!");
+    }
+
+    if (!sub) {
+      const results = await this.query("SELECT * FROM subclasses WHERE class_id = $1", [clas.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subclasses found", "Could not find any Subclasses for that Class in the Database!");
+      }
+
+      return Promise.all(results.map(async (dbSub) => {
+        const [subProfs, subSenses, subTraits] = await Promise.all([
+          this.getSubclassProf(sub),
+          this.getSubclassSense(sub),
+          this.getSubclassTrait(sub)
+        ]);
+
+        return {
+          id: dbSub.id,
+          class_id: clas.id,
+          name: dbSub.name,
+          description: dbSub.description,
+          caster: dbSub.caster,
+          cast_lvl: dbSub.cast_lvl,
+          profs: subProfs,
+          senses: subSenses,
+          traits: subTraits
+        };
+      }));
+    }
+
+    if (sub.id) {
+      const results = await this.query("SELECT * FROM subclasses WHERE class_id = $1 AND id = $2", [clas.id, sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subclass not found", "Could not find that Subclass in the Database!");
+      }
+
+      const dbSub = results[0];
+
+      const [subProfs, subSenses, subTraits] = await Promise.all([
+        this.getSubclassProf(sub),
+        this.getSubclassSense(sub),
+        this.getSubclassTrait(sub)
+      ]);
+
+      return {
+        id: dbSub.id,
+        class_id: clas.id,
+        name: dbSub.name,
+        description: dbSub.description,
+        caster: dbSub.caster,
+        cast_lvl: dbSub.cast_lvl,
+        profs: subProfs,
+        senses: subSenses,
+        traits: subTraits
+      };
+    }
+
+    const results = await this.query("SELECT * FROM subclasses WHERE class_id = $1 AND name = $2", [clas.id, sub.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subclass not found", "Could not find a Subclass with that name in the Database!");
+    }
+
+    const dbSub = results[0];
+
+    const [subProfs, subSenses, subTraits] = await Promise.all([
+      this.getSubclassProf(sub),
+      this.getSubclassSense(sub),
+      this.getSubclassTrait(sub)
+    ]);
+
+    return {
+      id: dbSub.id,
+      class_id: clas.id,
+      name: dbSub.name,
+      description: dbSub.description,
+      caster: dbSub.caster,
+      cast_lvl: dbSub.cast_lvl,
+      profs: subProfs,
+      senses: subSenses,
+      traits: subTraits
+    };
+  };
+
+  async subclassExists(clas, sub) {
+    if (sub.id) {
+      const results = await this.query("SELECT * FROM subclasses WHERE class_id = $1 AND id = $2", [clas.id, sub.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM subclasses WHERE class_id = $1 AND name = $2", [clas.id, sub.name])
+
+    return results.length === 1;
+  };
+
+  async addSubclass(clas, sub) {
+    if (await this.subclassExists(clas, sub)) {
+      throw new DuplicateError("Duplicate Subclass", "That Subclass already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO subclasses (class_id, name, description, caster, cast_lvl) VALUES($1, $2, $3, $4, $5)";
+    await this.query(sql, [clas.id, sub.name, sub.description, sub.caster, sub.cast_lvl])
+
+    return "Successfully added Subclass to Database";
+  };
+
+  async remSubclass(clas, sub) {
+    if (!(await this.subclassExists(clas, sub))) {
+      throw new NotFoundError("Subclass not found", "Could not find that Subclass in the Database!");
+    }
+
+    await this.query("DELETE FROM subclasses WHERE class_id = $1 AND id = $2", [clas.id, sub.id])
+
+    return "Successfully removed Subclass from Database";
+  };
+
+  async updateSubclass(clas, sub) {
+    if (!(await this.subclassExists(clas, sub))) {
+      throw new NotFoundError("Subclass not found", "Could not find that Subclass in the Database!");
+    }
+
+    const sql = "UPDATE subclasses SET name = $1, description = $2, caster = $3, cast_lvl = $4 WHERE class_id = $5 AND id = $6";
+    await this.query(sql, [sub.name, sub.description, sub.caster, sub.cast_lvl, clas.id, sub.id])
+
+    return "Successfully updated Subclass in Database";
+  };
+
+  async getSubclassTrait(sub, trait) {
+    if (!trait) {
+      const results = await this.query("SELECT * FROM subclass_traits WHERE sub_id = $1", [sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subclass Traits found", "Could not find any Traits for that Subclass in the Database!");
+      }
+
+      return results;
+    }
+
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM subclass_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subclass Trait not found", "Could not find that Trait for that Subclass in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM subclass_traits WHERE sub_id = $1 AND name = $2", [sub.id, trait.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subclass Trait not found", "Could not find a Trait with that name for that Subclass in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async subclassTraitExists(sub, trait) {
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM subclass_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM subclass_traits WHERE sub_id = $1 AND name = $2", [sub.id, trait.name])
+
+    return results.length === 1;
+  };
+
+  async addSubclassTrait(sub, trait) {
+    if (await this.subclassTraitExists(sub, trait)) {
+      throw new DuplicateError("Duplicate Subclass Trait", "That Trait already exists for that Subclass in the Database!");
+    }
+
+    const sql = "INSERT INTO subclass_traits (sub_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
+    await this.query(sql, [sub.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
+
+    return "Successfully added Subclass Trait to Database";
+  };
+
+  async remSubclassTrait(sub, trait) {
+    if (!(await this.subclassTraitExists(sub, trait))) {
+      throw new NotFoundError("Subclass Trait not found", "Could not find that Trait for that Subclass in the Database!");
+    }
+
+    await this.query("DELETE FROM subclass_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+    return "Successfully removed Subclass Trait from Database";
+  };
+
+  async updateSubclassTrait(sub, trait) {
+    if (!(await this.subclassTraitExists(sub, trait))) {
+      throw new NotFoundError("Subclass Trait not found", "Could not find that Trait for that Subclass in the Database!");
+    }
+
+    const sql = "UPDATE subclass_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg-dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE sub_id = $12 AND id = $13";
+    await this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, sub.id, trait.id])
+
+    return "Successfully updated Subclass Trait in Database";
+  };
+
+  async getSubclassProf(sub, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM subclass_proficiencies WHERE sub_id = $1", [sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subclass Proficiencies found", "Could not find any Proficiencies for that Subclass in the Database!");
+      }
+
+      return Promise.all(results.map(async (subProf) => {
+        const dbProf = await this.getProficiency({id: subProf.type})
+
+        return {
+          id: subProf.id,
+          sub_id: sub.id,
+          name: subProf.name,
+          type: dbProf.name,
+          expert: subProf.expert
+        }
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND id = $2", [sub.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subclass Proficiency not found", "Could not find that Proficiency for that Subclass in the Database!");
+      }
+
+      const subProf = results[0];
+
+      const dbProf = await this.getProficiency({id: subProf.type})
+
+      return {
+        id: subProf.id,
+        sub_id: sub.id,
+        name: subProf.name,
+        type: dbProf.name,
+        expert: subProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND name = $2 AND type = $3", [sub.id, prof.name, prof.type])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subclass Proficiency not found", "Could not find a Subclass Proficiency with that name in the Database!");
+    }
+
+    const subProf = results[0];
+
+    const dbProf = await this.getProficiency({id: subProf.type})
+
+    return {
+      id: subProf.id,
+      sub_id: sub.id,
+      name: subProf.name,
+      type: dbProf.name,
+      expert: subProf.expert
+    };
+  };
+
+  async subclassProfExists(sub, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND id = $2", [sub.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND name = $2 AND type = $3", [sub.id, prof.name, prof.type])
+
+    return results.length === 1;
+  };
+
+  async addsubclassProf(sub, prof) {
+    try {
+      const subProf = await this.getSubclassProf(sub, prof)
+
+      if (subProf.expert === prof.expert) {
+        throw new DuplicateError("Duplicate Subclass Proficiency", "That Subclass Proficiency already exists in the Database!");
+      }
+
+      await this.query("UPDATE subclass_proficiencies SET expert = $1 WHERE sub_id = $2 AND id = $2", [prof.expert, sub.id, prof.id])
+
+      return "Successfully updated Subclass Proficiency in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO subclass_proficiencies (sub_id, name, type, expert) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [sub.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Subclass Proficiency to Database";
+    }
+  };
+
+  async remSubclassProf(sub, prof) {
+    if (!(await this.subclassProfExists(sub, prof))) {
+      throw new NotFoundError("Subclass Proficiency not found", "Could not find that Proficiency for that Subclass in the Database!");
+    }
+
+    await this.query("DELETE FROM subclass_proficiencies WHERE sub_id = $1 AND id = $2", [sub.id, prof.id])
+
+    return "Successfully removed Subclass Proficiency from Database";
+  };
+
+  async updateSubclassProf(sub, prof) {
+    if (!(await this.subclassProfExists(sub, prof))) {
+      throw new NotFoundError("Subclass Proficiency not found", "Could not find that Proficiency for that Subclass in the Database!");
+    }
+
+    await this.query("UPDATE subclass_proficiencies SET name = $1, expert = $2, type = $3 WHERE sub_id = $4 AND id = $5", [prof.name, prof.expert, prof.type, sub.id, prof.id])
+
+    return "Successfully updated Subclass Proficiency in Database";
+  };
+
+  async getCharSubclassProf(char, sub, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM character_subclass_profs WHERE char_id = $1 AND sub_id = $2", [char.id, sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Subclass Proficiencies found", "Could not find any Subclass Proficiencies for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charSubProf) => {
+        const dbProf = await this.getProficiency({id: charSubProf.type})
+
+        return {
+          id: charSubProf.id,
+          sub_id: sub.id,
+          char_id: char.id,
+          name: charSubProf.name,
+          type: dbProf.name,
+          expert: charSubProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_subclass_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3", [char.id, sub.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Subclass Proficiency not found", "Could not find that Subclass Proficiency for that Character in the Database!");
+      }
+
+      const charSubProf = results[0];
+      const dbProf = await this.getProficiency({id: charSubProf.type})
+
+      return {
+        id: charSubProf.id,
+        sub_id: sub.id,
+        char_id: char.id,
+        name: charSubProf.name,
+        type: dbProf.name,
+        expert: charSubProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM character_subclass_profs WHERE char_id = $1 AND sub_id = $2 AND name = $3", [char.id, sub.id, prof.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Subclass Proficiency not found", "Could not find a Subclass Proficiency with that name for that Character in the Database!");
+    }
+
+    const charSubProf = results[0];
+    const dbProf = await this.getProficiency({id: charSubProf.type})
+
+    return {
+      id: charSubProf.id,
+      sub_id: sub.id,
+      char_id: char.id,
+      name: charSubProf.name,
+      type: dbProf.name,
+      expert: charSubProf.expert
+    };
+  };
+
+  async charSubclassProfExists(char, sub, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_subclass_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3", [char.id, sub.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_subclass_profs WHERE char_id = $1 AND sub_id = $2 AND name = $3", [char.id, sub.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addCharSubclassProf(char, sub, prof) {
+    try {
+      const charSubProf = await this.getCharSubclassProf(char, sub, prof)
+
+      if (charSubProf.expert === prof.expert) {
+        throw new DuplicateError("Duplicate Character Subclass Proficiency", "That Subclass Proficiency is already linked to that Character!");
+      }
+
+      const sql = "UPDATE character_subclass_profs SET expert = $1 WHERE char_id = $2 AND sub_id = $3 AND id = $4";
+      await this.query(sql, [prof.expert, char.id, sub.id, prof.id])
+
+      return "Successfully updated Character Subclass Proficiency in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_subclass_profs (char_id, sub_id, name, type, expert) VALUES($1, $2, $3, $4, $5)";
+      await this.query(sql, [char.id, sub.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Subclass Proficiency to that Character in Database";
+    }
+  };
+
+  async remCharSubclassProf(char, sub, prof) {
+    if (!(await this.charSubclassProfExists(char, sub, prof))) {
+      throw new NotFoundError("Character Subclass Proficiency not found", "Could not find that Subclass Proficiency of that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_subclass_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3", [char.id, sub.id, prof.id])
+
+    return "Successfully removed Subclass Proficiency of that Character from Database";
+  };
+
+  async updateCharSubclassProf(char, sub, prof) {
+    if (!(await this.charSubclassProfExists(char, sub, prof))) {
+      throw new NotFoundError("Character Subclass Proficiency not found", "Could not find that Subclass Proficiency of that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_subclass_profs SET name = $1, type = $2, expert = $3 WHERE char_id = $4 AND sub_id = $5 AND id = $6";
+    await this.query(sql, [prof.name, prof.type, prof.expert, char.id, sub.id, prof.id])
+
+    return "Successfully updated Character Subclass Proficiency in Database";
+  };
+
+  async getSubclassSense(sub, sense) {
+    if (!sense) {
+      const results = await this.query("SELECT * FROM subclass_senses WHERE sub_id = $1", [sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subclass Senses found", "Could not find any Senses for that Subclass in the Database!")
+      }
+
+      return Promise.all(results.map(async (subSense) => {
+        const dbSense = await this.getSense({id: subSense.sense_id})
+
+        return {
+          id: subSense.id,
+          sub_id: sub.id,
+          name: dbSense.name,
+          range: subSense.range
+        };
+      }));
+    }
+
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM subclass_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subclass Sense not found", "Could not find that Sense for that Subclass in the Database!");
+      }
+
+      const subSense = results[0];
+      const dbSense = await this.getSense({id: subSense.sense_id})
+
+      return {
+        id: subSense.id,
+        sub_id: sub.id,
+        name: dbSense.name,
+        range: subSense.range
+      };
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+
+    const results = await this.query("SELECT * FROM subclass_senses WHERE sub_id = $1 AND sense_id = $2", [sub.id, dbSense.id])
+
+    const subSense = results[0];
+
+    return {
+      id: subSense.id,
+      sub_id: sub.id,
+      name: dbSense.name,
+      range: subSense.range
+    };
+  };
+
+  async addSubclassSense(sub, sense) {
+    try {
+      const subSense = await this.getSubclassSense(sub, sense)
+
+      if (sense.range <= subSense.range) {
+        throw new DuplicateError("Duplicate Subclass Sense", "That Sense is already linked to that Subclass with the same or a higher range!");
+      }
+
+      await this.query("UPDATE subclass_senses SET range = $1 WHERE sub_id = $2 AND id = $3", [sense.range, sub.id, sense.id])
+
+      return "Successfully updated Subclass Sense in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO subclass_senses (sub_id, sense_id, range) VALUES($1, $2, $3)";
+      await this.query(sql, [sub.id, sense.sense_id, sense.range])
+
+      return "Successfully added Subclass Sense to Database";
+    }
+  };
+
+  async subclassSenseExists(sub, sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM subclass_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+    const results = await this.query("SELECT * FROM subclass_senses WHERE sub_id = $1 AND sense_id = $2", [sub.id, dbSense.id])
+
+    return results.length === 1;
+  };
+
+  async remSubclassSense(sub, sense) {
+    if (!(await this.subclassSenseExists(sub, sense))) {
+      throw new NotFoundError("Subclass Sense not found", "Could not find that Sense for that Subclass in the Database!");
+    }
+
+    await this.query("DELETE FROM subclass_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+    return "Successfully removed Subclass Sense from Database";
+  };
+
+  async updateSubclassSense(sub, sense) {
+    if (!(await this.subclassSenseExists(sub, sense))) {
+      throw new NotFoundError("Subclass Sense not found", "Could not find that Sense for that Subclass in the Database!");
+    }
+
+    const sql = "UPDATE subclass_senses SET sense_id = $1, range = $2 WHERE sub_id = $3 AND id = $4";
+    await this.query(sql, [sense.sense_id, sense.range, sub.id, sense.id])
+
+    return "Successfully updated Subclass Sense in Database";
+  };
+
+  async getRace(race) {
+    if (!race) {
+      const results = await this.query("SELECT * FROM races")
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Races found", "Could not find any Races in the Database!");
+      }
+
+      return Promise.all(results.map(async (dbRace) => {
+        const [raceStats, raceImmunities, raceResistances, raceProfs, raceSenses, raceTraits] = await Promise.all([
+          this.getRaceStat(race),
+          this.getRaceImmunities(race),
+          this.getRaceResistances(race),
+          this.getRaceProficiency(race),
+          this.getRaceSense(race),
+          this.getRaceTrait(race)
+        ]);
+
+        return {
+          id: dbRace.id,
+          name: dbRace.name,
+          description: dbRace.description,
+          speed: dbRace.speed,
+          sub: dbRace.sub,
+          feat: dbRace.feat,
+          stats: raceStats,
+          immunities: raceImmunities,
+          resistances: raceResistances,
+          profs: raceProfs,
+          senses: raceSenses,
+          traits: raceTraits
+        };
+      }));
+    }
+
+    if (race.id) {
+      const results = await this.query("SELECT * FROM races WHERE id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Race not found", "Could not find that Race in the Database!");
+      }
+
+      const dbRace = results[0];
+
+      const [raceStats,raceImmunities, raceResistances, raceProfs, raceSenses, raceTraits] = await Promise.all([
+        this.getRaceStat(race),
+        this.getRaceImmunities(race),
+        this.getRaceResistances(race),
+        this.getRaceProficiency(race),
+        this.getRaceSense(race),
+        this.getRaceTrait(race)
+      ]);
+
+      return {
+        id: dbRace.id,
+        name: dbRace.name,
+        description: dbRace.description,
+        speed: dbRace.speed,
+        sub: dbRace.sub,
+        stats: raceStats,
+        immunities: raceImmunities,
+        resistances: raceResistances,
+        profs: raceProfs,
+        senses: raceSenses,
+        traits: raceTraits
+      };
+    }
+
+    const results = await this.query("SELECT * FROM races WHERE name = $1", [race.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Race not found", "Could not find a Race with that name in the Database!");
+    }
+
+    const dbRace = results[0];
+
+    const [raceStats,raceImmunities, raceResistances, raceProfs, raceSenses, raceTraits] = await Promise.all([
+      this.getRaceStat(race),
+      this.getRaceImmunities(race),
+      this.getRaceResistances(race),
+      this.getRaceProficiency(race),
+      this.getRaceSense(race),
+      this.getRaceTrait(race)
+    ]);
+
+    return {
+      id: dbRace.id,
+      name: dbRace.name,
+      description: dbRace.description,
+      speed: dbRace.speed,
+      sub: dbRace.sub,
+      stats: raceStats,
+      immunities: raceImmunities,
+      resistances: raceResistances,
+      profs: raceProfs,
+      senses: raceSenses,
+      traits: raceTraits
+    };
+  };
+
+  async raceExists(race) {
+    if (race.id) {
+      const results = await this.query("SELECT * FROM races WHERE id = $1", [race.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM races WHERE name = $1", [race.name])
+
+    return results.length === 1;
+  };
+
+  async addRace(race) {
+    if (await this.raceExists(server, race)) {
+      throw new DuplicateError("Duplicate Race", "That Race already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO races (name, description, speed, sub, feat) VALUES($1, $2, $3, $4, $5)";
+    await this.query(sql, [race.name, race.description, race.speed, race.sub, race.feat])
+
+    return "Successfully added Race to Database!";
+  };
+
+  async remRace(race) {
+    if (!(await this.raceExists(race))) {
+      throw new NotFoundError("Race not found", "Could not find that Race in the Database!");
+    }
+
+    await this.query("DELETE FROM races WHERE id = $1", [race.id])
+
+    return "Successfully removed Race from Database";
+  };
+
+  async updateRace(race) {
+    if (!(await this.raceExists(race))) {
+      throw new NotFoundError("Race not found", "Could not find that Race in the Database!");
+    }
+
+    const sql = "UPDATE races SET name = $1, description = $2, speed = $3, sub = $4, feat = $5 WHERE id = $6";
+    await this.query(sql, [race.name, race.description, race.speed, race.sub, race.feat, race.id])
+
+    return "Successfully updated Race in Database";
+  };
+
+  async getRaceStat(race, stat) {
+    if (!stat) {
+      const results = await this.query("SELECT * FROM race_stats WHERE race_id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Race Stats found", "Could not find any Stats for that Race in the Database!");
+      }
+
+      return Promise.all(results.map(async (raceStat) => {
+        const dbStat = await this.getStat({key: raceStat.stat})
+
+        return {
+          id: raceStat.id,
+          race_id: race.id,
+          stat: dbStat.name,
+          val: raceStat.val
+        };
+      }));
+    }
+
+    if (stat.id) {
+      const results = await this.query("SELECT * FROM race_stats WHERE race_id = $1 AND id = $2", [race.id, stat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Race Stat not found", "Could not find that Stat for that Race in the Database!");
+      }
+
+      const raceStat = results[0];
+      const dbStat = await this.getStat({key: raceStat.stat})
+
+      return {
+        id: raceStat.id,
+        race_id: race.id,
+        stat: dbStat.name,
+        val: raceStat.val
+      };
+    }
+
+    const dbStat = await this.getStat({name: stat.name})
+    const results = await this.query("SELECT * FROM race_stats WHERE race_id = $1 AND stat = $2", [race.id, dbStat.key])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Race Stat not found", "That Race does not have that Stat in the Database!");
+    }
+
+    const raceStat = results[0];
+
+    return {
+      id: raceStat.id,
+      race_id: race.id,
+      stat: dbStat.name,
+      val: raceStat.val
+    };
+  };
+
+  async raceStatExists(race, stat) {
+    if (stat.id) {
+      const results = await this.query("SELECT * FROM race_stats WHERE race_id = $1 AND id = $2", [race.id, stat.id])
+
+      return results.length === 1;
+    }
+
+    const dbStat = await this.getStat({name: stat.name})
+    const results = await this.query("SELECT * FROM race_stats WHERE race_id = $1 AND stat = $2", [race.id, dbStat.key])
+
+    return results.length === 1;
+  };
+
+  async addRaceStat(race, stat) {
+    try {
+      const raceStat = await this.getRaceStat(race, stat)
+
+      if (stat.val === raceStat.val) {
+        throw new DuplicateError("Duplicate Race Stat", "That Race already has that Stat with that value in the Database!");
+      }
+
+      await this.query("UPDATE race_stats SET val = $1 WHERE race_id = $2 AND id = $3", [stat.val, race.id, stat.id])
+
+      return "Successfully updated Race Stat in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO race_stats (race_id, stat, val) VALUES($1, $2, $3)";
+      await this.query(sql, [race.id, stat.key, stat.val])
+
+      return "Successfully added Race Stat to Database";
+    }
+  };
+
+  async remRaceStat(race, stat) {
+    if (!(await this.raceStatExists(race, stat))) {
+      throw new NotFoundError("Race Stat not found", "Could not find that Stat for that Race in the Database!");
+    }
+
+    await this.query("DELETE FROM race_stats WHERE race_id = $1 AND id = $2", [race.id, stat.id])
+
+    return "Successfully removed Race Stat from Database";
+  };
+
+  async updateRaceStat(race, stat) {
+    if (!(await this.raceStatExists(race, stat))) {
+      throw new NotFoundError("Race Stat not found", "Could not find that Stat for that Race in the Database!");
+    }
+
+    const sql = "UPDATE race_stats SET stat = $1, val = $2 WHERE race_id = $3 AND id = $4";
+    await this.query(sql, [stat.key, stat.val, race.id, stat.id])
+
+    return "Successfully updated Race Stat in Database";
+  };
+
+  async getCharRaceFeat(server, char, race, feat) {
+    if (!feat) {
+      const results = await this.query("SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2", [char.id, race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Race Feats found", "Could not find any racial Feats for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charRaceFeat) => {
+        const dbFeat = await this.getFeat(server, {id: charRaceFeat.feat_id})
+
+        return {
+          id: charRaceFeat.id,
+          char_id: char.id,
+          race_id: race.id,
+          feat_id: dbFeat.id,
+          name: dbFeat.name,
+          description: dbFeat.description
+        };
+      }));
+    }
+
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3", [char.id, race.id, feat.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Race Feat not found", "Could not find that racial Feat for that Character in the Database!");
+      }
+
+      const charRaceFeat = results[0];
+      const dbFeat = await this.getFeat(server, {id: charRaceFeat.feat_id})
+
+      return {
+        id: charRaceFeat.id,
+        char_id: char.id,
+        race_id: race.id,
+        feat_id: dbFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description
+      };
+    }
+
+    if (feat.feat_id) {
+      const results = await this.query("SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3", [char.id, race.id, feat.feat_id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Race Feat not found", "Could not find that racial Feat for that Character in the Database!");
+      }
+
+      const charRaceFeat = results[0];
+      const dbFeat = await this.getFeat(server, {id: charRaceFeat.feat_id})
+
+      return {
+        id: charRaceFeat.id,
+        char_id: char.id,
+        race_id: race.id,
+        feat_id: dbFeat.id,
+        name: dbFeat.name,
+        description: dbFeat.description
+      };
+    }
+
+    const dbFeat = await this.getFeat(server, {name: feat.name})
+    const results = await this.query("SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3", [char.id, race.id, dbFeat.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Race Feat not found", "Could not find a racial Feat with that name for that Character in the Database!");
+    }
+
+    const charRaceFeat = results[0];
+
+    return {
+      id: charRaceFeat.id,
+      char_id: char.id,
+      race_id: race.id,
+      feat_id: dbFeat.id,
+      name: dbFeat.name,
+      description: dbFeat.description
+    };
+  };
+
+  async charRaceFeatExists(char, race, feat) {
+    if (feat.id) {
+      const results = await this.query("SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3", [char.id, race.id, feat.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3", [char.id, race.id, feat.feat_id])
+
+    return results.length === 1;
+  };
+
+  async addCharRaceFeat(char, race, feat) {
+    if (await this.charRaceFeatExists(char, race, feat)) {
+      throw new DuplicateError("Duplicate Character Race Feat", "That Character already has that racial Feat!");
+    }
+
+    const sql = "INSERT INTO character_race_feats (char_id, race_id, feat_id) VALUES($1, $2, $3)";
+    await this.query(sql, [char.id, race.id, feat.feat_id])
+
+    return "Successfully added Race Feat to Character in Database";
+  };
+
+  async remCharRaceFeat(char, race, feat) {
+    if (!(await this.charRaceFeatExists(char, race, feat))) {
+      throw new NotFoundError("Character Race Feat not found", "Could not find that racial Feat for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3", [char.id, race.id, feat.id])
+
+    return "Successfully removed racial Feat from Character in Database";
+  };
+
+  async updateCharRaceFeat(char, race, feat) {
+    if (!(await this.charRaceFeatExists(char, race, feat))) {
+      throw new NotFoundError("Character Race Feat not found", "Could not find that racial Feat for that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_race_feats SET feat_id = $1 WHERE char_id = $2 AND race_id = $3 AND id = $4";
+    await this.query(sql, [feat.feat_id, char.id, race.id, feat.id])
+
+    return "Successfully updated Character Race Feat in Database";
+  };
+
+  async getRaceImmunity(server, race, immune) {
+    if (!immune) {
+      const results = await this.query("SELECT * FROM race_immunities WHERE race_id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Race Immunities found", "Could not find any Immunities for that Race in the Database!");
+      }
+
+      return Promise.all(results.map(async (raceImmune) => {
+        let dbImmune;
+
+        switch (raceImmune.type) {
+          case "damagetype":
+            dbImmune = await this.getDamagetype(server, {id: raceImmune.imm_id})
+          break;
+          case "condition":
+            dbImmune = await this.getCondition(server, {id: raceImmune.imm_id})
+          break;
+        }
+
+        return {
+          id: raceImmune.id,
+          race_id: race.id,
+          type: raceImmune.type,
+          name: dbImmune.name,
+          imm_id: dbImmune.id
+        };
+      }));
+    }
+
+    if (immune.id) {
+      const results = await this.query("SELECT * FROM race_immunities WHERE race_id = $1 AND id = $2", [race.id, immune.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Race Immunity not found", "Could not find that Immunity for that Race in the Database!");
+      }
+
+      const raceImmune = results[0];
+
+      let dbImmune;
+
+      switch (raceImmune.type) {
+        case "damagetype":
+          dbImmune = await this.getDamagetype(server, {id: raceImmune.imm_id})
+        break;
+        case "condition":
+          dbImmune = await this.getCondition(server, {id: raceImmune.imm_id})
+        break;
+      }
+
+      return {
+        id: raceImmune.id,
+        race_id: race.id,
+        type: raceImmune.type,
+        name: dbImmune.name,
+        imm_id: dbImmune.id
+      };
+    }
+
+    let dbImmune;
+
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immune.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immune.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM race_immunities WHERE race_id = $1 AND imm_id = $2", [race.id, dbImmune.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Race Immunity not found", "Could not find an Immunity with that name for that Race in the Database!");
+    }
+
+    const raceImmune = results[0];
+
+    return {
+      id: raceImmune.id,
+      race_id: race.id,
+      type: raceImmune.type,
+      name: dbImmune.name,
+      imm_id: dbImmune.id
+    };
+  };
+
+  async raceImmunityExists(server, race, immune) {
+    if (immune.id) {
+      const results = await this.query("SELECT * FROM race_immunities WHERE race_id = $1 AND id = $2", [race.id, immune.id])
+
+      return results.length === 1;
+    }
+
+    let dbImmune;
+
+    switch (immunity.type) {
+      case "damagetype":
+        dbImmune = await this.getDamagetype(server, {name: immune.name})
+      break;
+      case "condition":
+        dbImmune = await this.getCondition(server, {name: immune.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM race_immunities WHERE race_id = $1 AND imm_id = $2", [race.id, dbImmune.id])
+
+    return results.length === 1;
+  };
+
+  async addRaceImmunity(server, race, immune) {
+    if (await this.raceImmunityExists(server, race, immune)) {
+      throw new DuplicateError("Duplicate Race Immunity", "That Race already has that Immunity in the Database!");
+    }
+
+    const sql = "INSERT INTO race_immunities (race_id, imm_id, type) VALUES($1, $2, $3)";
+    await this.query(sql, [race.id, immune.imm_id, immune.type])
+
+    return "Successfully added Race Immunity to Database";
+  };
+
+  async remRaceImmunity(race, immune) {
+    if (!(await this.raceImmunityExists(server, race, immune))) {
+      throw new NotFoundError("Race Immunity not found", "Could not find that Immunity for that Race in the Database!");
+    }
+
+    await this.query("DELETE FROM race_immunities WHERE race_id = $1 AND id = $2", [race.id, immune.id])
+
+    return "Successfully removed Race Immunity from Database";
+  };
+
+  async getRaceResistance(server, race, resist) {
+    if (!resist) {
+      const results = await this.query("SELECT * FROM race_resistances WHERE race_id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Race Resistances found", "Could not find any Resistances for that Race in the Database!");
+      }
+
+      return Promise.all(results.map(async (raceResist) => {
+        let dbResist;
+
+        switch (raceResist.type) {
+          case "damagetype":
+            dbResist = await this.getDamagetype(server, {id: raceResist.res_id})
+          break;
+          case "condition":
+            dbResist = await this.getCondition(server, {id: raceResist.res_id})
+          break;
+        }
+
+        return {
+          id: raceResist.id,
+          race_id: race.id,
+          type: raceResist.type,
+          name: dbResist.name,
+          res_id: dbResist.id
+        };
+      }));
+    }
+
+    if (resist.id) {
+      const results = await this.query("SELECT * FROM race_resistances WHERE race_id = $1 AND id = $2", [race.id, resist.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Race Resistance not found", "Could not find that Resistance for that Race in the Database!");
+      }
+
+      const raceResist = results[0];
+      
+      let dbResist;
+
+      switch (raceResist.type) {
+        case "damagetype":
+          dbResist = await this.getDamagetype(server, {id: raceResist.res_id})
+        break;
+        case "condition":
+          dbResist = await this.getCondition(server, {id: raceResist.res_id})
+        break;
+      }
+
+      return {
+        id: raceResist.id,
+        race_id: race.id,
+        type: raceResist.type,
+        name: dbResist.name,
+        res_id: dbResist.id
+      };
+    }
+
+    let dbResist;
+
+    switch (raceResist.type) {
+      case "damagetype":
+        dbResist = await this.getDamagetype(server, {name: resist.name})
+      break;
+      case "condition":
+        dbResist = await this.getCondition(server, {name: resist.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM race_resistances WHERE race_id = $1 AND res_id = $2", [race.id, dbResist.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Race Resistance not found", "Could not find a Resistance with that name for that Race in the Database!");
+    }
+
+    const raceResist = results[0];
+
+    return {
+      id: raceResist.id,
+      race_id: race.id,
+      type: raceResist.type,
+      name: dbResist.name,
+      res_id: dbResist.id
+    };
+  };
+
+  async raceResistanceExists(server, race, resist) {
+    if (resist.id) {
+      const results = await this.query("SELECT * FROM race_resistances WHERE race_id = $1 AND id = $2", [race.id, resist.id])
+
+      return results.length === 1;
+    }
+
+    let dbResist;
+
+    switch (raceResist.type) {
+      case "damagetype":
+        dbResist = await this.getDamagetype(server, {name: resist.name})
+      break;
+      case "condition":
+        dbResist = await this.getCondition(server, {name: resist.name})
+      break;
+    }
+
+    const results = await this.query("SELECT * FROM race_resistances WHERE race_id = $1 AND res_id = $2", [race.id, dbResist.id])
+
+    return results.length === 1;
+  };
+
+  async addRaceResistance(server, race, resist) {
+    if (await this.raceResistanceExists(server, race, resist)) {
+      throw new DuplicateError("Duplicate Race Resistace", "That Race already has that Resistance in the Database!");
+    }
+
+    const sql = "INSERT INTO race_resistances (race_id, res_id, type) VALUES($1, $2, $3)";
+    await this.query(sql, [race.id, resist.res_id, resist.type])
+
+    return "Successfully added Race Resistance to Database";
+  };
+
+  async remRaceResistance(server, race, resist) {
+    if (!(await this.raceResistanceExists(server, race, resist))) {
+      throw new NotFoundError("Race Resistance not found", "Could not find that Resistance for that Race in the Database!");
+    }
+
+    await this.query("DELETE FROM race_resistances WHERE race_id = $1 AND id = $2", [race.id, resist.id])
+
+    return "Successfully removed Race Resistance from Database";
+  };
+
+  async getRaceProficiency(race, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM race_proficiencies WHERE race_id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Race Proficiencies found", "Could not find any Race Proficiencies in the Database!");
+      }
+
+      return Promise.all(results.map(async (raceProf) => {
+        const dbProf = await this.getProficiency({id: raceProf.type})
+
+        return {
+          id: raceProf.id,
+          race_id: race.id,
+          name: raceProf.name,
+          type: dbProf.name,
+          expert: raceProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM race_proficiencies WHERE race_id = $1 AND id = $2", [race.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Race Proficiency not found", "Could not find that Race Proficiency in the Database!");
+      }
+
+      const raceProf = results[0];
+      const dbProf = await this.getProficiency({id: raceProf.type})
+
+      return {
+        id: raceProf.id,
+        race_id: race.id,
+        name: raceProf.name,
+        type: dbProf.name,
+        expert: raceProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM race_proficiencies WHERE race_id = $1 AND name = $2", [race.id, prof.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Race Proficiency not found", "Could not find a Race Proficiency with that name in the Database!");
+    }
+
+    const raceProf = results[0];
+    const dbProf = await this.getProficiency({id: raceProf.type})
+
+    return {
+      id: raceProf.id,
+      race_id: race.id,
+      name: raceProf.name,
+      type: dbProf.name,
+      expert: raceProf.expert
+    };
+  };
+
+  async raceProfExists(race, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM race_proficiencies WHERE race_id = $1 AND id = $2", [race.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM race_proficiencies WHERE race_id = $1 AND name = $2", [race.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addRaceProficiency(race, prof) {
+    try {
+      const raceProf = await this.getRaceProficiency(race, prof)
+
+      if (prof.expert === raceProf.expert) {
+        throw new DuplicateError("Duplicate Race Proficiency", "That Race Proficiency already exists in the Database!");
+      }
+
+      const sql = "UPDATE race_proficiencies SET expert = $1 WHERE race_id = $2 AND id = $3";
+      await this.query(sql, [prof.expert, race.id, prof.id])
+
+      return "Successfully updated Race Proficiency in the Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO race_proficiencies (race_id, name, type, expert) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [race.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Race Proficiency to Database";
+    }
+  };
+
+  async remRaceProficiency(race, prof) {
+    if (!(await this.raceProfExists(race, prof))) {
+      throw new NotFoundError("Race Proficiency not found", "Could not find that Race Proficiency in the Database!");
+    }
+
+    await this.query("DELETE FROM race_proficiencies WHERE race_id = $1 AND id = $2", [race.id, prof.id])
+
+    return "Successfully removed Race Proficiency from Database";
+  };
+
+  async getCharRaceProf(char, race, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2", [char.id, race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Race Proficiencies found", "Could not find any racial Proficiencies for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charRaceProf) => {
+        const dbProf = await this.getProficiency({id: charRaceProf.type})
+
+        return {
+          id: charRaceProf.id,
+          char_id: char.id,
+          race_id: race.id,
+          name: charRaceProf.name,
+          type: dbProf.name,
+          expert: charRaceProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3", [char.id, race.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Race Proficiency not found", "Could not find that racial Proficiency of that Character in the Database!");
+      }
+
+      const charRaceProf = results[0];
+      const dbProf = await this.getProficiency({id: charRaceProf.type})
+
+      return {
+        id: charRaceProf.id,
+        char_id: char.id,
+        race_id: race.id,
+        name: charRaceProf.name,
+        type: dbProf.name,
+        expert: charRaceProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3", [char.id, race.id, prof.name])
+
+    const charRaceProf = results[0];
+    const dbProf = await this.getProficiency({id: charRaceProf.type})
+
+    return {
+      id: charRaceProf.id,
+      char_id: char.id,
+      race_id: race.id,
+      name: charRaceProf.name,
+      type: dbProf.name,
+      expert: charRaceProf.expert
+    };
+  };
+
+  async charRaceProfExists(char, race, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3", [char.id, race.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3", [char.id, race.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addCharRaceProf(char, race, prof) {
+    try {
+      const charRaceProf = await this.getCharRaceProf(char, race, prof)
+
+      if (prof.expert === charRaceProf.expert) {
+        throw new DuplicateError("Duplicate Character Race Proficiency", "That Character already has that racial Proficiency in the Database!");
+      }
+
+      const sql = "UPDATE character_race_profs SET expert = $1 WHERE char_id = $2 AND race_id = $3 AND id = $4";
+      await this.query(sql, [prof.expert, char.id, race.id, prof.id])
+
+      return "Successfully updated Character Race Proficiency in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_race_profs (char_id, race_id, name, type, expert) VALUES($1, $2, $3, $4, $5)";
+      await this.query(sql, [char.id, race.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Race Proficiency to Character in Database";
+    }
+  };
+
+  async remCharRaceProf(char, race, prof) {
+    if (!(await this.charRaceProfExists(char, race, prof))) {
+      throw new NotFoundError("Character Race Proficiency not found", "Could not find that Race Proficiency for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3", [char.id, race.id, prof.id])
+
+    return "Successfully removed Race Proficiency from Character in Database";
+  };
+
+  async updateCharRaceProf(char, race, prof) {
+    if (!(await this.charRaceProfExists(char, race, prof))) {
+      throw new NotFoundError("Character Race Proficiency not found", "Could not find that Race Proficiency for that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_race_profs SET expert = $1 WHERE char_id = $2 AND race_id = $3 AND id = $4";
+    await this.query(sql, [prof.expert, char.id, race.id, prof.id])
+
+    return "Successfully updated Character Race Proficiency in Database";
+  };
+
+  async getRaceSense(race, sense) {
+    if (!sense) {
+      const results = await this.query("SELECT * FROM race_senses WHERE race_id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Race Senses found", "Could not find any Senses for that Race in the Database!");
+      }
+
+      return Promise.all(results.map(async (raceSense) => {
+        const dbSense = await this.getSense({key: raceSense.sense_id})
+
+        return {
+          id: raceSense.id,
+          race_id: race.id,
+          name: dbSense.name,
+          range: raceSense.range
+        };
+      }));
+    }
+
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM race_senses WHERE race_id = $1 AND id = $2", [race.id, sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Race Sense not found", "Could not find that Sense for that Race in the Database!");
+      }
+
+      const raceSense = results[0];
+      const dbSense = await this.getSense({id: raceSense.sense_id})
+
+      return {
+        id: raceSense.id,
+        race_id: race.id,
+        name: dbSense.name,
+        range: raceSense.range
+      };
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+    const results = await this.query("SELECT * FROM race_senses WHERE race_id = $1 AND key = $2", [race.id, dbSense.key])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Race Sense not found", "Could not find a Sense with that name for that Race in the Database!");
+    }
+
+    const raceSense = results[0];
+
+    return {
+      id: raceSense.id,
+      race_id: race.id,
+      name: dbSense.name,
+      range: raceSense.range
+    };
+  };
+
+  async raceSenseExists(race, sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM race_senses WHERE race_id = $1 AND id = $2", [race.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+    const results = await this.query("SELECT * FROM race_senses WHERE race_id = $1 AND key = $2", [race.id, dbSense.key])
+
+    return results.length === 1;
+  };
+
+  async addRaceSense(race, sense) {
+    if (await this.raceSenseExists(race, sense)) {
+      throw new DuplicateError("Duplicate Race Sense", "That Sense is already linked to that Race in the Database!");
+    }
+
+    const sql = "INSERT INTO race_senses (race_id, sense_id, range) VALUES($1, $2, $3)";
+    await this.query(sql, [race.id, sense.sense_id, sense.range])
+
+    return "Successfully added Race Sense to Database";
+  };
+
+  async remRaceSense(race, sense) {
+    if (!(await this.raceSenseExists(race, sense))) {
+      throw new NotFoundError("Race Sense not found", "Could not find that Sense for that Race in the Database!");
+    }
+
+    await this.query("DELETE FROM race_senses WHERE race_id = $1 AND id = $2", [race.id, sense.id])
+
+    return "Successfully removed Race Sense from Database";
+  };
+
+  async updateRaceSense(race, sense) {
+    if (!(await this.raceSenseExists(race, sense))) {
+      throw new NotFoundError("Race Sense not found", "Could not find that Sense for that Race in the Database!");
+    }
+
+    const sql = "UPDATE race_senses SET range = $1, sense_id = $2 WHERE race_id = $3 AND id = $4";
+    await this.query(sql, [sense.range, sense.sense_id, race.id, sense.id])
+
+    return "Successfully updated Race Sense in Database";
+  };
+
+  async getRaceTrait(race, trait) {
+    if (!trait) {
+      const results = await this.query("SELECT * FROM race_traits WHERE race_id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Race Traits found", "Could not find any Traits for that Race in the Database!");
+      }
+
+      return results;
+    }
+
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM race_traits WHERE race_id = $1 AND id = $2", [race.id, trait.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Race Trait not found", "Could not find that Trait for that Race in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM race_traits WHERE race_id = $1 AND name = $2", [race.id, trait.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Race Trait not found", "Could not find a Trait with that name for that Race in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async raceTraitExists(race, trait) {
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM race_traits WHERE race_id = $1 AND id = $2", [race.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM race_traits WHERE race_id = $1 AND name = $2", [race.id, sense.name])
+
+    return results.length === 1;
+  };
+
+  async addRaceTrait(race, trait) {
+    if (await this.raceTraitExists(race, trait)) {
+      throw new DuplicateError("Duplicate Race Trait", "That Trait is already linked to that Race in the Database!");
+    }
+
+    const sql = "INSERT INTO race_traits (race_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [race.id, trait.level, trait.name, trait.description, trait.type, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
+
+    return "Successfully added Race Trait to Database";
+  };
+
+  async remRaceTrait(race, trait) {
+    if (!(await this.raceTraitExists(race, trait))) {
+      throw new NotFoundError("Race Trait not found", "Could not find that Trait for that Race in the Database!");
+    }
+
+    await this.query("DELETE FROM race_traits WHERE race_id = $1 AND id = $2", [race.id, trait.id])
+
+    return "Successfully removed Race Trait from Database";
+  };
+
+  async updateRaceTrait(race, trait) {
+    if (!(await this.raceTraitExists(race, trait))) {
+      throw new NotFoundError("Race Trait not found", "Could not find that Trait for that Race in the Database!");
+    }
+
+    const sql = "UPDATE race_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE race_id = $12 AND id = $13";
+    await this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, race.id, trait.id])
+
+    return "Successfully updated Race Trait in Database";
+  };
+
+  async getSubrace(race, sub) {
+    if (!sub) {
+      const results = await this.query("SELECT * FROM subraces WHERE race_id = $1", [race.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subraces found", "Could not find any Subraces in the Database!");
+      }
+
+      return Promise.all(results.map(async (dbSub) => {
+        const [subProfs, subSenses, subTraits] = await Promise.all([
+          this.getSubraceProf(sub),
+          this.getSubraceSense(sub),
+          this.getSubraceTrait(sub)
+        ]);
+
+        return {
+          id: dbSub.id,
+          race_id: race.id,
+          name: dbSub.name,
+          description: dbSub.description,
+          profs: subProfs,
+          senses: subSenses,
+          traits: subTraits
+        };
+      }));
+    }
+
+    if (sub.id) {
+      const results = await this.query("SELECT * FROM subraces WHERE race_id = $1 AND id = $2", [race.id, sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subrace not found", "Could not find that Subrace in the Database!");
+      }
+
+      const dbSub = results[0];
+
+      const [subProfs, subSenses, subTraits] = await Promise.all([
+        this.getSubraceProf(sub),
+        this.getSubraceSense(sub),
+        this.getSubraceTrait(sub)
+      ]);
+
+      return {
+        id: dbSub.id,
+        race_id: race.id,
+        name: dbSub.name,
+        description: dbSub.description,
+        profs: subProfs,
+        senses: subSenses,
+        traits: subTraits
+      };
+    }
+
+    const results = await this.query("SELECT * FROM subraces WHERE race_id = $1 AND name = $2", [race.id, sub.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subrace not found", "Could not find a Subrace with that name in the Database!");
+    }
+
+    const dbSub = results[0];
+
+    const [subProfs, subSenses, subTraits] = await Promise.all([
+      this.getSubraceProf(sub),
+      this.getSubraceSense(sub),
+      this.getSubraceTrait(sub)
+    ]);
+
+    return {
+      id: dbSub.id,
+      race_id: race.id,
+      name: dbSub.name,
+      description: dbSub.description,
+      profs: subProfs,
+      senses: subSenses,
+      traits: subTraits
+    };
+  };
+
+  async subraceExists(race, sub) {
+    if (sub.id) {
+      const results = await this.query("SELECT * FROM subraces WHERE race_id = $1 AND id = $2", [race.id, sub.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM subraces WHERE race_id = $1 AND name = $2", [race.id, sub.name])
+
+    return results.length === 1;
+  };
+
+  async addSubrace(race, sub) {
+    if (await this.subraceExists(race, sub)) {
+      throw new DuplicateError("Duplicate Subrace", "That Subrace already exists in the Database!");
+    }
+
+    const sql = "INSERT INTO subraces (race_id, name, description) VALUES($1, $2, $3)";
+    await this.query(sql, [race.id, sub.name, sub.description])
+
+    return "Successfully added Subrace to Database";
+  };
+
+  async remSubrace(race, sub) {
+    if (!(await this.subraceExists(race, sub))) {
+      throw new NotFoundError("Subrace not found", "Could not find that Subrace in the Database!");
+    }
+
+    await this.query("DELETE FROM subraces WHERE race_id = $1 AND id = $2", [race.id, sub.id])
+
+    return "Successfully removed Subrace from Database";
+  };
+
+  async updateSubrace(race, sub) {
+    if (!(await this.subraceExists(race, sub))) {
+      throw new NotFoundError("Subrace not found", "Could not find that Subrace in the Database!");
+    }
+
+    const sql = "UPDATE subraces SET name = $1 AND description = $2 WHERE race_id = $3 AND id = $4";
+    await this.query(sql, [sub.name, sub.description, race.id, sub.id])
+
+    return "Sucessfully updated Subrace in Database";
+  };
+
+  async getSubraceProf(sub, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM subrace_proficiencies WHERE sub_id = $1", [sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subrace Proficiencies found", "Could not find any Subrace Proficiencies in the Database!");
+      }
+
+      return Promise.all(results.map(async (subProf) => {
+        const dbProf = await this.getProficiency({id: subProf.type})
+
+        return {
+          id: subProf.id,
+          sub_id: sub.id,
+          name: subProf.name,
+          type: dbProf.name,
+          expert: subProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM subrace_proficiencies WHERE sub_id = $1 AND id = $2", [sub.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subrace Proficiency not found", "Could not find that Subrace Proficiency in the Database!");
+      }
+
+      const subProf = results[0];
+      const dbProf = await this.getProficiency({id: subProf.type})
+
+      return {
+        id: subProf.id,
+        sub_id: sub.id,
+        name: subProf.name,
+        type: dbProf.name,
+        expert: subProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM subrace_proficiencies WHERE sub_id = $1 AND name = $2", [sub.id, prof.name])
+
+    const subProf = results[0];
+    const dbProf = await this.getProficiency({id: subProf.type})
+
+    return {
+      id: subProf.id,
+      sub_id: sub.id,
+      name: subProf.name,
+      type: dbProf.name,
+      expert: subProf.expert
+    };
+  };
+
+  async subraceProfExists(sub, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM subrace_proficiencies WHERE sub_id = $1 AND id = $2", [sub.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM subrace_proficiencies WHERE sub_id = $1 AND name = $2", [sub.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addSubraceProf(sub, prof) {
+    try {
+      const subProf = await this.getSubraceProf(sub, prof)
+
+      if (prof.expert === subProf.expert) {
+        throw new DuplicateError("Duplicate Subrace Proficiency", "That Subrace already has that Proficiency in the Database!");
+      }
+
+      const sql = "UPDATE subrace_proficiencies SET expert = $1, name = $2 WHERE sub_id = $3 AND id = $4";
+      await this.query(sql, [prof.expert, prof.name, sub.id, prof.id])
+
+      return "Successfully updated Subrace Proficiency in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO subrace_proficiencies (sub_id, name, type, expert) VALUES($1, $2, $3, $4)";
+      await this.query(sql, [sub.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Subrace Proficiency to Database";
+    }
+  };
+
+  async remSubraceProf(sub, prof) {
+    if (!(await this.subraceProfExists(sub, prof))) {
+      throw new NotFoundError("Subrace Proficiency not found", "Could not find that Proficiency for that Subrace in the Database!");
+    }
+
+    await this.query("DELETE FROM subrace_proficiencies WHERE sub_id = $1 AND id = $2", [sub.id, prof.id])
+
+    return "Successfully removed Subrace Proficiency from Database";
+  };
+
+  async updateSubraceProf(sub, prof) {
+    if (!(await this.subraceProfExists(sub, prof))) {
+      throw new NotFoundError("Subrace Proficiency not found", "Could not find that Proficiency for that Subrace in the Database!");
+    }
+
+    const sql = "UPDATE subrace_proficiencies SET name = $1, type = $2, expert = $3 WHERE sub_id = $4 AND id = $5";
+    await this.query(sql, [prof.name, prof.type, prof.expert, sub.id, prof.id])
+
+    return "Successfully updated Subrace Proficiency in Database";
+  };
+
+  async getCharSubraceProf(char, sub, prof) {
+    if (!prof) {
+      const results = await this.query("SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2", [char.id, sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Character Subrace Proficiencies found", "Could not find any Subrace Proficiencies for that Character in the Database!");
+      }
+
+      return Promise.all(results.map(async (charSubProf) => {
+        const dbProf = await this.getProficiency({id: charSubProf.type})
+
+        return {
+          id: charSubProf.id,
+          char_id: char.id,
+          sub_id: sub.id,
+          name: charSubProf.name,
+          type: dbProf.name,
+          expert: charSubProf.expert
+        };
+      }));
+    }
+
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3", [char.id, sub.id, prof.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Character Subrace Proficiency not found", "Could not find that Subrace Proficiency for that Character in the Database!");
+      }
+
+      const charSubProf = results[0];
+      const dbProf = await this.getProficiency({id: charSubProf.type})
+
+      return {
+        id: charSubProf.id,
+        char_id: char.id,
+        sub_id: sub.id,
+        name: charSubProf.name,
+        type: dbProf.name,
+        expert: charSubProf.expert
+      };
+    }
+
+    const results = await this.query("SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND name = $3", [char.id, sub.id, prof.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Character Subrace Proficiency not found", "Could not find a Subrace Proficiency with that name for that Character in the Database!");
+    }
+
+    const charSubProf = results[0];
+    const dbProf = await this.getProficiency({id: charSubProf.type})
+
+    return {
+      id: charSubProf.id,
+      char_id: char.id,
+      sub_id: sub.id,
+      name: charSubProf.name,
+      type: dbProf.name,
+      expert: charSubProf.expert
+    };
+  };
+
+  async charSubraceProfExists(char, sub, prof) {
+    if (prof.id) {
+      const results = await this.query("SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3", [char.id, sub.id, prof.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND name = $3", [char.id, sub.id, prof.name])
+
+    return results.length === 1;
+  };
+
+  async addCharSubraceProf(char, sub, prof) {
+    try {
+      const charSubProf = await this.getCharSubraceProf(char, sub, prof)
+
+      if (prof.expert === charSubProf.expert) {
+        throw new DuplicateError("Duplicate Character Subrace Proficiency", "That Character already has that Subrace Proficiency in the Database!");
+      }
+
+      const sql = "UPDATE character_subrace_profs SET expert = $1, name = $2 WHERE char_id = $3 AND sub_id = $4 AND id = $5";
+      await this.query(sql, [prof.expert, prof.name, char.id, sub.id, prof.id])
+
+      return "Successfully updated Character Subrace Proficiency in Database";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO character_subrace_profs (char_id, sub_id, name, type, expert) VALUES($1, $2, $3, $4, $5)";
+      await this.query(sql, [char.id, sub.id, prof.name, prof.type, prof.expert])
+
+      return "Successfully added Subrace Proficiency to Character in Database";
+    }
+  };
+
+  async remCharSubraceProf(char, sub, prof) {
+    if (!(await this.charSubraceProfExists(char, sub, prof))) {
+      throw new NotFoundError("Character Subrace Proficiency not found", "Could not find that Subrace Proficiency for that Character in the Database!");
+    }
+
+    await this.query("DELETE FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3", [char.id, sub.id, prof.id])
+
+    return "Successfully removed Subrace Proficiency from Character in Database";
+  };
+
+  async updateCharSubraceProf(char, sub, prof) {
+    if (!(await this.charSubraceProfExists(char, sub, prof))) {
+      throw new NotFoundError("Character Subrace Proficiency not found", "Could not find that Subrace Proficiency for that Character in the Database!");
+    }
+
+    const sql = "UPDATE character_subrace_profs SET name = $1, type = $2, expert = $3 WHERE char_id = $4 AND sub_id = $5 AND id = $6";
+    await this.query(sql, [prof.name, prof.type, prof.expert, char.id, sub.id, prof.id])
+
+    return "Successfully updated Subrace Proficiency of Character in Database";
+  };
+
+  async getSubraceSense(sub, sense) {
+    if (!sense) {
+      const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1", [sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subrace Senses found", "Could not find any Senses for that Subrace in the Database!");
+      }
+
+      return Promise.all(results.map(async (subSense) => {
+        const dbSense = await this.getSense({id: subSense.sense_id})
+
+        return {
+          id: subSense.id,
+          sub_id: sub.id,
+          name: dbSense.name,
+          range: subSense.range
+        };
+      }));
+    }
+
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subrace Sense not found", "Could not find that Sense for that Subrace in the Database!");
+      }
+
+      const subSense = results[0];
+      const dbSense = await this.getSense({id: subSense.sense_id})
+
+      return {
+        id: subSense.id,
+        sub_id: sub.id,
+        name: dbSense.name,
+        range: subSense.range
+      };
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+    const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND sense_id = $2", [sub.id, dbSense.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subrace Sense not found", "Could not find a Sense with that name for that Subrace in the Database!");
+    }
+
+    const subSense = results[0];
+
+    return {
+      id: subSense.id,
+      sub_id: sub.id,
+      name: dbSense.name,
+      range: subSense.range
+    };
+  };
+
+  async subraceSenseExists(sub, sense) {
+    if (sense.id) {
+      const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+      return results.length === 1;
+    }
+
+    const dbSense = await this.getSense({name: sense.name})
+    const results = await this.query("SELECT * FROM subrace_senses WHERE sub_id = $1 AND sense_id = $2", [sub.id, dbSense.id])
+
+    return results.length === 1;
+  };
+
+  async addSubraceSense(sub, sense) {
+    if (await this.subraceSenseExists(sub, sense)) {
+      throw new DuplicateError("Duplicate Subrace Sense", "That Sense is already linked to that Subrace in the Database!");
+    }
+
+    const sql = "INSERT INTO subrace_senses (sub_id, sense_id, range) VALUES($1, $2, $3)";
+    await this.query(sql, [sub.id, sense.sense_id, sense.range])
+
+    return "Successfully added Subrace Sense to Database";
+  };
+
+  async remSubraceSense(sub, sense) {
+    if (!(await this.subraceSenseExists(sub, sense))) {
+      throw new NotFoundError("Subrace Sense not found", "Could not find that Sense for that Subrace in the Database!");
+    }
+
+    await this.query("DELETE FROM subrace_senses WHERE sub_id = $1 AND id = $2", [sub.id, sense.id])
+
+    return "Successfully removed Subrace Sense from Database";
+  };
+
+  async updateSubraceSense(sub, sense) {
+    if (!(await this.subraceSenseExists(sub, sense))) {
+      throw new NotFoundError("Subrace Sense not found", "Could not find that Sense for that Subrace in the Database!");
+    }
+
+    const sql = "UPDATE subrace_senses SET sense_id = $1, range = $2 WHERE sub_id = $3 AND id = $4";
+    await this.query(sql, [sense.sense_id, sense.range, sub.id, sense.id])
+
+    return "Successfully updated Subrace Sense in Database";
+  };
+
+  async getSubraceTrait(sub, trait) {
+    if (!trait) {
+      const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1", [sub.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Subrace Traits found", "Could not find any Traits for that Subrace in the Database!");
+      }
+
+      return results;
+    }
+
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Subrace Trait not found", "Could not find that Trait for that Subrace in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND name = $2", [sub.id, trait.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Subrace Trait not found", "Could not find a Trait with that name for that Subrace in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async subraceTraitExists(sub, trait) {
+    if (trait.id) {
+      const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM subrace_traits WHERE sub_id = $1 AND name = $2", [sub.id, trait.name])
+
+    return results.length === 1;
+  };
+
+  async addSubraceTrait(sub, trait) {
+    if (await this.subraceTraitExists(sub, trait)) {
+      throw new DuplicateError("Duplicate Subrace Trait", "That Trait is already linked to that Subrace in the Database!");
+    }
+
+    const sql = "INSERT INTO subrace_traits (sub_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [sub.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat])
+
+    return "Successfully added Subrace Trait to Database";
+  };
+
+  async remSubraceTrait(sub, trait) {
+    if (!(await this.subraceTraitExists(sub, trait))) {
+      throw new NotFoundError("Subrace Trait not found", "Could not find that Trait for that Subrace in the Database!");
+    }
+
+    await this.query("DELETE FROM subrace_traits WHERE sub_id = $1 AND id = $2", [sub.id, trait.id])
+
+    return "Successfully removed Subrace Trait from Database";
+  };
+
+  async updateSubraceTrait(sub, trait) {
+    if (!(await this.subraceTraitExists(sub, trait))) {
+      throw new NotFoundError("Subrace Trait not found", "Could not find that Trait for that Subrace in the Database!");
+    }
+
+    const sql = "UPDATE subrace_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE sub_id = $12 AND id = $13";
+    await this.query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, sub.id, trait.id])
+
+    return "Successfully updated Subrace Trait in Database";
+  };
+
+  async getSession(server, user, session) {
+    if (!session && !user) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Sessions found", "Could not find any Sessions in the Database!");
+      }
+
+      return results;
+    }
+
+    if (!session && user) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2", [server.id, user.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Sessions found", "Could not find any Sessions of that User in the Database!");
+      }
+
+      return results;
+    }
+
+    if (session.id) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND id = $2", [server.id, session.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("Session not found", "Could not find that Session in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3", [server.id, user.id, session.name])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Session not found", "Could not find a Session with that name of that User in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async sessionExists(server, user, session) {
+    if (session.id) {
+      const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND id = $2", [server.id, session.id])
+
+      return results.length === 1;
+    }
+
+    const results = await this.query("SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3", [server.id, user.id, session.name])
+
+    return results.length === 1;
+  };
+
+  async addSession(server, user, session) {
+    if (await this.sessionExists(server, user, session)) {
+      throw new DuplicateError("Duplicate Session", "A Session with that name already exists in the Database!");
+    }
+
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+
+    const sql = "INSERT INTO sessions (server_id, gm_id, name, description, levels, players, min_runtime, max_runtime, start_time, end_time, date, channel, difficulty, started, finished) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
+    await this.query(sql, [server.id, user.id, session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, date, session.channel, session.difficulty])
+
+    return "Successfully added Session to Database";
+  };
+
+  async remSession(server, user, session) {
+    if (!(await this.sessionExists(server, user, session))) {
+      throw new NotFoundError("Session not found", "Could not find that Session in the Database!");
+    }
+
+    await this.query("DELETE FROM sessions WHERE server_id = $1 AND id = $2", [server.id, session.id])
+
+    return "Successfully removed Session from Database";
+  };
+
+  async updateSession(server, user, session) {
+    if (!(await this.sessionExists(server, user, session))) {
+      throw new NotFoundError("Session not found", "Could not find that Session in the Database!");
+    }
+
+    const sql = "UPDATE sessions SET name = $1, description = $2, levels = $3, players = $4, min_runtime = $5, max_runtime = $6, start_time = $7, end_time = $8, channel = $9, difficulty = $10, started = $11, ended = $12 WHERE server_id = $13 AND id = $14";
+    await this.query(sql, [session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, session.end_time, session.channel, session.difficulty, session.started, session.ended, server.id, session.id])
+    
+    return "Successfully updated Session in Database";
+  };
+
+  async getPlayers(session, player) {
+    if (!player) {
+      const results = await this.query("SELECT * FROM session_players WHERE session_id = $1", [session.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Session Players found", "Could not find any Players for that Session in the Database!");
+      }
+
+      return results;
+    }
+
+    const results = await this.query("SELECT * FROM session_players WHERE session_id = $1 AND id = $2", [session.id, player.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Session Player not found", "Could not find that Player for that Session in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async playerExists(session, player) {
+    const results = await this.query("SELECT * FROM session_players WHERE session_id = $1 AND user_id = $2", [session.id, player.id])
+
+    return results.length === 1;
+  };
+
+  async joinSession(session, player, char) {
+    try {
+      const sesPlayer = await this.getPlayers(session, player)
+
+      if (char.id === sesPlayer.char_id) {
+        throw new DuplicateError("Duplicate Session Player", "That User has already joined that Session with that Character!");
+      }
+
+      const sql = "UPDATE session_players SET char_id = $1 WHERE session_id = $2 AND user_id = $3";
+      await this.query(sql, [char.id, session.id, player.id])
+
+      return "Successfullly updated Playerdata for that Session";
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO session_players VALUES($1, $2, $3)";
+      await this.query(sql, [session.id, player.id, char.id])
+
+      return "Successfully joined Session";
+    }
+  };
+
+  async leaveSession(session, player) {
+    if (!(await this.playerExists(session, player))) {
+      throw new NotFoundError("Session Player not found", "Could not find that Player for that Session in the Database!");
+    }
+
+    await this.query("DELETE FROM session_players WHERE session_id = $1 AND user_id = $2", [session.id, player.id])
+
+    return "Successfully left Session";
+  };
+
+  async getLog(server, log) {
+    if (!log) {
+      const results = await this.query("SELECT * FROM server_logs WHERE server_id = $1 ORDER BY id DESC LIMIT 1", [server.id])
+
+      if (results.length === 0) {
+        throw new NotFoundError("No Logs found", "Could not find any Logs for that Server in the Database!");
+      }
+
+      return results[0];
+    }
+
+    const sql = "SELECT * FROM server_logs WHERE server_id = $1 ORDER BY ABS(EXTRACT(epoch FROM id - $2)) LIMIT 1";
+    const results = await this.query(sql, [server.id, log.id])
+
+    if (results.length === 0) {
+      throw new NotFoundError("Log not found", "Could not find a recent Log for that Server in the Database!");
+    }
+
+    return results[0];
+  };
+
+  async addLog(server) {
+    const date = moment().format("YYYY-MM-DDTHH:mm:ss.msZ");
+    try {
+      const log = this.getLog(server, {id: date})
+
+      const olddate = moment(log.id);
+
+      const diff = moment.duration(date.diff(olddate));
+      const days = diff.asDays();
+      const hours = diff.asHours();
+
+      const sql = "INSERT INTO server_logs VALUES($1, $2)";
+
+      if (days >= 1 || hours >= 8) {
+        await this.query(sql, [server.id, date])
+
+        if (!fs.existsSync(`./logs/server/${server.id}`)) {
+          fs.mkdirSync(`./logs/server/${server.id}`);
+        }
+
+        fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n")
+
+        return "Successfully added new Log to Server";
+      } else {
+        fs.appendFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n")
+
+        throw new BadRequestError("Logfile is too new", "Can\'t create new Log as there is a Logfile newer than 8 hours!");
+      }
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) {
+        throw err;
+      }
+
+      const sql = "INSERT INTO server_logs VALUES($1, $2)";
+      await this.query(sql, [server.id, date])
+
+      if (!fs.existsSync(`./logs/server/${server.id}`)) {
+        fs.mkdirSync(`./logs/server/${server.id}`);
+      }
+
+      fs.writeFileSync(`./logs/server/${server.id}/${id}.log`, "========Beginning of new Log========\n");
+
+      return "Successfully added new Log to Server";
+    }
+  };
+
+  async remLog(server) {
+    const date = moment();
+    const result = await this.query("SELECT COUNT(id) FROM server_logs WHERE server_id = $1", [server.id])
+
+    if (result === 0) {
+      throw new NotFoundError("No Logs found", "Could not find any Logs for that Server in the Database!");
+    }
+
+    if (result === 1) {
+      const results = await this.query("SELECT * FROM server_logs WHERE server_id = $1", [server.id])
+
+      const log = results[0];
+
+      if (moment.duration(date.diff(moment(log.id))).asDays() > 7) {
+        await this.query("DELETE FROM server_logs WHERE server_id = $1 AND id = $2", [server.id, log.id])
+
+        if (fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) {
+          fs.unlinkSync(`./logs/server/${server.id}/${log.id}.log`);
+
+          return "Successfully removed Log from Server in Database";
+        } else {
+          throw new NotFoundError("Logfile not found", "Could not find that Logfile in the Bot\'s files!");
+        }
+      }
+
+      throw new BadRequestError("Logfile is too new", "Could not remove Logfile as the existing Logfile is too new!");
+    }
+
+    const results = await this.query("SELECT * FROM server_logs WHERE server_id = $1 ORDER BY id ASC", [server.id])
+
+    results.map(async (log) => {
+      if (moment.duration(date.diff(moment(log.id))).asDays() > 7) {
+        await this.query("DELETE FROM server_logs WHERE server_id = $1 AND id = $2", [server.id, log.id])
+
+        if (fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) {
+          fs.unlinkSync(`./logs/server/${server.id}/${log.id}.log`);
+        } else {
+          throw new NotFoundError("Logfile not found", "Could not find that Logfile in the Bot\'s files!");
+        }
+      }
+    });
+
+    return "Successfully removed all Server Logs older than 1 Week";
+  };
 }
 const psql = new PSQL();
 
-export default psql;
+export { psql };

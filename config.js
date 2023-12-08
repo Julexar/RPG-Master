@@ -13,4 +13,4 @@ const config = {
     status: 'online',
   }
 }
-export default config;
+export { config };
