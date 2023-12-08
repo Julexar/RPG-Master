@@ -14,7 +14,11 @@
     "util": "^0.12.5"
   },
   "scripts": {
+    "prettier": "npx prettier --write .",
     "start": "node ./index.js",
     "stop": "killall node"
+  },
+  "devDependencies": {
+    "prettier": "^3.1.0"
   }
 }
