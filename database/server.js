@@ -1,9 +1,28 @@
 import { psql } from './psql.js';
 import { DuplicateError, NotFoundError } from '../custom/errors/index.js';
+import { ServerCommand } from './server_command.js';
+import { ServerLog } from './server_log.js';
+import { ServerMember } from './server_member.js';
+import { ServerNote } from './server_note.js';
+import { ServerFeats } from './server_feats.js';
+import { GameMaster } from './gamemaster.js';
+import { Session } from './session.js';
+import { Prefix } from './prefix.js';
 const query = psql.query;
 
-class Server {
-    static async getAll() {
+class server {
+    constructor() {
+        this.commands = ServerCommand;
+        this.logs = ServerLog;
+        this.members = ServerMember;
+        this.notes = ServerNote;
+        this.feats = ServerFeats;
+        this.gms = GameMaster;
+        this.sessions = Session;
+        this.prefixes = Prefix;
+    }
+
+    async getAll() {
         const results = await query('SELECT * FROM servers');
 
         if (results.length === 0) {
@@ -13,7 +32,7 @@ class Server {
         return results;
     }
 
-    static async getOne(server) {
+    async getOne(server) {
         if (server.id) {
             const results = await query('SELECT * FROM servers WHERE id = $1', [server.id]);
 
@@ -33,13 +52,19 @@ class Server {
         return results[0];
     }
 
-    static async exists(server) {
-        const results = await query('SELECT * FROM servers WHERE id = $1', [server.id]);
+    async exists(server) {
+        if (server.id) {
+            const results = await query('SELECT * FROM servers WHERE id = $1', [server.id]);
 
-        return results.length > 0;
+            return results.length === 1;
+        }
+
+        const results = await query('SELECT * FROM servers WHERE name = $1', [server.name]);
+
+        return results.length === 1;
     }
 
-    static async add(server) {
+    async add(server) {
         if (await this.exists(server)) {
             throw new DuplicateError('Duplicate Server', 'This Server already exists in the Database!');
         }
@@ -50,7 +75,7 @@ class Server {
         return `Successfully added Server \"${server.name}\" to Database`;
     }
 
-    static async remove(server) {
+    async remove(server) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -60,7 +85,7 @@ class Server {
         return `Successfully removed Server \"${server.name}\" from Database`;
     }
 
-    static async update(server) {
+    async update(server) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -71,7 +96,7 @@ class Server {
         return `Successfully updated Server \"${server.name}\" in Database`;
     }
 
-    static async setDupSessions(server, bool) {
+    async setDupSessions(server, bool) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -81,7 +106,7 @@ class Server {
         return `Successfully set duplicate Sessions to ${bool}`;
     }
 
-    static async setSumChannel(server, channel) {
+    async setSumChannel(server, channel) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -91,7 +116,7 @@ class Server {
         return `Successfully changed the Summary Channel to <#${channel.id}>`;
     }
 
-    static async setLogChannel(server, channel) {
+    async setLogChannel(server, channel) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -101,7 +126,7 @@ class Server {
         return `Succesfully changed the Log Channel to <#${channel.id}>`;
     }
 
-    static async setGMEdit(server, bool) {
+    async setGMEdit(server, bool) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -111,7 +136,7 @@ class Server {
         return `Successfully set the Ability for GMs to edit to ${bool}`;
     }
 
-    static async getStaffRole(server, type, role) {
+    async getStaffRole(server, type, role) {
         if (!type && !role) {
             const results = await query('SELECT admin_role, mod_role FROM servers WHERE id = $1', [server.id]);
 
@@ -131,7 +156,7 @@ class Server {
         return results[0];
     }
 
-    static async setStaffRole(server, type, role) {
+    async setStaffRole(server, type, role) {
         try {
             const staffRole = await this.getStaffRole(server, type);
 
@@ -153,7 +178,7 @@ class Server {
         }
     }
 
-    static async getDMRole(server) {
+    async getDMRole(server) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -167,7 +192,7 @@ class Server {
         return results[0];
     }
 
-    static async setDMRole(server, role) {
+    async setDMRole(server, role) {
         try {
             const dmRoleID = await this.getDMRole(server);
             if (dmRoleID == role.id) {
@@ -188,7 +213,7 @@ class Server {
         }
     }
 
-    static async toggleLogs(server, bool) {
+    async toggleLogs(server, bool) {
         if (!(await this.exists(server))) {
             throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
         }
@@ -198,5 +223,7 @@ class Server {
         return `Successfully set automatic printing of logs to ${bool}`;
     }
 }
+
+const Server = new server();
 
 export { Server };

@@ -1,6 +1,6 @@
 import { psql } from './psql.js';
 import { NotFoundError, DuplicateError } from '../custom/errors/index.js';
-import { Feats } from './feats.js';
+import { Feats } from './server_feats.js';
 const query = psql.query;
 
 class CharacterRaceFeat {

@@ -10,6 +10,12 @@ import { CharacterNote } from './character_note.js';
 import { CharacterAction } from './character_action.js';
 import { CharacterAttack } from './character_attack.js';
 import { Class } from './class.js';
+import { CharacterClassFeat } from './character_class_feat.js';
+import { CharacterClassProficiency } from './character_class_prof.js';
+import { CharacterRaceFeat } from './character_race_feat.js';
+import { CharacterRaceProficiency } from './character_race_prof.js';
+import { CharacterSubclassProficiency } from './character_subclass_prof.js';
+import { CharacterSubraceProf } from './character_subrace_prof.js';
 const query = psql.query;
 
 class character {
@@ -22,6 +28,12 @@ class character {
         this.notes = CharacterNote;
         this.senses = CharacterSense;
         this.profs = CharacterProficiency;
+        this.class_feats = CharacterClassFeat;
+        this.class_profs = CharacterClassProficiency;
+        this.race_feats = CharacterRaceFeat;
+        this.race_profs = CharacterRaceProficiency;
+        this.subclass_profs = CharacterSubclassProficiency;
+        this.subrace_profs = CharacterSubraceProf;
     }
 
     async getAll(user) {

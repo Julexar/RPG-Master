@@ -1,10 +1,15 @@
 import { psql } from './psql.js';
 import { Command } from './command.js';
+import { ServerCommandRestriction } from './server_command_restriction.js';
 import { NotFoundError, DuplicateError } from '../custom/errors/index.js';
 const query = psql.query;
 
-class ServerCommand {
-    static async getAll(server) {
+class servercommand {
+    constructor() {
+        this.restrictions = ServerCommandRestriction;
+    }
+
+    async getAll(server) {
         const results = await query('SELECT * FROM server_commands WHERE server_id = $1', [server.id]);
 
         if (results.length === 0) {
@@ -38,7 +43,7 @@ class ServerCommand {
         );
     }
 
-    static async getOne(server, command) {
+    async getOne(server, command) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]);
 
@@ -131,7 +136,7 @@ class ServerCommand {
         };
     }
 
-    static async exists(server, command) {
+    async exists(server, command) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]);
 
@@ -143,7 +148,7 @@ class ServerCommand {
         return results.length === 1;
     }
 
-    static async add(server, command) {
+    async add(server, command) {
         if (await this.exists(server, command)) {
             throw new DuplicateError('Duplicate Server Command', 'That Server Command already exists in the Database!');
         }
@@ -165,7 +170,7 @@ class ServerCommand {
         return `Successfully added Command \"${dbCmd.name}\" to Server \"${server.name}\" in Database`;
     }
 
-    static async remove(server, command) {
+    async remove(server, command) {
         if (!(await this.exists(server, command))) {
             throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
         }
@@ -175,7 +180,7 @@ class ServerCommand {
         return `Successfully removed Command \"${command.name}\" from Server \"${server.name}\" in Database`;
     }
 
-    static async toggle(server, command) {
+    async toggle(server, command) {
         if (!(await this.exists(server, command))) {
             throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
         }
@@ -186,7 +191,7 @@ class ServerCommand {
         return `Successfully ${action} Command \"${command.name}\" in Server \"${server.name}\"`;
     }
 
-    static async restrict(server, command) {
+    async restrict(server, command) {
         if (!(await this.exists(server, command))) {
             throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
         }
@@ -196,5 +201,7 @@ class ServerCommand {
         return `Successfully ${action} restrictions of Command \"${command.name}\" in Server \"${server.name}\"`;
     }
 }
+
+const ServerCommand = new servercommand();
 
 export { ServerCommand };

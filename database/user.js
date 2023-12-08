@@ -1,9 +1,14 @@
 import { psql } from './psql.js';
 import { NotFoundError, DuplicateError } from '../custom/errors/index.js';
+import { GlobalNote } from './global_note.js';
 const query = psql.query;
 
-class User {
-    static async getAll() {
+class user {
+    constructor() {
+        this.notes = GlobalNote;
+    }
+
+    async getAll() {
         const results = await query('SELECT * FROM users');
 
         if (results.length === 0) {
@@ -13,7 +18,7 @@ class User {
         return results;
     }
 
-    static async getOne(user) {
+    async getOne(user) {
         if (user.id) {
             const results = await query('SELECT * FROM users WHERE id = $1', [user.id]);
 
@@ -33,7 +38,7 @@ class User {
         return results[0];
     }
 
-    static async exists(user) {
+    async exists(user) {
         if (user.id) {
             const results = await query('SELECT * FROM users WHERE id = $1', [user.id]);
 
@@ -54,7 +59,7 @@ class User {
         return results[0];
     }
 
-    static async add(user) {
+    async add(user) {
         if (await this.exists(user)) {
             throw new DuplicateError('Duplicate User', 'That User already exists in the Database!');
         }
@@ -64,7 +69,7 @@ class User {
         return `Successfully added User \"${user.username}\" to Database`;
     }
 
-    static async remove(user) {
+    async remove(user) {
         if (!(await this.exists(user))) {
             throw new NotFoundError('User not found', 'Could not find that User in the Database!');
         }
@@ -74,7 +79,7 @@ class User {
         return `Successfully removed User \"${user.username}\" from Database`;
     }
 
-    static async update(user) {
+    async update(user) {
         if (!(await this.exists(user))) {
             throw new NotFoundError('User not found', 'Could not find that User in the Database!');
         }
@@ -84,7 +89,7 @@ class User {
         return `Successfully updated User \"${user.username}\" in Database`;
     }
 
-    static async selectChar(user, char) {
+    async selectChar(user, char) {
         if (!(await this.exists(user))) {
             throw new NotFoundError('User not found', 'Could not find that User in the Database!');
         }
@@ -94,5 +99,7 @@ class User {
         return `Successfully changed active character to \"${char.name}\" for \"${user.username}\"`;
     }
 }
+
+const User = new user();
 
 export { User };
