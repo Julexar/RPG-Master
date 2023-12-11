@@ -9,7 +9,7 @@ class UserNote {
             throw new NotFoundError('User not found', 'Could not find that User in the Database!');
         }
 
-        const results = await query('SELECT * FROM user_notes WHERE user_id = $1', [user.id]);
+        const results = await query('SELECT * FROM user_notes WHERE user_id = $1 ORDER BY created_at', [user.id]);
 
         if (results.length === 0) {
             throw new NotFoundError('No Notes found', 'Could not find any Notes for that User in the Database!');
