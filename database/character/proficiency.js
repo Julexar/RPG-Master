@@ -1,12 +1,12 @@
 import { psql } from '../psql.js';
-import { NotFoundError } from '../../custom/errors/index.js';
-import { Proficiency } from '../global/proficiency.js';
+import { NotFoundError } from '../../custom/errors';
+import { Proficiency } from '../global';
 const query = psql.query;
 
 class CharacterProficiency {
     static async getAll(char, prof) {
         if (!prof.type) {
-            const results = await this.query('SELECT * FROM character_proficiencies WHERE char_id = $1', [char.id]);
+            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1', [char.id]);
 
             if (results.length === 0) {
                 throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies for that Character in the Database!');
@@ -27,7 +27,7 @@ class CharacterProficiency {
             );
         }
 
-        const results = await this.query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND type = $2', [char.id, prof.type]);
+        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND type = $2', [char.id, prof.type]);
 
         if (results.length === 0) {
             throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies of that type for that Character in the Database!');
@@ -50,7 +50,7 @@ class CharacterProficiency {
 
     static async getOne(char, prof) {
         if (prof.id) {
-            const results = await this.query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
+            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
 
             if (results.length === 0) {
                 throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
@@ -68,7 +68,7 @@ class CharacterProficiency {
             };
         }
 
-        const results = await this.query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
+        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
 
         if (results.length === 0) {
             throw new NotFoundError('Character Proficiency not found', 'Could not find a Character Proficiency with that name in the Database!');
@@ -88,12 +88,12 @@ class CharacterProficiency {
 
     static async exists(char, prof) {
         if (prof.id) {
-            const results = await this.query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
+            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
 
             return results.length === 1;
         }
 
-        const results = await this.query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
+        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
 
         return results.length === 1;
     }
@@ -127,7 +127,7 @@ class CharacterProficiency {
             throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
         }
 
-        await this.query('DELETE FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
+        await query('DELETE FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
 
         return 'Successfully removed Character Proficiency from Database';
     }

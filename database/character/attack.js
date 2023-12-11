@@ -1,10 +1,10 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
+import { NotFoundError, DuplicateError } from '../../custom/errors';
 const query = psql.query;
 
 class CharacterAttack {
     static async getAll(char) {
-        const results = await this.query('SELECT * FROM character_attacks WHERE char_id = $1', [char.id]);
+        const results = await query('SELECT * FROM character_attacks WHERE char_id = $1', [char.id]);
 
         if (results.length === 0) {
             throw new NotFoundError('No Attacks found', 'Could not find any Attacks for that Character in the Database!');

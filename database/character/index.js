@@ -1,5 +1,5 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
+import { NotFoundError, DuplicateError } from '../../custom/errors';
 import { CharacterStats } from './stats.js';
 import { CharacterFeat } from './feat.js';
 import { CharacterImmunity } from './immunity.js';
@@ -9,13 +9,13 @@ import { CharacterSense } from './sense.js';
 import { CharacterNote } from './note.js';
 import { CharacterAction } from './action.js';
 import { CharacterAttack } from './attack.js';
-import { Class } from '../class/index.js';
-import { CharacterClassFeat } from './class_feat.js';
-import { CharacterClassProficiency } from './class_prof.js';
-import { CharacterRaceFeat } from './race_feat.js';
-import { CharacterRaceProficiency } from './race_prof.js';
-import { CharacterSubclassProficiency } from './subclass_prof.js';
-import { CharacterSubraceProf } from './subrace_prof.js';
+import { Class } from '../global';
+import { CharacterClassFeat } from './class/feat.js';
+import { CharacterClassProficiency } from './class/prof.js';
+import { CharacterRaceFeat } from './race/feat.js';
+import { CharacterRaceProficiency } from './race/prof.js';
+import { CharacterSubclassProficiency } from './subclass/prof.js';
+import { CharacterSubraceProf } from './subrace/prof.js';
 const query = psql.query;
 
 class character {
@@ -37,7 +37,7 @@ class character {
     }
 
     async getAll(user) {
-        const results = await this.query('SELECT * FROM characters WHERE user_id = $1', [user.id]);
+        const results = await query('SELECT * FROM characters WHERE user_id = $1', [user.id]);
 
         if (results.length === 0) {
             throw new NotFoundError('No Characters found', 'Could not find any Characters in the Database!');

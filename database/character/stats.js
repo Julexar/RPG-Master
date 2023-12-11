@@ -1,5 +1,5 @@
 import { psql } from '../psql.js';
-import { NotFoundError } from '../../custom/errors/index.js';
+import { NotFoundError } from '../../custom/errors';
 const query = psql.query;
 
 class CharacterStats {

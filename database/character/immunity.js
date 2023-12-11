@@ -1,12 +1,11 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
-import { Condition } from '../condition.js';
-import { Damagetype } from '../dmgtype.js';
+import { NotFoundError, DuplicateError } from '../../custom/errors';
+import { Condition, Damagetype } from '../global';
 const query = psql.query;
 
 class CharacterImmunity {
-    static async getAll(server, char, immune) {
-        const results = await this.query('SELECT * FROM character_immunities WHERE char_id = $1', [char.id]);
+    static async getAll(server, char) {
+        const results = await query('SELECT * FROM character_immunities WHERE char_id = $1', [char.id]);
 
         if (results.length === 0) {
             throw new NotFoundError('No Character Immunities found', 'Could not find any Immunities for that Character in the Database!');
@@ -38,7 +37,7 @@ class CharacterImmunity {
 
     static async getOne(server, char, immune) {
         if (immune.id) {
-            const results = await this.query('SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]);
+            const results = await query('SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]);
 
             if (results.length === 0) {
                 throw new NotFoundError('Character Immunity not found', 'Could not find that Immunity for that Character in the Database!');
@@ -76,7 +75,7 @@ class CharacterImmunity {
                 break;
         }
 
-        const results = await this.query('SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2', [char.id, dbImmune.id]);
+        const results = await query('SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2', [char.id, dbImmune.id]);
 
         if (results.length === 0) {
             throw new NotFoundError('Character Immunity not found', 'Could not find an Immunity with that name for that Character in the Database!');
@@ -95,7 +94,7 @@ class CharacterImmunity {
 
     static async exists(server, char, immune) {
         if (immune.id) {
-            const results = await this.query('SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]);
+            const results = await query('SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]);
 
             return results.length === 1;
         }
@@ -111,7 +110,7 @@ class CharacterImmunity {
                 break;
         }
 
-        const results = await this.query('SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2', [char.id, dbImmune.id]);
+        const results = await query('SELECT * FROM character_immunities WHERE char_id = $1 AND imm_id = $2', [char.id, dbImmune.id]);
 
         return results.length === 1;
     }

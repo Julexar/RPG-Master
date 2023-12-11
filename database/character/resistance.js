@@ -1,12 +1,11 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
-import { Condition } from '../global/condition.js';
-import { Damagetype } from '../dmgtype.js';
+import { NotFoundError, DuplicateError } from '../../custom/errors';
+import { Condition, Damagetype } from '../global';
 const query = psql.query;
 
 class CharacterResistance {
     static async getAll(server, char) {
-        const results = await this.query('SELECT * FROM character_resistances WHERE char_id = $1', [char.id]);
+        const results = await query('SELECT * FROM character_resistances WHERE char_id = $1', [char.id]);
 
         if (results.length === 0) {
             throw new NotFoundError('No Character Resistances found', 'Could not find any Resistances for that Character in the Database!');
@@ -38,7 +37,7 @@ class CharacterResistance {
 
     static async getOne(server, char, resist) {
         if (resist.id) {
-            const results = await this.query('SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resist.id]);
+            const results = await query('SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resist.id]);
 
             if (results.length === 0) {
                 throw new NotFoundError('Character Resistance not found', 'Could not find that Resistance for that Character in the Database!');
@@ -95,7 +94,7 @@ class CharacterResistance {
 
     static async exists(server, char, resist) {
         if (resist.id) {
-            const results = await this.query('SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resistance.id]);
+            const results = await query('SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resistance.id]);
 
             return results.length === 1;
         }
@@ -111,7 +110,7 @@ class CharacterResistance {
                 break;
         }
 
-        const results = await this.query('SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2', [char.id, dbResist.id]);
+        const results = await query('SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2', [char.id, dbResist.id]);
 
         return results.length === 1;
     }

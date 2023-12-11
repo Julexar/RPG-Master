@@ -1,7 +1,7 @@
 import { psql } from '../../psql.js';
 import { NotFoundError, DuplicateError } from '../../../custom/errors/index.js';
 import { SessionPlayer } from './player.js';
-import { moment } from 'moment';
+import moment from 'moment';
 const query = psql.query;
 
 class Session {

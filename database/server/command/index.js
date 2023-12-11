@@ -1,5 +1,5 @@
 import { psql } from '../../psql.js';
-import { Command } from './command.js';
+import { Command } from '../../global/command.js';
 import { ServerCommandRestriction } from './restriction.js';
 import { NotFoundError, DuplicateError } from '../../../custom/errors/index.js';
 const query = psql.query;

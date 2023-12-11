@@ -1,7 +1,7 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
-import { CharacterAttack } from '../character_attack.js';
-import { Damagetype } from '../dmgtype.js';
+import { NotFoundError, DuplicateError } from '../../custom/errors';
+import { CharacterAttack } from './attack.js';
+import { Damagetype } from '../global';
 const query = psql.query;
 
 class CharacterAction {

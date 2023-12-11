@@ -1,6 +1,6 @@
 import { psql } from '../psql.js';
 import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
-import { User } from '../user/user.js';
+import { User } from '../user';
 const query = psql.query;
 
 class ServerNote {

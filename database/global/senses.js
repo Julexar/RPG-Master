@@ -4,7 +4,7 @@ const query = psql.query;
 
 class Senses {
     static async getAll() {
-        const results = await this.query('SELECT * FROM senses');
+        const results = await query('SELECT * FROM senses');
 
         if (results.length === 0) {
             throw new NotFoundError('No Senses found', 'Could not find any Senses in the Database!');
@@ -15,7 +15,7 @@ class Senses {
 
     static async getOne(sense) {
         if (sense.id) {
-            const results = await this.query('SELECT * FROM senses WHERE id = $1', [sense.id]);
+            const results = await query('SELECT * FROM senses WHERE id = $1', [sense.id]);
 
             if (results.length === 0) {
                 throw new NotFoundError('Sense not found', 'Could not find that Sense in the Database!');
@@ -24,7 +24,7 @@ class Senses {
             return results[0];
         }
 
-        const results = await this.query('SELECT * FROM senses WHERE name = $1', [sense.name]);
+        const results = await query('SELECT * FROM senses WHERE name = $1', [sense.name]);
 
         if (results.length === 0) {
             throw new NotFoundError('Sense not found', 'Could not find a Sense with that name in the Database!');
@@ -35,12 +35,12 @@ class Senses {
 
     static async exists(sense) {
         if (sense.id) {
-            const results = await this.query('SELECT * FROM senses WHERE id = $1', [sense.id]);
+            const results = await query('SELECT * FROM senses WHERE id = $1', [sense.id]);
 
             return results.length === 1;
         }
 
-        const results = await this.query('SELECT * FROM senses WHERE name = $1', [sense.name]);
+        const results = await query('SELECT * FROM senses WHERE name = $1', [sense.name]);
 
         return results.length === 1;
     }

@@ -1,6 +1,6 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
-import { Character } from './index.js';
+import { NotFoundError, DuplicateError } from '../../custom/errors';
+import { Character } from './';
 const query = psql.query;
 
 class CharacterNote {
