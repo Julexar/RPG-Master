@@ -5,6 +5,8 @@ import { ServerLog } from './log.js';
 import { ServerMember } from './member.js';
 import { ServerNote } from './note.js';
 import { ServerFeats } from './feat.js';
+import { ServerClass } from "./class.js";
+import { ServerSubclass } from "./subclass.js";
 import { GameMaster } from './gamemaster.js';
 import { Session } from './session/session.js';
 import { Prefix } from './prefix.js';
@@ -20,6 +22,8 @@ class server {
         this.gms = GameMaster;
         this.sessions = Session;
         this.prefixes = Prefix;
+        this.classes = ServerClass;
+        this.subclasses = ServerSubclass;
     }
 
     async getAll() {
