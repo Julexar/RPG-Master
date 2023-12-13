@@ -165,7 +165,12 @@ class race {
     }
 
     async hasSub(race) {
-        //TODO: Write logic for function
+        if (!(await this.exists(race))) {
+            throw new NotFoundError('Race not found', 'Could not find that Race in the Database!');
+        }
+
+        const results = await query("SELECT sub FROM races WHERE id = $1", [race.id])
+        return results[0];
     }
 }
 
