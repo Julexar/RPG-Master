@@ -12,7 +12,7 @@ class CharacterImmunity {
         }
 
         return Promise.all(
-            results.mao(async (charImmune) => {
+            results.map(async (charImmune) => {
                 let dbImmune;
 
                 switch (charImmune.type) {
