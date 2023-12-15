@@ -1,6 +1,6 @@
 import { psql } from '../psql.js';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../../custom/errors';
-import { Race } from "..";
+import { Race } from '..';
 import { SubraceProficiency } from './proficiency.js';
 import { SubraceSense } from './sense.js';
 import { SubraceTrait } from './trait.js';
@@ -14,7 +14,7 @@ class subrace {
     }
 
     async getAll(race) {
-        if (!await Race.hasSub(race)) {
+        if (!(await Race.hasSub(race))) {
             throw new BadRequestError('Invalid Request', 'This Race does not have Subraces enabled!');
         }
 
@@ -42,7 +42,7 @@ class subrace {
     }
 
     async getOne(race, sub) {
-        if (!await Race.hasSub(race)) {
+        if (!(await Race.hasSub(race))) {
             throw new BadRequestError('Invalid Request', 'This Race does not have Subraces enabled!');
         }
 

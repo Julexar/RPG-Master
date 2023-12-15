@@ -48,10 +48,10 @@ class CharacterSubraceProf {
             };
         }
 
-        const results = await query("SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND name = $3", [char.id, sub.id, prof.name])
+        const results = await query('SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND name = $3', [char.id, sub.id, prof.name]);
 
         if (results.length === 0) {
-            throw new NotFoundError("Character Subrace Proficiency not found", "Could not find a Subrace Proficiency with that name for that Character in the Database!");
+            throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find a Subrace Proficiency with that name for that Character in the Database!');
         }
 
         const charSubProf = results[0];
@@ -108,9 +108,9 @@ class CharacterSubraceProf {
             throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find that Subrace Proficiency for that Character in the Database!');
         }
 
-        await query("DELETE FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3", [char.id, sub.id, prof.id])
+        await query('DELETE FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3', [char.id, sub.id, prof.id]);
 
-        return "Successfully removed Subrace Proficiency from Character in Database";
+        return 'Successfully removed Subrace Proficiency from Character in Database';
     }
 
     static async update(char, sub, prof) {
@@ -118,10 +118,10 @@ class CharacterSubraceProf {
             throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find that Subrace Proficiency for that Character in the Database!');
         }
 
-        const sql = "UPDATE character_subrace_profs SET name = $1, type = $2, expert = $3 WHERE char_id = $4 AND sub_id = $5 AND id = $6";
-        await query(sql, [prof.name, prof.type, prof.expert, char.id, sub.id, prof.id])
+        const sql = 'UPDATE character_subrace_profs SET name = $1, type = $2, expert = $3 WHERE char_id = $4 AND sub_id = $5 AND id = $6';
+        await query(sql, [prof.name, prof.type, prof.expert, char.id, sub.id, prof.id]);
 
-        return "Successfully updated Subrace Proficiency of Character in Database";
+        return 'Successfully updated Subrace Proficiency of Character in Database';
     }
 }
 
