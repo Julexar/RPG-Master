@@ -1,7 +1,9 @@
 'use strict';
 
+const { lazy } = require('@discordjs/util');
 const { ChannelType, PermissionFlagsBits, Routes, ChannelFlags } = require('discord-api-types/v10');
 const { BaseChannel } = require('./BaseChannel');
+const getThreadOnlyChannel = lazy(() => require('./ThreadOnlyChannel'));
 const TextBasedChannel = require('./interfaces/TextBasedChannel');
 const { DiscordjsRangeError, ErrorCodes } = require('../errors');
 const GuildMessageManager = require('../managers/GuildMessageManager');
@@ -248,7 +250,7 @@ class ThreadChannel extends BaseChannel {
 
   /**
    * The parent channel of this thread
-   * @type {?(NewsChannel|TextChannel|ForumChannel)}
+   * @type {?(NewsChannel|TextChannel|ForumChannel|MediaChannel)}
    * @readonly
    */
   get parent() {
@@ -308,11 +310,11 @@ class ThreadChannel extends BaseChannel {
    * or when the original message in the parent channel is deleted.
    * If you just need the id of that message, use {@link ThreadChannel#id} instead.</info>
    * @param {BaseFetchOptions} [options] Additional options for this fetch
-   * @returns {Promise<Message<true>|null>}
+   * @returns {Promise<?Message<true>>}
    */
   // eslint-disable-next-line require-await
   async fetchStarterMessage(options) {
-    const channel = this.parent?.type === ChannelType.GuildForum ? this : this.parent;
+    const channel = this.parent instanceof getThreadOnlyChannel() ? this : this.parent;
     return channel?.messages.fetch({ message: this.id, ...options }) ?? null;
   }
 

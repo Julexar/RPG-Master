@@ -1,13 +1,13 @@
-import { EmbedBuilder } from "discord.js";
+import { EmbedBuilder } from 'discord.js';
 
 class CustomEmbed extends EmbedBuilder {
     constructor(title, description, color, fields, author) {
         super({
-            color: "#00FFFF",
+            color: '#00FFFF',
             description: description,
             footer: {
-                text: "Made by Julexar"
-            }
+                text: 'Made by Julexar',
+            },
         });
 
         this.setTimestamp();
@@ -27,7 +27,7 @@ class CustomEmbed extends EmbedBuilder {
         if (author) {
             this.setAuthor({ name: author.displayName, iconURL: author.iconURL() });
         }
-    };
-};
+    }
+}
 
 export { CustomEmbed };
