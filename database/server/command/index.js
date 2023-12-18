@@ -20,23 +20,12 @@ class servercommand {
             results.map(async (servCmd) => {
                 const dbCmd = await Command.getOne({ id: servCmd.cmd_id }, 'slash');
 
-                if (dbCmd && servCmd.enabled && !dbCmd.enabled) {
-                    return {
-                        id: servCmd.id,
-                        cmd_id: dbCmd.id,
-                        name: dbCmd.name,
-                        type: dbCmd.type,
-                        enabled: false,
-                        restricted: servCmd.restricted,
-                    };
-                }
-
                 return {
                     id: servCmd.id,
                     cmd_id: dbCmd.id,
                     name: dbCmd.name,
                     type: dbCmd.type,
-                    enabled: servCmd.enabled,
+                    enabled: (dbCmd && servCmd.enabled && !dbCmd.enabled) ? false : servCmd.enabled,
                     restricted: servCmd.restricted,
                 };
             })
@@ -54,23 +43,12 @@ class servercommand {
             const servCmd = results[0];
             const dbCmd = await Command.getOne({ id: servCmd.cmd_id }, 'slash');
 
-            if (!dbCmd.enabled) {
-                return {
-                    id: servCmd.id,
-                    cmd_id: dbCmd.id,
-                    name: dbCmd.name,
-                    type: dbCmd.type,
-                    enabled: false,
-                    restricted: servCmd.restricted,
-                };
-            }
-
             return {
                 id: servCmd.id,
                 cmd_id: dbCmd.id,
                 name: dbCmd.name,
                 type: dbCmd.type,
-                enabled: servCmd.enabled,
+                enabled: dbCmd.enabled ? servCmd.enabled : false,
                 restricted: servCmd.restricted,
             };
         }
@@ -85,23 +63,12 @@ class servercommand {
 
             const servCmd = results[0];
 
-            if (!dbCmd.enabled) {
-                return {
-                    id: servCmd.id,
-                    cmd_id: dbCmd.id,
-                    name: dbCmd.name,
-                    type: dbCmd.type,
-                    enabled: false,
-                    restricted: servCmd.restricted,
-                };
-            }
-
             return {
                 id: servCmd.id,
                 cmd_id: dbCmd.id,
                 name: dbCmd.name,
                 type: dbCmd.type,
-                enabled: servCmd.enabled,
+                enabled: dbCmd.enabled ? servCmd.enabled : false,
                 restricted: servCmd.restricted,
             };
         }
@@ -115,23 +82,12 @@ class servercommand {
 
         const servCmd = results[0];
 
-        if (!dbCmd.enabled) {
-            return {
-                id: servCmd.id,
-                cmd_id: dbCmd.id,
-                name: dbCmd.name,
-                type: dbCmd.type,
-                enabled: false,
-                restricted: servCmd.restricted,
-            };
-        }
-
         return {
             id: servCmd.id,
             cmd_id: dbCmd.id,
             name: dbCmd.name,
             type: dbCmd.type,
-            enabled: servCmd.enabled,
+            enabled: dbCmd.enabled ? servCmd.enabled : false,
             restricted: servCmd.restricted,
         };
     }
