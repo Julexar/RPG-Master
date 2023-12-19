@@ -1,3 +1,4 @@
+//TODO: Implement Command
 import { PermissionFlagsBits } from 'discord.js';
 class Command {
     constructor() {

@@ -1,7 +1,5 @@
+//TODO: Implement Command
 import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord.js';
-import { glob } from 'glob';
-import { promisify } from 'util';
-const promiseGlob = promisify(glob);
 import fs from 'fs';
 class Command {
     constructor() {
