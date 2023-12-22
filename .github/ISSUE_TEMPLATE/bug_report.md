@@ -7,7 +7,7 @@ assignees: Julexar
 
 ---
 
-**Describe the issue**
+**Description**
 A clear and concise description of what the issue is.
 
 **To Reproduce**
