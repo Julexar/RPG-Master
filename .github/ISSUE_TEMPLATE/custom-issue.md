@@ -10,5 +10,5 @@ assignees: Julexar
 **Description**
 Describe the issue as detailed as possible.
 
-**Additional Context**
-Any additional context, such as screenshots, steps to reproduce, etc.
+**Additional Information**
+Add any additional information, such as screenshots, links to resources, etc.
