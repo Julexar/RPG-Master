@@ -197,7 +197,7 @@ class server {
             throw new NotFoundError('No GM Role found', 'Could not find a GM Role in the Database!');
         }
 
-        return results[0];
+        return results[0].dm_role;
     }
 
     async setDMRole(server, role) {

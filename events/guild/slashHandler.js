@@ -35,11 +35,11 @@ class slashHandler {
                 .writeLog(interaction.guild, `/${command.name} was triggered by ${interaction.user.username}`)
                 .then((msg) => {
                     client.database.writeDevLog(`${msg}`);
-                    command.run(client, interaction);
+                    command.run(interaction);
                 })
                 .catch((err) => {
                     client.database.writeDevLog(`${err}`);
-                    command.run(client, interaction);
+                    command.run(interaction);
                 });
         }
     }
