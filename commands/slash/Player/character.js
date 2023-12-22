@@ -1,43 +1,43 @@
 import { ActionRowBuilder, ApplicationCommandOptionType, ApplicationCommandPermissionType, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } from "discord.js";
 class Command {
     constructor() {
-        this.name = "character";
-        this.description = "Character related Commands";
+        this.name = 'character';
+        this.description = 'Character related Commands';
         this.enabled = false;
         this.options = [
             {
-                name: "select",
-                description: "Selects a Character",
+                name: 'select',
+                description: 'Selects a Character',
                 type: ApplicationCommandOptionType.Subcommand,
             },
             {
-                name: "view",
-                description: "Posts Info about your Characters",
+                name: 'view',
+                description: 'Posts Info about your Characters',
                 type: ApplicationCommandOptionType.Subcommand,
             },
             {
-                name: "add",
-                description: "Adds a new Character",
+                name: 'add',
+                description: 'Adds a new Character',
                 type: ApplicationCommandOptionType.Subcommand,
             },
             {
-                name: "remove",
-                description: "Removes a Character",
+                name: 'remove',
+                description: 'Removes a Character',
                 type: ApplicationCommandOptionType.Subcommand,
             },
             {
-                name: "edit",
-                description: "Edits a Character",
+                name: 'edit',
+                description: 'Edits a Character',
                 type: ApplicationCommandOptionType.Subcommand,
             },
             {
-                name: "notes",
-                description: "Character Note Commands",
+                name: 'notes',
+                description: 'Character Note Commands',
                 type: ApplicationCommandOptionType.SubcommandGroup,
                 options: [
                     {
-                        name: "view",
-                        description: "Pulls up your Character Notes",
+                        name: 'view',
+                        description: 'Pulls up your Character Notes',
                         type: ApplicationCommandOptionType.Subcommand,
                         options: [
                             {
@@ -45,23 +45,29 @@ class Command {
                                 description: "Provide the ID of the Note",
                                 type: ApplicationCommandOptionType.Integer,
                                 required: false,
-                                min_value: 1
+                                min_value: 1,
+                            },
+                            {
+                                name: 'private',
+                                description: 'Toggle viewing private Notes',
+                                type: ApplicationCommandOptionType.Boolean,
+                                required: true,
                             },
                         ],
                     },
                     {
-                        name: "add",
-                        description: "Adds a Character Note",
+                        name: 'add',
+                        description: 'Adds a Character Note',
                         type: ApplicationCommandOptionType.Subcommand,
                     },
                     {
-                        name: "remove",
-                        description: "Removes a Character Note",
+                        name: 'remove',
+                        description: 'Removes a Character Note',
                         type: ApplicationCommandOptionType.Subcommand,
                     },
                     {
-                        name: "edit",
-                        description: "Edits a Character Note",
+                        name: 'edit',
+                        description: 'Edits a Character Note',
                         type: ApplicationCommandOptionType.Subcommand,
                     },
                 ],
@@ -73,56 +79,30 @@ class Command {
         const option = interaction.options;
         const user = interaction.user;
         const server = interaction.guild;
-        const filter = m => m.user.id == user.id;
+        const filter = (m) => m.user.id == user.id;
         switch (option.getSubcommand()) {
-            case "select":
+            case 'select':
                 const rows = [];
-                rows.push(
-                    new ActionRowBuilder()
-                        .addComponents(
-                            new StringSelectMenuBuilder()
-                                .setCustomId("charsel")
-                                .setMaxValues(1)
-                                .setPlaceholder("No Character selected...")
-                        )
+                rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('charsel').setMaxValues(1).setPlaceholder('No Character selected...')));
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                    new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
+                    new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
                 );
-                const row = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId("prev")
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji("⏪")
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setCustomId("next")
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji("⏩"),
-                        new ButtonBuilder()
-                            .setCustomId("cancel")
-                            .setLabel("Cancel")
-                            .setStyle(ButtonStyle.Danger)
-                    );
-                client.database.getChar(user)
+                client.database
+                    .getChar(user)
                     .then(async (chars) => {
                         let count = 0;
                         let num = 0;
                         for (const char of chars) {
                             if (count == 25) {
-                                rows.push(
-                                new ActionRowBuilder()
-                                    .addComponents(
-                                        new StringSelectMenuBuilder()
-                                            .setCustomId("charsel")
-                                            .setMaxValues(1)
-                                            .setPlaceholder("No Character selected...")
-                                    )
-                                );
+                                rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('charsel').setMaxValues(1).setPlaceholder('No Character selected...')));
                                 num++;
                                 count = 0;
                             }
                             rows[num].components[0].addOptions({
                                 label: `${char.name}`,
-                                value: `${char.id}`
+                                value: `${char.id}`,
                             });
                             count++;
                         }
@@ -130,145 +110,127 @@ class Command {
                         if (rows.length === 1) {
                             row.components[1].setDisabled(true);
                             const msg = await interaction.reply({
-                                content: "Select a Character:",
+                                content: 'Select a Character:',
                                 components: [rows[page], row],
-                                ephemeral: true
+                                ephemeral: true,
                             });
                             const collector = msg.createMessageComponentCollector({
                                 filter,
-                                time: 90000
+                                time: 90000,
                             });
-                            collector.on("collect", async (i) => {
-                                if (i.customId == "charsel") {
+                            collector.on('collect', async (i) => {
+                                if (i.customId == 'charsel') {
                                     const mes = await i.deferReply();
-                                    client.database.selectChar(user, { id: Number(i.values[0]) })
+                                    client.database
+                                        .selectChar(user, { id: Number(i.values[0]) })
                                         .then(async (m) => {
                                             await mes.edit({
-                                                content: `${m}`
+                                                content: `${m}`,
                                             });
                                         })
                                         .catch(async (err) => {
-                                            if (String(err).includes("Error 404")) {
-                                                client.database.writeLog(server, `${err}`)
+                                            if (String(err).includes('Error 404')) {
+                                                client.database
+                                                    .writeLog(server, `${err}`)
                                                     .then(async () => {
                                                         await mes.edit({
-                                                            embeds: [
-                                                                new EmbedBuilder()
-                                                                    .setColor("Red")
-                                                                    .setTitle(`${err}`)
-                                                                    .setDescription("Could not find that Character in the Database. Contact the Developer if this Issue persists.")
-                                                                    .setTimestamp()
-                                                            ],
-                                                            ephemeral: true
+                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Character in the Database. Contact the Developer if this Issue persists.').setTimestamp()],
+                                                            ephemeral: true,
                                                         });
                                                     })
-                                                    .catch(err1 => client.database.writeDevLog(`${err1}`));
+                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
                                             } else {
-                                                client.database.writeLog(server, `${err}`)
-                                                .then(async () => {
-                                                    await mes.edit({
-                                                        embeds: [
-                                                            new EmbedBuilder()
-                                                                .setColor("Red")
-                                                                .setTitle("An Error occurred...")
-                                                                .setDescription(`${err}`)
-                                                                .setTimestamp()
-                                                        ],
-                                                        ephemeral: true
-                                                    });
-                                                })
-                                                .catch(console.error);
+                                                client.database
+                                                    .writeLog(server, `${err}`)
+                                                    .then(async () => {
+                                                        await mes.edit({
+                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                            ephemeral: true,
+                                                        });
+                                                    })
+                                                    .catch(console.error);
                                             }
                                         });
-                                    setTimeout(async function() {
+                                    setTimeout(async function () {
                                         await mes.delete();
                                     }, 5000);
-                                } else if (i.customId == "cancel") {
+                                } else if (i.customId == 'cancel') {
                                     await msg.edit({
-                                        content: "Selection cancelled",
+                                        content: 'Selection cancelled',
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
                                     await collector.stop();
                                 }
                             });
-                            collector.on("end", async (collected) => {
+                            collector.on('end', async (collected) => {
                                 if (collected.size === 0) {
                                     await msg.edit({
-                                        content: "Selection timed out...",
+                                        content: 'Selection timed out...',
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
                                 } else {
                                     console.log(`Collected ${collected.size} Interactions`);
                                 }
-                                setTimeout(async function() {
+                                setTimeout(async function () {
                                     await msg.delete();
                                 }, 5000);
                             });
                         } else if (rows.length > 1) {
                             const msg = await interaction.reply({
-                                content: "Select a Character:",
+                                content: 'Select a Character:',
                                 components: [rows[page], row],
-                                ephemeral: true
+                                ephemeral: true,
                             });
                             const collector = msg.createMessageComponentCollector({
                                 filter,
-                                time: 90000
+                                time: 90000,
                             });
-                            collector.on("collect", async (i) => {
-                                if (i.customId == "charsel") {
+                            collector.on('collect', async (i) => {
+                                if (i.customId == 'charsel') {
                                     const mes = await i.deferReply();
-                                    client.database.selectChar(user, { id: Number(i.values[0]) })
+                                    client.database
+                                        .selectChar(user, { id: Number(i.values[0]) })
                                         .then(async (m) => {
                                             await mes.edit({
-                                                content: `${m}`
+                                                content: `${m}`,
                                             });
                                         })
                                         .catch(async (err) => {
-                                            if (String(err).includes("Error 404")) {
-                                                client.database.writeLog(server, `${err}`)
+                                            if (String(err).includes('Error 404')) {
+                                                client.database
+                                                    .writeLog(server, `${err}`)
                                                     .then(async () => {
                                                         await mes.edit({
-                                                            embeds: [
-                                                                new EmbedBuilder()
-                                                                    .setColor("Red")
-                                                                    .setTitle(`${err}`)
-                                                                    .setDescription("Could not find that Character in the Database. Contact the Developer if this Issue persists.")
-                                                                    .setTimestamp()
-                                                            ],
-                                                            ephemeral: true
+                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Character in the Database. Contact the Developer if this Issue persists.').setTimestamp()],
+                                                            ephemeral: true,
                                                         });
                                                     })
-                                                    .catch(err1 => client.database.writeDevLog(`${err1}`));
+                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
                                             } else {
-                                                client.database.writeLog(server, `${err}`)
+                                                client.database
+                                                    .writeLog(server, `${err}`)
                                                     .then(async () => {
                                                         await mes.edit({
-                                                            embeds: [
-                                                                new EmbedBuilder()
-                                                                    .setColor("Red")
-                                                                    .setTitle("An Error occurred...")
-                                                                    .setDescription(`${err}`)
-                                                                    .setTimestamp()
-                                                            ],
-                                                            ephemeral: true
+                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                            ephemeral: true,
                                                         });
                                                     })
-                                                    .catch(err1 => client.database.writeDevLog(`${err1}`));
+                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
                                             }
                                         });
-                                    setTimeout(async function() {
+                                    setTimeout(async function () {
                                         await mes.delete();
                                     }, 5000);
-                                } else if (i.customId == "cancel") {
+                                } else if (i.customId == 'cancel') {
                                     await msg.edit({
-                                        content: "Selection cancelled",
+                                        content: 'Selection cancelled',
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
                                     await collector.stop();
-                                } else if (i.customId == "prev") {
+                                } else if (i.customId == 'prev') {
                                     await i.deferUpdate();
                                     page--;
                                     if (page >= 0) {
@@ -280,11 +242,11 @@ class Command {
                                             row.components[1].setDisabled(false);
                                         }
                                         await msg.edit({
-                                            content: "Select a Character:",
-                                            components: [rows[page], row]
+                                            content: 'Select a Character:',
+                                            components: [rows[page], row],
                                         });
                                     }
-                                } else if (i.customId == "next") {
+                                } else if (i.customId == 'next') {
                                     page++;
                                     if (page <= rows.length - 1) {
                                         if (page == rows.length - 1) {
@@ -295,43 +257,38 @@ class Command {
                                             row.components[1].setDisabled(false);
                                         }
                                         await msg.edit({
-                                            content: "Select a Character:",
-                                            components: [rows[page], row]
+                                            content: 'Select a Character:',
+                                            components: [rows[page], row],
                                         });
                                     }
                                 }
                             });
-                            collector.on("end", async (collected) => {
+                            collector.on('end', async (collected) => {
                                 if (collected.size === 0) {
                                     await msg.edit({
-                                        content: "Selection timed out...",
+                                        content: 'Selection timed out...',
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
                                 } else {
                                     console.log(`Collected ${collected.size} Interactions`);
                                 }
-                                setTimeout(async function() {
+                                setTimeout(async function () {
                                     await msg.delete();
                                 }, 5000);
                             });
                         }
                     })
                     .catch(async (err) => {
-                        client.database.writeLog(server, `${err}`)
+                        client.database
+                            .writeLog(server, `${err}`)
                             .then(async () => {
                                 await interaction.reply({
-                                    embeds: [
-                                        new EmbedBuilder()
-                                            .setColor("Red")
-                                            .setTitle("An Error occurred...")
-                                            .setDescription(`${err}`)
-                                            .setTimestamp()
-                                    ],
-                                    ephemeral: true
+                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                    ephemeral: true,
                                 });
                             })
-                            .catch(err1 => client.database.writeDevLog(`${err1}`));
+                            .catch((err1) => client.database.writeDevLog(`${err1}`));
                     });
                 return;
             case "view":
@@ -657,13 +614,14 @@ class Command {
                                 }
                             });
                     }
-                } else {
-                    //TODO: View Character Info
-                }
             return;
             case "add":
                 if (option.getSubcommandGroup() == "notes") {
                     //TODO: Add Character Note
+                return;
+            case 'add':
+                if (option.getSubcommandGroup() == 'notes') {
+                    //TODO
                 } else {
                     //TODO: Add Character
                 }
@@ -671,17 +629,12 @@ class Command {
             case "remove":
                 if (option.getSubcommandGroup() == "notes") {
                     //TODO: Remove Character Note
-                } else {
-                    //TODO: Remove Character
-                }
+                return;
             return;
             case "edit":
                 if (option.getSubcommandGroup() == "notes") {
                     //TODO: Edit Character Note
-                } else {
-                    //TODO: Edit Character
-                }
-            return;
+                return;
         }
     }
 }
