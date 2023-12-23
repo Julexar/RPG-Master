@@ -39,14 +39,14 @@ class Command extends CommandBuilder {
             if (err instanceof NotFoundError) {
                 return interaction.reply({ 
                     embeds: [
-                        new ErrorEmbed(`${err}`, `${err.cause}`)
+                        new ErrorEmbed(err, false)
                     ],
                     ephemeral: true
                 });
             } else {
                 return interaction.reply({
                     embeds: [
-                        new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+                        new ErrorEmbed(err, true)
                     ],
                     ephemeral: true
                 });

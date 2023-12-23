@@ -453,9 +453,9 @@ async function addGM(server, user, role) {
         client.logServerError(server, err);
 
         if (err instanceof DuplicateError) {
-            return new ErrorEmbed(`${err}`, `${err.cause}`)
+            return new ErrorEmbed(err, false)
         } else {
-            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+            return new ErrorEmbed(err, true)
         }
     }
 }
@@ -473,9 +473,9 @@ async function remGM(server, user, role) {
         client.logServerError(server, err);
 
         if (err instanceof NotFoundError) {
-            return new ErrorEmbed(`${err}`, `${err.cause}`)
+            return new ErrorEmbed(err, false)
         } else {
-            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+            return new ErrorEmbed(err, true)
         }
     }
 }
@@ -487,7 +487,7 @@ async function setGMEdit(server, bool) {
 
         return new SuccessEmbed(msg || "Success", `The Ability for GMs to edit Rules, create custom Assets etc has been ${option}!`)
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -500,7 +500,7 @@ async function setRole(server, type, role1, role2) {
             return await setStaffRole(server, role1, role2);
         }
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -510,7 +510,7 @@ async function setDMRole(server, role) {
 
         return new SuccessEmbed(msg || "Success", `DM Role has been set to <@&${role.id}>!`)
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -523,7 +523,7 @@ async function setStaffRole(server, role1, role2) {
 
         return new SuccessEmbed("Success", message)
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -536,7 +536,7 @@ async function getRole(server, type) {
             return await getStaffRole(server);
         }
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -548,9 +548,9 @@ async function getDMRole(server) {
         return new ListEmbed("DM Role", `This Server\'s DM Role is: <@&${role.id}>`, null)
     } catch (err) {
         if (err instanceof NotFoundError) {
-            return new ErrorEmbed(`${err}`, `${err.cause}`)
+            return new ErrorEmbed(err, false)
         } else {
-            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+            return new ErrorEmbed(err, true)
         }
     }
 }
@@ -574,9 +574,9 @@ async function getStaffRole(server) {
         ])
     } catch (err) {
         if (err instanceof NotFoundError) {
-            return new ErrorEmbed(`${err}`, `${err.cause}`)
+            return new ErrorEmbed(err, false)
         } else {
-            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+            return new ErrorEmbed(err, true)
         }
     }
 }
@@ -587,7 +587,7 @@ async function setSumChan(server, channel) {
 
         return new SuccessEmbed(msg || "Success", `Summary Channel for Sessions has been set to <#${channel.id}>`)
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -597,7 +597,7 @@ async function setLogChan(server, channel) {
 
         return new SuccessEmbed(msg || "Success", `Log Channel has been set to <#${channel.id}>`)
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -609,7 +609,7 @@ async function setDupSessions(server, bool) {
 
         return new SuccessEmbed(msg || "Success", `The creation of duplicate Sessions has been ${action}!`)
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -621,7 +621,7 @@ async function toggleLogs(server, bool) {
 
         return new SuccessEmbed(msg || "Success", `The printing of Logs in the Log Channel has been ${action}!`)
     } catch (err) {
-        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+        return new ErrorEmbed(err, true)
     }
 }
 
@@ -791,4 +791,4 @@ const command = new Command({
     ]
 });
 
-export default command;
+export { command };

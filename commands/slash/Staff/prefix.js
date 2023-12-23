@@ -184,14 +184,14 @@ class Command extends CommandBuilder {
                     if (err instanceof NotFoundError) {
                         return interaction.reply({ 
                             embeds: [
-                                new ErrorEmbed(`${err}`, `${err.cause}`)
+                                new ErrorEmbed(err, false)
                             ],
                             ephemeral: true
                         });
                     } else {
                         return interaction.reply({
                             embeds: [
-                                new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+                                new ErrorEmbed(err, true)
                             ],
                             ephemeral: true
                         });
@@ -210,9 +210,9 @@ async function addPrefix(guild, prefix) {
         client.writeServerLog(guild, err);
 
         if (err instanceof DuplicateError) {
-            return new ErrorEmbed(`${err}`, `${err.cause}`)
+            return new ErrorEmbed(err, false)
         } else {
-            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+            return new ErrorEmbed(err, true)
         }
     }
 }
@@ -226,9 +226,9 @@ async function removePrefix(guild, prefix) {
         client.writeServerLog(guild, err);
 
         if (err instanceof NotFoundError) {
-            return new ErrorEmbed(`${err}`, `${err.cause}`)
+            return new ErrorEmbed(err, false)
         } else {
-            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+            return new ErrorEmbed(err, true)
         }
     }
 }
