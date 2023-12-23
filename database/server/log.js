@@ -36,6 +36,16 @@ class ServerLog {
         return results[0];
     }
 
+    static async getLatest(server) {
+        const results = await query('SELECT * FROM server_logs WHERE server_id = $1 ORDER BY created_at DESC LIMIT 1', [server.id]);
+
+        if (results.length === 0) {
+            throw new NotFoundError('No Logs found', 'Could not find any Logs for that Server in the Database!');
+        }
+
+        return results[0];
+    }
+
     static async add(server, log) {
         const date = moment().format('YYYY-MM-DDTHH:mm:ss.msZ');
         try {

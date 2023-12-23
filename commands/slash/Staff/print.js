@@ -1,50 +1,63 @@
-import { EmbedBuilder } from 'discord.js';
-class Command {
-    constructor() {
-        this.name = 'print';
-        this.description = 'Prints Logs';
+import { CommandBuilder } from "../../../custom/builders";
+import { client } from "../../..";
+import { NotFoundError } from "../../../custom/errors";
+import { ErrorEmbed } from "../../../custom/embeds";
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.enabled = true;
     }
-    async run(client, interaction) {
-        const server = interaction.guild;
-        client.database
-            .getLog(server)
-            .then(async (log) => {
-                client.database
-                    .getServer(server)
-                    .then(async (serv) => {
-                        if (serv.log_chan) {
-                            const chan = server.channels.cache.get(serv.log_chan);
-                            await chan.send({
-                                files: [`./logs/server/${server.id}/${log.id}.log`],
-                            });
-                            await interaction.reply({
-                                content: `Logfile has been sent to <#${chan.id}>`,
-                            });
-                        } else {
-                            await interaction.reply({
-                                content: 'No Log Channel defined!',
-                                files: [`./logs/server/${server.id}/${log.id}.log`],
-                            });
-                        }
+    
+    /**
+     * 
+     * @param {import("discord.js").CommandInteraction} interaction
+     */
+    async run(interaction) {
+        const guild = interaction.guild;
+        try {
+            const server = await client.database.Server.getOne(guild)
+            const log = await client.database.Server.logs.getLatest(server)
+
+            if (server.log_chan) {
+                const channel = guild.channels.cache.get(server.log_chan);
+                if (channel) {
+                    await channel.send({
+                        files: [`./logs/server/${server.id}/${log.created_at}.log`]
                     })
-                    .catch(async (err) => {
-                        if (String(err).includes('Error 404')) {
-                            await interaction.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Server in the Database! Contact the Developer if this Issue persists.').setTimestamp()],
-                                ephemeral: true,
-                            });
-                        } else {
-                            await interaction.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                ephemeral: true,
-                            });
-                        }
+
+                    return interaction.reply({
+                        content: `The Log has been sent to <#${channel.id}>`,
+                        ephemeral: true
                     });
-            })
-            .catch((err) => {
-                client.database.writeLog(server, `${err}`).then(console.log).catch(console.error);
-            });
+                }
+            }
+        } catch (err) {
+            client.writeServerLog(guild, err);
+
+            if (err instanceof NotFoundError) {
+                return interaction.reply({ 
+                    embeds: [
+                        new ErrorEmbed(`${err}`, `${err.cause}`)
+                    ],
+                    ephemeral: true
+                });
+            } else {
+                return interaction.reply({
+                    embeds: [
+                        new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
+                    ],
+                    ephemeral: true
+                });
+            }
+        }
     }
 }
-export default new Command();
+
+const command = new Command({
+    name: 'print',
+    description: 'Prints the Log'
+})
+
+export { command };

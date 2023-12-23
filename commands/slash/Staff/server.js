@@ -1,5 +1,6 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits, StringSelectMenuBuilder } from "discord.js";
+import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, PermissionFlagsBits, StringSelectMenuBuilder } from "discord.js";
 import { CommandBuilder } from "../../../custom/builders";
+import { SuccessEmbed, ErrorEmbed, ListEmbed } from "../../../custom/embeds"
 import { client } from "../../..";
 import { DuplicateError, NotFoundError } from "../../../custom/errors";
 
@@ -10,6 +11,10 @@ class Command extends CommandBuilder {
         this.enabled = true;
     };
 
+    /**
+     * 
+     * @param {import("discord.js").CommandInteraction} interaction
+     */
     async run(interaction) {
         const option = interaction.options;
         const guild = interaction.guild;
@@ -209,10 +214,7 @@ class Command extends CommandBuilder {
 
                             count, num, page = 0;
 
-                            const emb = new EmbedBuilder()
-                            .setColor("#00ffff")
-                            .setTitle("GM List")
-                            .setDescription("");
+                            const emb = new ListEmbed("GM List", "", null)
 
                             embeds.push(emb);
 
@@ -299,22 +301,14 @@ class Command extends CommandBuilder {
                             if (err instanceof NotFoundError) {
                                 await interaction.reply({
                                     embeds: [
-                                        new EmbedBuilder()
-                                        .setColor("#ff0000")
-                                        .setTitle(`${err}`)
-                                        .setDescription(`${err.cause}`)
-                                        .setTimestamp()
+                                        new ErrorEmbed(`${err}`, `${err.cause}`)
                                     ],
                                     ephemeral: true
                                 });
                             } else {
                                 await interaction.reply({
                                     embeds: [
-                                        new EmbedBuilder()
-                                        .setColor("#ff0000")
-                                        .setTitle("An Error occurred...")
-                                        .setDescription(`${err}\n${err.cause}`)
-                                        .setTimestamp()
+                                        new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
                                     ],
                                     ephemeral: true
                                 });
@@ -454,27 +448,14 @@ async function addGM(server, user, role) {
         await member.roles.add(role);
 
         client.writeServerLog(server, msg);
-
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`<@${user.id}> has been registered as a GM!`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `<@${user.id}> has been registered as a GM!`)
     } catch (err) {
         client.logServerError(server, err);
 
         if (err instanceof DuplicateError) {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle(`${msg}`)
-            .setDescription("This User already is a registered GM!")
-            .setTimestamp()
+            return new ErrorEmbed(`${err}`, `${err.cause}`)
         } else {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle("An Error occurred...")
-            .setDescription(`${err}\n${err.cause}`)
-            .setTimestamp()
+            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
         }
     }
 }
@@ -487,26 +468,14 @@ async function remGM(server, user, role) {
 
         await member.roles.remove(role);
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`<@${user.id}> has been unregistered as a GM!`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `<@${user.id}> has been unregistered as a GM!`)
     } catch (err) {
         client.logServerError(server, err);
 
         if (err instanceof NotFoundError) {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle(`${msg}`)
-            .setDescription("This User is not registered as a GM!")
-            .setTimestamp()
+            return new ErrorEmbed(`${err}`, `${err.cause}`)
         } else {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle("An Error occurred...")
-            .setDescription(`${err}\n${err.cause}`)
-            .setTimestamp()
+            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
         }
     }
 }
@@ -516,17 +485,9 @@ async function setGMEdit(server, bool) {
         const msg = await client.database.Server.setGMEdit(server, bool)
         const option = bool ? "enabled" : "disabled";
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`The Ability for GMs to edit Rules, create custom Assets etc has been ${option}!`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `The Ability for GMs to edit Rules, create custom Assets etc has been ${option}!`)
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -539,11 +500,7 @@ async function setRole(server, type, role1, role2) {
             return await setStaffRole(server, role1, role2);
         }
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -551,17 +508,9 @@ async function setDMRole(server, role) {
     try {
         const msg = await client.database.Server.setDMRole(server, role)
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`DM Role has been set to <@&${role.id}>!`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `DM Role has been set to <@&${role.id}>!`)
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -572,17 +521,9 @@ async function setStaffRole(server, role1, role2) {
 
         const message = msg1 && msg2 ? `Staff Roles have been set to <@&${role1.id}> and <@&${role2.id}>!` : (msg1 ? msg1 : msg2)
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle("Success")
-        .setDescription(message)
-        .setTimestamp()
+        return new SuccessEmbed("Success", message)
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -595,11 +536,7 @@ async function getRole(server, type) {
             return await getStaffRole(server);
         }
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -608,24 +545,12 @@ async function getDMRole(server) {
         const roleID = client.database.Server.getDMRole(server)
         const role = await server.roles.cache.get(roleID)
 
-        return new EmbedBuilder()
-        .setColor("#00ffff")
-        .setTitle("DM Role")
-        .setDescription(`This Server\'s DM Role is: <@&${role.id}>`)
-        .setTimestamp()
+        return new ListEmbed("DM Role", `This Server\'s DM Role is: <@&${role.id}>`, null)
     } catch (err) {
         if (err instanceof NotFoundError) {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle(`${err}`)
-            .setDescription(`${err.cause}`)
-            .setTimestamp()
+            return new ErrorEmbed(`${err}`, `${err.cause}`)
         } else {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle("An Error occurred...")
-            .setDescription(`${err}\n${err.cause}`)
-            .setTimestamp()
+            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
         }
     }
 }
@@ -637,10 +562,7 @@ async function getStaffRole(server) {
         const adminRole = await server.roles.cache.get(adminId)
         const modRole = await server.roles.cache.get(modId)
 
-        return new EmbedBuilder()
-        .setColor("#00ffff")
-        .setTitle("Staff Roles")
-        .setFields(
+        return new ListEmbed("Staff Roles", "This Server\'s Staff Roles are:", [
             {
                 name: "Admin Role",
                 value: `<@&${adminRole.id}>`
@@ -649,21 +571,12 @@ async function getStaffRole(server) {
                 name: "Moderator Role",
                 value: `<@&${modRole.id}>`
             }
-        )
-        .setTimestamp()
+        ])
     } catch (err) {
         if (err instanceof NotFoundError) {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle(`${err}`)
-            .setDescription(`${err.cause}`)
-            .setTimestamp()
+            return new ErrorEmbed(`${err}`, `${err.cause}`)
         } else {
-            return new EmbedBuilder()
-            .setColor("#ff0000")
-            .setTitle("An Error occurred...")
-            .setDescription(`${err}\n${err.cause}`)
-            .setTimestamp()
+            return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
         }
     }
 }
@@ -672,17 +585,9 @@ async function setSumChan(server, channel) {
     try {
         const msg = await client.database.Server.setSumChannel(server, channel)
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`Summary Channel for Sessions has been set to <#${channel.id}>`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `Summary Channel for Sessions has been set to <#${channel.id}>`)
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -690,17 +595,9 @@ async function setLogChan(server, channel) {
     try {
         const msg = await client.database.Server.setLogChannel(server, channel)
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`Log Channel has been set to <#${channel.id}>`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `Log Channel has been set to <#${channel.id}>`)
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -710,17 +607,9 @@ async function setDupSessions(server, bool) {
 
         const action = bool ? "enabled" : "disabled";
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`The creation of duplicate Sessions has been ${action}!`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `The creation of duplicate Sessions has been ${action}!`)
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
@@ -730,17 +619,9 @@ async function toggleLogs(server, bool) {
 
         const action = bool ? "enabled" : "disabled";
 
-        return new EmbedBuilder()
-        .setColor("#65fe08")
-        .setTitle(msg || "Success")
-        .setDescription(`The printing of Logs in the Log Channel has been ${action}!`)
-        .setTimestamp()
+        return new SuccessEmbed(msg || "Success", `The printing of Logs in the Log Channel has been ${action}!`)
     } catch (err) {
-        return new EmbedBuilder()
-        .setColor("#ff0000")
-        .setTitle("An Error occurred...")
-        .setDescription(`${err}\n${err.cause}`)
-        .setTimestamp()
+        return new ErrorEmbed("An Error occurred...", `${err}\n${err.cause}`)
     }
 }
 
