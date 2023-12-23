@@ -1,4 +1,13 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import {
+    ActionRowBuilder,
+    ApplicationCommandOptionType,
+    ButtonBuilder,
+    ButtonStyle,
+    EmbedBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+} from 'discord.js';
 class Command {
     constructor() {
         this.name = 'roll';
@@ -152,7 +161,9 @@ class Command {
                             value: ' ',
                         })
                         .setTimestamp();
-                    const row1 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('setform').setLabel('Set Formula').setStyle(ButtonStyle.Primary).setEmoji('📝'));
+                    const row1 = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('setform').setLabel('Set Formula').setStyle(ButtonStyle.Primary).setEmoji('📝')
+                    );
                     const row2 = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId('finish').setLabel('Finish Formula').setStyle(ButtonStyle.Success),
                         new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
@@ -168,7 +179,13 @@ class Command {
                     });
                     collector.on('collect', async (i) => {
                         if (i.customId == 'setform') {
-                            const mr = new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('formula').setLabel('Provide your Formula:').setStyle(TextInputStyle.Short).setRequired(true));
+                            const mr = new ActionRowBuilder().addComponents(
+                                new TextInputBuilder()
+                                    .setCustomId('formula')
+                                    .setLabel('Provide your Formula:')
+                                    .setStyle(TextInputStyle.Short)
+                                    .setRequired(true)
+                            );
                             const modal = new ModalBuilder().setCustomId('diceform').setTitle('Dice Formula').addComponents(mr);
                             await i.showModal(modal);
                             const filt = (int) => int.customId == 'diceform';

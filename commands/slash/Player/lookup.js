@@ -155,12 +155,24 @@ class Command {
                                             .then(async () => {
                                                 if (String(err).includes('Error 404')) {
                                                     await interaction.reply({
-                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Armor in the Database!').setTimestamp()],
+                                                        embeds: [
+                                                            new EmbedBuilder()
+                                                                .setColor('Red')
+                                                                .setTitle(`${err}`)
+                                                                .setDescription('Could not find that Armor in the Database!')
+                                                                .setTimestamp(),
+                                                        ],
                                                         ephemeral: true,
                                                     });
                                                 } else {
                                                     await interaction.reply({
-                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                        embeds: [
+                                                            new EmbedBuilder()
+                                                                .setColor('Red')
+                                                                .setTitle('An Error occurred...')
+                                                                .setDescription(`${err}`)
+                                                                .setTimestamp(),
+                                                        ],
                                                         ephemeral: true,
                                                     });
                                                 }
@@ -228,14 +240,22 @@ class Command {
                                             new EmbedBuilder()
                                                 .setColor('Red')
                                                 .setTitle(`${err}`)
-                                                .setDescription('Could not find any Armors in the Database, ask Staff or a GM to add custom Armor, using </game add armor:1124244803048177726>, before you use this Command again!')
+                                                .setDescription(
+                                                    'Could not find any Armors in the Database, ask Staff or a GM to add custom Armor, using </game add armor:1124244803048177726>, before you use this Command again!'
+                                                )
                                                 .setTimestamp(),
                                         ],
                                         ephemeral: true,
                                     });
                                 } else {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 }
@@ -354,12 +374,26 @@ class Command {
                                             .then(async () => {
                                                 if (String(err).includes('Error 404')) {
                                                     await mes.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find this Class in the Database! Contact the Developer if this Issue persists.').setTimestamp()],
+                                                        embeds: [
+                                                            new EmbedBuilder()
+                                                                .setColor('Red')
+                                                                .setTitle(`${err}`)
+                                                                .setDescription(
+                                                                    'Could not find this Class in the Database! Contact the Developer if this Issue persists.'
+                                                                )
+                                                                .setTimestamp(),
+                                                        ],
                                                         ephemeral: true,
                                                     });
                                                 } else {
                                                     await mes.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                        embeds: [
+                                                            new EmbedBuilder()
+                                                                .setColor('Red')
+                                                                .setTitle('An Error occurred...')
+                                                                .setDescription(`${err}`)
+                                                                .setTimestamp(),
+                                                        ],
                                                         ephemeral: true,
                                                     });
                                                 }
@@ -427,14 +461,28 @@ class Command {
                                 if (String(err).includes('Error 404')) {
                                     await msg.edit({
                                         content: '',
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find any Classes in the Database! Contact the Developer if this Issue persists.').setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle(`${err}`)
+                                                .setDescription(
+                                                    'Could not find any Classes in the Database! Contact the Developer if this Issue persists.'
+                                                )
+                                                .setTimestamp(),
+                                        ],
                                         components: [],
                                         ephemeral: true,
                                     });
                                 } else {
                                     await msg.edit({
                                         content: '',
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         components: [],
                                         ephemeral: true,
                                     });

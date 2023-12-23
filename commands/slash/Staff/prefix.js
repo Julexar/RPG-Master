@@ -13,7 +13,7 @@ class Command extends CommandBuilder {
     }
 
     /**
-     * 
+     *
      * @param {import("discord.js").CommandInteraction} interaction
      */
     async run(interaction) {
@@ -21,52 +21,39 @@ class Command extends CommandBuilder {
         const user = interaction.user;
         const guild = interaction.guild;
         let embed, emph, rows, collector, msg, prefixes;
-        let count, num, page = 0;
+        let count,
+            num,
+            page = 0;
 
-        const row2 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder()
-                .setCustomId('prev')
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('⏪')
-                .setDisabled(true),
-            new ButtonBuilder()
-                .setCustomId('next')
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('⏩'),
-            new ButtonBuilder()
-                .setCustomId('cancel')
-                .setStyle(ButtonStyle.Danger)
-                .setLabel('Cancel')
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
+            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
         );
 
-        const filter = m => m.user.id === user.id;
+        const filter = (m) => m.user.id === user.id;
 
         switch (option.getSubcommand()) {
             case 'add':
                 const prefix = option.getString('prefix');
-                
+
                 embed = await addPrefix(guild, prefix);
 
-                emph = embed.data.color === "#FF0000"
+                emph = embed.data.color === '#FF0000';
 
                 return await interaction.reply({
                     embeds: [embed],
-                    ephemeral: emph
+                    ephemeral: emph,
                 });
             case 'remove':
-                const row = new ActionRowBuilder()
-                .addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId('prefix_select')
-                        .setPlaceholder('No Prefix selected...')
-                        .setMaxValues(1)
+                const row = new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder().setCustomId('prefix_select').setPlaceholder('No Prefix selected...').setMaxValues(1)
                 );
 
                 rows = [];
                 rows.push(row);
 
-                prefixes = await client.database.Server.prefixes.getAll(guild)
+                prefixes = await client.database.Server.prefixes.getAll(guild);
 
                 for (const prefix of prefixes) {
                     if (count === 24) {
@@ -77,7 +64,7 @@ class Command extends CommandBuilder {
 
                     rows[num].components[0].addOptions({
                         label: prefix.prefix,
-                        value: `${prefix.id}`
+                        value: `${prefix.id}`,
                     });
                     count++;
                 }
@@ -85,28 +72,28 @@ class Command extends CommandBuilder {
                 msg = await interaction.reply({
                     content: 'Select a Prefix to remove',
                     components: [rows[page], row2],
-                    ephemeral: true
+                    ephemeral: true,
                 });
 
                 collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                collector.on('collect', async i => {
+                collector.on('collect', async (i) => {
                     switch (i.customId) {
                         case 'prefix_select':
-                            const prefix = await client.database.Server.prefixes.getOne(guild, {id: i.values[0]})
+                            const prefix = await client.database.Server.prefixes.getOne(guild, { id: i.values[0] });
 
                             embed = await removePrefix(guild, prefix);
 
-                            emph = embed.data.color === "#FF0000"
+                            emph = embed.data.color === '#FF0000';
 
                             await i.deferReply({
                                 embeds: [embed],
-                                ephemeral: emph
+                                ephemeral: emph,
                             });
-                        break;
+                            break;
                         case 'prev':
                             await i.deferUpdate();
-                            
+
                             if (page > 0) {
                                 page--;
 
@@ -120,10 +107,10 @@ class Command extends CommandBuilder {
 
                                 await msg.edit({
                                     components: [rows[page], row2],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             }
-                        break;
+                            break;
                         case 'next':
                             await i.deferUpdate();
 
@@ -140,15 +127,15 @@ class Command extends CommandBuilder {
 
                                 await msg.edit({
                                     components: [rows[page], row2],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             }
-                        break;
+                            break;
                         case 'cancel':
                             await i.deferUpdate();
 
                             collector.stop();
-                        break;
+                            break;
                     }
                 });
 
@@ -157,7 +144,7 @@ class Command extends CommandBuilder {
                         await msg.edit({
                             content: 'Selection timed out...',
                             components: [],
-                            ephemeral: true
+                            ephemeral: true,
                         });
                     }
 
@@ -167,33 +154,27 @@ class Command extends CommandBuilder {
                         await msg.delete();
                     }, 5000);
                 });
-            break;
+                break;
             case 'list':
                 try {
-                    prefixes = await client.database.Server.prefixes.getAll(guild)
-                    prefixes = prefixes.join("\n")
+                    prefixes = await client.database.Server.prefixes.getAll(guild);
+                    prefixes = prefixes.join('\n');
 
                     return await interaction.reply({
-                        embeds: [
-                            new ListEmbed("Prefixes", prefixes)
-                        ],
+                        embeds: [new ListEmbed('Prefixes', prefixes)],
                     });
                 } catch (err) {
                     client.writeServerLog(guild, err);
 
                     if (err instanceof NotFoundError) {
-                        return interaction.reply({ 
-                            embeds: [
-                                new ErrorEmbed(err, false)
-                            ],
-                            ephemeral: true
+                        return interaction.reply({
+                            embeds: [new ErrorEmbed(err, false)],
+                            ephemeral: true,
                         });
                     } else {
                         return interaction.reply({
-                            embeds: [
-                                new ErrorEmbed(err, true)
-                            ],
-                            ephemeral: true
+                            embeds: [new ErrorEmbed(err, true)],
+                            ephemeral: true,
                         });
                     }
                 }
@@ -205,14 +186,14 @@ async function addPrefix(guild, prefix) {
     try {
         const msg = await client.database.Server.prefixes.add(guild, prefix);
 
-        return new SuccessEmbed(msg || "Success", `The Prefix \`${prefix}\` has been added!`)
+        return new SuccessEmbed(msg || 'Success', `The Prefix \`${prefix}\` has been added!`);
     } catch (err) {
         client.writeServerLog(guild, err);
 
         if (err instanceof DuplicateError) {
-            return new ErrorEmbed(err, false)
+            return new ErrorEmbed(err, false);
         } else {
-            return new ErrorEmbed(err, true)
+            return new ErrorEmbed(err, true);
         }
     }
 }
@@ -221,14 +202,14 @@ async function removePrefix(guild, prefix) {
     try {
         const msg = await client.database.Server.prefixes.remove(guild, prefix);
 
-        return new SuccessEmbed(msg || "Success", `The Prefix \`${prefix}\` has been removed!`)
+        return new SuccessEmbed(msg || 'Success', `The Prefix \`${prefix}\` has been removed!`);
     } catch (err) {
         client.writeServerLog(guild, err);
 
         if (err instanceof NotFoundError) {
-            return new ErrorEmbed(err, false)
+            return new ErrorEmbed(err, false);
         } else {
-            return new ErrorEmbed(err, true)
+            return new ErrorEmbed(err, true);
         }
     }
 }
@@ -261,7 +242,7 @@ const command = new Command({
             description: 'Shows a List of all Prefixes',
             type: ApplicationCommandOptionType.Subcommand,
         },
-    ]
+    ],
 });
 
 export { command };

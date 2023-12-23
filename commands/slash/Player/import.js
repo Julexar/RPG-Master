@@ -42,7 +42,13 @@ class Command {
                     .getChar(user, { name: char.name })
                     .then(async () => {
                         await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle('Error 409: Duplicate Character').setDescription('You already have a Character with that Name!').setTimestamp()],
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Red')
+                                    .setTitle('Error 409: Duplicate Character')
+                                    .setDescription('You already have a Character with that Name!')
+                                    .setTimestamp(),
+                            ],
                             ephemeral: true,
                         });
                     })
@@ -211,7 +217,13 @@ class Command {
                                         .writeLog(server, `${err}`)
                                         .then(async () => {
                                             await interaction.reply({
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occured during Character Import!').setDescription(`${err}`).setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle('An Error occured during Character Import!')
+                                                        .setDescription(`${err}`)
+                                                        .setTimestamp(),
+                                                ],
                                                 ephemeral: true,
                                             });
                                         })
@@ -222,7 +234,13 @@ class Command {
                                 .writeLog(server, `${err}`)
                                 .then(async () => {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 })
@@ -235,7 +253,13 @@ class Command {
                     .writeLog(server, `${err}`)
                     .then(async () => {
                         await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('The Link you provided is invalid!').setTimestamp()],
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Red')
+                                    .setTitle(`${err}`)
+                                    .setDescription('The Link you provided is invalid!')
+                                    .setTimestamp(),
+                            ],
                             ephemeral: true,
                         });
                     })

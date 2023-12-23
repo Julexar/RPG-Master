@@ -78,7 +78,10 @@ class CharacterResistance {
         const results = await query('SELECT * FROM character_resistances WHERE char_id = $1 AND res_id = $2', [char.id, dbResist.id]);
 
         if (results.length === 0) {
-            throw new NotFoundError('Character Resistance not found', 'Could not find a Resistance with that name for that Character in the Database!');
+            throw new NotFoundError(
+                'Character Resistance not found',
+                'Could not find a Resistance with that name for that Character in the Database!'
+            );
         }
 
         const charResist = results[0];

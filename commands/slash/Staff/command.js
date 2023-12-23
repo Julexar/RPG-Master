@@ -1,4 +1,14 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ApplicationCommandPermissionType, ChannelSelectMenuBuilder, ChannelType, EmbedBuilder, RoleSelectMenuBuilder, UserSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
+import {
+    ActionRowBuilder,
+    ApplicationCommandOptionType,
+    ApplicationCommandPermissionType,
+    ChannelSelectMenuBuilder,
+    ChannelType,
+    EmbedBuilder,
+    RoleSelectMenuBuilder,
+    UserSelectMenuBuilder,
+    PermissionFlagsBits,
+} from 'discord.js';
 const cmds = [];
 import config from '../../../config.js';
 class Command {
@@ -181,17 +191,35 @@ class Command {
                                     client.database.writeDevLog(`${mes}`);
                                     if (String(err).includes('Command')) {
                                         await interaction.reply({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Server Command in the Database!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription('Could not find that Server Command in the Database!')
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else if (String(err).includes('Server')) {
                                         await interaction.reply({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Server in the Database!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription('Could not find the Server in the Database!')
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else {
                                         await interaction.reply({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('An Error occurred...')
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     }
@@ -202,7 +230,9 @@ class Command {
                 return;
             case 'add':
                 if (option.getString('type') == 'user') {
-                    const row = new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId('usel').setMinValues(1).setMaxValues(1).setPlaceholder('No User selected...'));
+                    const row = new ActionRowBuilder().addComponents(
+                        new UserSelectMenuBuilder().setCustomId('usel').setMinValues(1).setMaxValues(1).setPlaceholder('No User selected...')
+                    );
                     const msg = await interaction.reply({
                         content: 'Select a User:',
                         components: [row],
@@ -256,12 +286,24 @@ class Command {
                                             const m = await i.deferReply();
                                             if (String(err).includes('Error 409')) {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('The Restriction already exists for the given Command!').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription('The Restriction already exists for the given Command!')
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -284,7 +326,9 @@ class Command {
                         }
                     });
                 } else if (option.getString('type') == 'role') {
-                    const row = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('rsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Role selected...'));
+                    const row = new ActionRowBuilder().addComponents(
+                        new RoleSelectMenuBuilder().setCustomId('rsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Role selected...')
+                    );
                     const msg = await interaction.reply({
                         content: 'Select a Role:',
                         components: [row],
@@ -338,12 +382,24 @@ class Command {
                                             const m = await i.deferReply();
                                             if (String(err).includes('Error 409')) {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('The Restriction already exists for the given Command!').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription('The Restriction already exists for the given Command!')
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -367,7 +423,12 @@ class Command {
                     });
                 } else if (option.getString('type') == 'chan') {
                     const row = new ActionRowBuilder().addComponents(
-                        new ChannelSelectMenuBuilder().setCustomId('csel').setChannelTypes([ChannelType.GuildText, ChannelType.GuildDirectory]).setMinValues(1).setMaxValues(1).setPlaceholder('No Channel selected...')
+                        new ChannelSelectMenuBuilder()
+                            .setCustomId('csel')
+                            .setChannelTypes([ChannelType.GuildText, ChannelType.GuildDirectory])
+                            .setMinValues(1)
+                            .setMaxValues(1)
+                            .setPlaceholder('No Channel selected...')
                     );
                     const msg = await interaction.reply({
                         content: 'Select a Channel:',
@@ -422,12 +483,24 @@ class Command {
                                             const m = await i.deferReply();
                                             if (String(err).includes('Error 409')) {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('The Restriction already exists for the given Command!').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription('The Restriction already exists for the given Command!')
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -453,7 +526,9 @@ class Command {
                 return;
             case 'rem':
                 if (option.getString('type') == 'user') {
-                    const row = new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId('usel').setMinValues(1).setMaxValues(1).setPlaceholder('No User selected...'));
+                    const row = new ActionRowBuilder().addComponents(
+                        new UserSelectMenuBuilder().setCustomId('usel').setMinValues(1).setMaxValues(1).setPlaceholder('No User selected...')
+                    );
                     const msg = await interaction.reply({
                         content: 'Select a User:',
                         components: [row],
@@ -506,12 +581,24 @@ class Command {
                                             const m = await i.deferReply();
                                             if (String(err).includes('Error 409')) {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Restriction for the given Command!').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription('Could not find the Restriction for the given Command!')
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -534,7 +621,9 @@ class Command {
                         }
                     });
                 } else if (option.getString('type') == 'role') {
-                    const row = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('rsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Role selected...'));
+                    const row = new ActionRowBuilder().addComponents(
+                        new RoleSelectMenuBuilder().setCustomId('rsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Role selected...')
+                    );
                     const msg = await interaction.reply({
                         content: 'Select a Role:',
                         components: [row],
@@ -587,12 +676,24 @@ class Command {
                                             const m = await i.deferReply();
                                             if (String(err).includes('Error 409')) {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Restriction for the given Command!').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription('Could not find the Restriction for the given Command!')
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -616,7 +717,12 @@ class Command {
                     });
                 } else if (option.getString('type') == 'chan') {
                     const row = new ActionRowBuilder().addComponents(
-                        new ChannelSelectMenuBuilder().setCustomId('csel').setChannelTypes([ChannelType.GuildText, ChannelType.GuildDirectory]).setMinValues(1).setMaxValues(1).setPlaceholder('No Channel selected...')
+                        new ChannelSelectMenuBuilder()
+                            .setCustomId('csel')
+                            .setChannelTypes([ChannelType.GuildText, ChannelType.GuildDirectory])
+                            .setMinValues(1)
+                            .setMaxValues(1)
+                            .setPlaceholder('No Channel selected...')
                     );
                     const msg = await interaction.reply({
                         content: 'Select a Channel:',
@@ -670,12 +776,24 @@ class Command {
                                             const m = await i.deferReply();
                                             if (String(err).includes('Error 404')) {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Restriction for the given Command!').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription('Could not find the Restriction for the given Command!')
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }

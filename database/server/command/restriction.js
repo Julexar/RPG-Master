@@ -70,7 +70,11 @@ class ServerCommandRestriction {
                 throw new DuplicateError('Duplicate Restriction', 'That Restriction already exists for that Server Command in the Database!');
             }
 
-            await query('UPDATE server_command_restrictions SET permission = $1 WHERE cmd_id = $2 AND id = $3', [rest.permission, command.id, rest.id]);
+            await query('UPDATE server_command_restrictions SET permission = $1 WHERE cmd_id = $2 AND id = $3', [
+                rest.permission,
+                command.id,
+                rest.id,
+            ]);
 
             return `Successfully updated restrictions of Command \"${command.name}\" in Server \"${server.name}\"`;
         } catch (err) {

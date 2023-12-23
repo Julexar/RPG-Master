@@ -59,14 +59,22 @@ class Command {
                                                     new EmbedBuilder()
                                                         .setColor('Red')
                                                         .setTitle(`${err}`)
-                                                        .setDescription('Could not find any Actions for this Character in the Databse. Please add an action using </action add:1234> first!')
+                                                        .setDescription(
+                                                            'Could not find any Actions for this Character in the Databse. Please add an action using </action add:1234> first!'
+                                                        )
                                                         .setTimestamp(),
                                                 ],
                                                 ephemeral: true,
                                             });
                                         } else {
                                             return await interaction.reply({
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle('An Error occurred...')
+                                                        .setDescription(`${err}`)
+                                                        .setTimestamp(),
+                                                ],
                                                 ephemeral: true,
                                             });
                                         }
@@ -79,12 +87,26 @@ class Command {
                                     .catch((err1) => client.database.writeDevLog(`${err1}`));
                                 if (String(err).includes('Error 404')) {
                                     return await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Character in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle(`${err}`)
+                                                .setDescription(
+                                                    'Could not find that Character in the Database. Contact the Developer if this Issue persists!'
+                                                )
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 } else {
                                     return await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 }
@@ -97,7 +119,13 @@ class Command {
                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                         if (String(err).includes('Error 404')) {
                             return await interaction.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find User in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setColor('Red')
+                                        .setTitle(`${err}`)
+                                        .setDescription('Could not find User in the Database. Contact the Developer if this Issue persists!')
+                                        .setTimestamp(),
+                                ],
                                 ephemeral: true,
                             });
                         } else {

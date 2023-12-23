@@ -1,9 +1,9 @@
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder } from 'discord.js';
 
 class CommandBuilder extends SlashCommandBuilder {
-    constructor (data) {
+    constructor(data) {
         super(data);
     }
-};
+}
 
 export { CommandBuilder };

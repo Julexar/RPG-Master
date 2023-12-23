@@ -50,12 +50,24 @@ class Command {
                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                         if (String(err).includes('Error 404: GM')) {
                                             await interaction.reply({
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find a GM entry in the Database! Please contact a Staff member').setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle(`${err}`)
+                                                        .setDescription('Could not find a GM entry in the Database! Please contact a Staff member')
+                                                        .setTimestamp(),
+                                                ],
                                                 ephemeral: true,
                                             });
                                         } else {
                                             await interaction.reply({
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle('An Error occurred...')
+                                                        .setDescription(`${err}`)
+                                                        .setTimestamp(),
+                                                ],
                                                 ephemeral: true,
                                             });
                                         }
@@ -72,7 +84,13 @@ class Command {
                     .catch((err1) => client.database.writeDevLog(`${err1}`));
                 if (String(err).includes('Error 404')) {
                     await interaction.reply({
-                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find a GM entry in the Database! Please contact a Staff member').setTimestamp()],
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor('Red')
+                                .setTitle(`${err}`)
+                                .setDescription('Could not find a GM entry in the Database! Please contact a Staff member')
+                                .setTimestamp(),
+                        ],
                         ephemeral: true,
                     });
                 } else {

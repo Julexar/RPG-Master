@@ -1,4 +1,12 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
+import {
+    ActionRowBuilder,
+    ApplicationCommandOptionType,
+    ButtonBuilder,
+    ButtonStyle,
+    EmbedBuilder,
+    StringSelectMenuBuilder,
+    PermissionFlagsBits,
+} from 'discord.js';
 class Command {
     constructor() {
         this.name = 'session';
@@ -91,7 +99,14 @@ class Command {
                                 .then(async (sessions) => {
                                     const rows = [];
                                     if (sessions.length <= 24) {
-                                        rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('selses0').setPlaceholder('No Session selected...').setMaxValues(1)));
+                                        rows.push(
+                                            new ActionRowBuilder().addComponents(
+                                                new StringSelectMenuBuilder()
+                                                    .setCustomId('selses0')
+                                                    .setPlaceholder('No Session selected...')
+                                                    .setMaxValues(1)
+                                            )
+                                        );
                                         for (const session in sessions) {
                                             rows[0].components[0].addOptions({
                                                 label: `${session.name}`,
@@ -103,7 +118,14 @@ class Command {
                                         let num = 0;
                                         for (const session in sessions) {
                                             if (count == 24) {
-                                                rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`selses${num}`).setPlaceholder('No Session selected...').setMaxValues(1)));
+                                                rows.push(
+                                                    new ActionRowBuilder().addComponents(
+                                                        new StringSelectMenuBuilder()
+                                                            .setCustomId(`selses${num}`)
+                                                            .setPlaceholder('No Session selected...')
+                                                            .setMaxValues(1)
+                                                    )
+                                                );
                                                 num++;
                                                 count = 0;
                                             }
@@ -152,12 +174,26 @@ class Command {
                                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                         if (String(err).includes('Error 404')) {
                                                             await mes2.edit({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find User in Database. Contact the Developer if this issue persists.').setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle(`${err}`)
+                                                                        .setDescription(
+                                                                            'Could not find User in Database. Contact the Developer if this issue persists.'
+                                                                        )
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         } else {
                                                             await mes2.edit({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('An Error occurred...')
+                                                                        .setDescription(`${err}`)
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         }
@@ -222,12 +258,24 @@ class Command {
                                             client.database.writeDevLog(msg1);
                                             if (String(err).includes('Error 404')) {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('You do not have any saved Sessions!').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription('You do not have any saved Sessions!')
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -342,36 +390,40 @@ class Command {
                                         break;
                                     case 'lvl':
                                         const sel = new ActionRowBuilder().addComponents(
-                                            new StringSelectMenuBuilder().setCustomId('sellvl').setPlaceholder('Select a minimum Level').setMaxValues(1).addOptions(
-                                                {
-                                                    label: 'Level 3-4',
-                                                    value: '3-4',
-                                                },
-                                                {
-                                                    label: 'Level 5-7',
-                                                    value: '8-7',
-                                                },
-                                                {
-                                                    label: 'Level 8-10',
-                                                    value: '8-10',
-                                                },
-                                                {
-                                                    label: 'Level 11-13',
-                                                    value: '11-13',
-                                                },
-                                                {
-                                                    label: 'Level 14-16',
-                                                    value: '14-16',
-                                                },
-                                                {
-                                                    label: 'Level 17-19',
-                                                    value: '17-19',
-                                                },
-                                                {
-                                                    label: 'Level 20+',
-                                                    value: '20+',
-                                                }
-                                            )
+                                            new StringSelectMenuBuilder()
+                                                .setCustomId('sellvl')
+                                                .setPlaceholder('Select a minimum Level')
+                                                .setMaxValues(1)
+                                                .addOptions(
+                                                    {
+                                                        label: 'Level 3-4',
+                                                        value: '3-4',
+                                                    },
+                                                    {
+                                                        label: 'Level 5-7',
+                                                        value: '8-7',
+                                                    },
+                                                    {
+                                                        label: 'Level 8-10',
+                                                        value: '8-10',
+                                                    },
+                                                    {
+                                                        label: 'Level 11-13',
+                                                        value: '11-13',
+                                                    },
+                                                    {
+                                                        label: 'Level 14-16',
+                                                        value: '14-16',
+                                                    },
+                                                    {
+                                                        label: 'Level 17-19',
+                                                        value: '17-19',
+                                                    },
+                                                    {
+                                                        label: 'Level 20+',
+                                                        value: '20+',
+                                                    }
+                                                )
                                         );
                                         const mes2 = await i.deferReply();
                                         await mes2.edit({
@@ -489,24 +541,28 @@ class Command {
                                         return;
                                     case 'dif':
                                         const dif = new ActionRowBuilder().addComponents(
-                                            new StringSelectMenuBuilder().setCustomId('difsel').setPlaceholder('No Difficulty selected...').setMaxValues(1).addOptions(
-                                                {
-                                                    label: 'Easy',
-                                                    value: '1',
-                                                },
-                                                {
-                                                    label: 'Medium',
-                                                    value: '2',
-                                                },
-                                                {
-                                                    label: 'Hard',
-                                                    value: '3',
-                                                },
-                                                {
-                                                    label: 'Deadly',
-                                                    value: '4',
-                                                }
-                                            )
+                                            new StringSelectMenuBuilder()
+                                                .setCustomId('difsel')
+                                                .setPlaceholder('No Difficulty selected...')
+                                                .setMaxValues(1)
+                                                .addOptions(
+                                                    {
+                                                        label: 'Easy',
+                                                        value: '1',
+                                                    },
+                                                    {
+                                                        label: 'Medium',
+                                                        value: '2',
+                                                    },
+                                                    {
+                                                        label: 'Hard',
+                                                        value: '3',
+                                                    },
+                                                    {
+                                                        label: 'Deadly',
+                                                        value: '4',
+                                                    }
+                                                )
                                         );
                                         const mes5 = await i.deferReply();
                                         await mes5.edit({
@@ -601,7 +657,8 @@ class Command {
                                     case 'time':
                                         const mes7 = await i.deferReply();
                                         await mes7.edit({
-                                            content: 'Please reply with a timestamp for the Starttime of the Session.\n\nYou can get one here: https://hammertime.cyou/',
+                                            content:
+                                                'Please reply with a timestamp for the Starttime of the Session.\n\nYou can get one here: https://hammertime.cyou/',
                                         });
                                         const filt7 = (m) => m.reference.messageId == mes7.id && m.author.id == user.id;
                                         const mescol5 = await i.channel.createMessageCollector({
@@ -669,12 +726,26 @@ class Command {
                                                                 client.database.writeDevLog(msg1);
                                                                 if (String(err).includes('Error 409') && !serv.dup_sessions) {
                                                                     await mes.edit({
-                                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('A Session with this Name already exists. Please choose a different Name!').setTimestamp()],
+                                                                        embeds: [
+                                                                            new EmbedBuilder()
+                                                                                .setColor('Red')
+                                                                                .setTitle(`${err}`)
+                                                                                .setDescription(
+                                                                                    'A Session with this Name already exists. Please choose a different Name!'
+                                                                                )
+                                                                                .setTimestamp(),
+                                                                        ],
                                                                         ephemeral: true,
                                                                     });
                                                                 } else {
                                                                     await mes.edit({
-                                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                        embeds: [
+                                                                            new EmbedBuilder()
+                                                                                .setColor('Red')
+                                                                                .setTitle('An Error occurred...')
+                                                                                .setDescription(`${err}`)
+                                                                                .setTimestamp(),
+                                                                        ],
                                                                         ephemeral: true,
                                                                     });
                                                                 }
@@ -692,14 +763,22 @@ class Command {
                                                                             new EmbedBuilder()
                                                                                 .setColor('Red')
                                                                                 .setTitle(`${err1}`)
-                                                                                .setDescription('The Server could not be found in the Database! Contact the Developer if this Issue persists.')
+                                                                                .setDescription(
+                                                                                    'The Server could not be found in the Database! Contact the Developer if this Issue persists.'
+                                                                                )
                                                                                 .setTimestamp(),
                                                                         ],
                                                                         ephemeral: true,
                                                                     });
                                                                 } else {
                                                                     await mes.edit({
-                                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                        embeds: [
+                                                                            new EmbedBuilder()
+                                                                                .setColor('Red')
+                                                                                .setTitle('An Error occurred...')
+                                                                                .setDescription(`${err}`)
+                                                                                .setTimestamp(),
+                                                                        ],
                                                                         ephemeral: true,
                                                                     });
                                                                 }
@@ -738,7 +817,11 @@ class Command {
                                 .then(async (u) => {
                                     if (u.session_id) {
                                         const crow = new ActionRowBuilder().addComponents(
-                                            new ButtonBuilder().setCustomId('confirm').setLabel('Confirm').setStyle(ButtonStyle.Success).setEmoji('✅'),
+                                            new ButtonBuilder()
+                                                .setCustomId('confirm')
+                                                .setLabel('Confirm')
+                                                .setStyle(ButtonStyle.Success)
+                                                .setEmoji('✅'),
                                             new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger).setEmoji('🛑')
                                         );
                                         client.database
@@ -764,7 +847,15 @@ class Command {
                                                                 .then(async () => {
                                                                     await message.edit({
                                                                         content: '',
-                                                                        embeds: [new EmbedBuilder().setColor('Green').setTitle('Success').setDescription(`Session \"${s.name}\" has been deleted successfully!`).setTimestamp()],
+                                                                        embeds: [
+                                                                            new EmbedBuilder()
+                                                                                .setColor('Green')
+                                                                                .setTitle('Success')
+                                                                                .setDescription(
+                                                                                    `Session \"${s.name}\" has been deleted successfully!`
+                                                                                )
+                                                                                .setTimestamp(),
+                                                                        ],
                                                                         components: [],
                                                                         ephemeral: true,
                                                                     });
@@ -777,7 +868,13 @@ class Command {
                                                                         .then(async (msg1) => {
                                                                             client.database.writeDevLog(msg1);
                                                                             await mes.edit({
-                                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                embeds: [
+                                                                                    new EmbedBuilder()
+                                                                                        .setColor('Red')
+                                                                                        .setTitle('An Error occurred...')
+                                                                                        .setDescription(`${err}`)
+                                                                                        .setTimestamp(),
+                                                                                ],
                                                                                 ephemeral: true,
                                                                             });
                                                                         })
@@ -821,7 +918,9 @@ class Command {
                                                                         new EmbedBuilder()
                                                                             .setColor('Red')
                                                                             .setTitle('Error 401: Unauthorized')
-                                                                            .setDescription('You are not allowed to delete finished Sessions, please reach out to an Administrator.')
+                                                                            .setDescription(
+                                                                                'You are not allowed to delete finished Sessions, please reach out to an Administrator.'
+                                                                            )
                                                                             .setTimestamp(),
                                                                     ],
                                                                     ephemeral: true,
@@ -852,7 +951,15 @@ class Command {
                                                                             .catch((err) => client.database.writeDevLog(`${err}`));
                                                                         await message.edit({
                                                                             content: '',
-                                                                            embeds: [new EmbedBuilder().setColor('Green').setTitle('Success').setDescription(`Session \"${s[0].name}\" has been deleted successfully!`).setTimestamp()],
+                                                                            embeds: [
+                                                                                new EmbedBuilder()
+                                                                                    .setColor('Green')
+                                                                                    .setTitle('Success')
+                                                                                    .setDescription(
+                                                                                        `Session \"${s[0].name}\" has been deleted successfully!`
+                                                                                    )
+                                                                                    .setTimestamp(),
+                                                                            ],
                                                                             components: [],
                                                                             ephemeral: true,
                                                                         });
@@ -864,7 +971,13 @@ class Command {
                                                                             .writeLog(server, `${err}`)
                                                                             .then(async () => {
                                                                                 await mes.edit({
-                                                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                    embeds: [
+                                                                                        new EmbedBuilder()
+                                                                                            .setColor('Red')
+                                                                                            .setTitle('An Error occurred...')
+                                                                                            .setDescription(`${err}`)
+                                                                                            .setTimestamp(),
+                                                                                    ],
                                                                                     ephemeral: true,
                                                                                 });
                                                                             })
@@ -1017,7 +1130,9 @@ class Command {
                                                                             new EmbedBuilder()
                                                                                 .setColor('Red')
                                                                                 .setTitle('Error 401: Unauthorized')
-                                                                                .setDescription('You may not use this Command on a Session that has already begun or ended!')
+                                                                                .setDescription(
+                                                                                    'You may not use this Command on a Session that has already begun or ended!'
+                                                                                )
                                                                                 .setTimestamp(),
                                                                         ],
                                                                         ephemeral: true,
@@ -1037,14 +1152,22 @@ class Command {
                                                                             new EmbedBuilder()
                                                                                 .setColor('Red')
                                                                                 .setTitle(`${err}`)
-                                                                                .setDescription('Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.')
+                                                                                .setDescription(
+                                                                                    'Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.'
+                                                                                )
                                                                                 .setTimestamp(),
                                                                         ],
                                                                         ephemeral: true,
                                                                     });
                                                                 } else {
                                                                     await interaction.reply({
-                                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                        embeds: [
+                                                                            new EmbedBuilder()
+                                                                                .setColor('Red')
+                                                                                .setTitle('An Error occurred...')
+                                                                                .setDescription(`${err}`)
+                                                                                .setTimestamp(),
+                                                                        ],
                                                                         ephemeral: true,
                                                                     });
                                                                 }
@@ -1063,14 +1186,22 @@ class Command {
                                                                     new EmbedBuilder()
                                                                         .setColor('Red')
                                                                         .setTitle(`${err}`)
-                                                                        .setDescription('Could not find the Server in the Database. Try removing the Bot and reinviting it.\n\nContact the Developer if this Issue persists.')
+                                                                        .setDescription(
+                                                                            'Could not find the Server in the Database. Try removing the Bot and reinviting it.\n\nContact the Developer if this Issue persists.'
+                                                                        )
                                                                         .setTimestamp(),
                                                                 ],
                                                                 ephemeral: true,
                                                             });
                                                         } else {
                                                             await interaction.reply({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('An Error occurred...')
+                                                                        .setDescription(`${err}`)
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         }
@@ -1086,12 +1217,26 @@ class Command {
                                             client.database.writeDevLog(msg1);
                                             if (String(err).includes('Error 404')) {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find User in Database. Please contact the Develeoper if this Issue persists.').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription(
+                                                                'Could not find User in Database. Please contact the Develeoper if this Issue persists.'
+                                                            )
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -1122,15 +1267,23 @@ class Command {
                                                                 new EmbedBuilder()
                                                                     .setColor('Red')
                                                                     .setTitle('Error 406: Invalid Channel')
-                                                                    .setDescription('Could not find the Channel provided during Session Creation, please update the Session Channel by using `/session update`!')
+                                                                    .setDescription(
+                                                                        'Could not find the Channel provided during Session Creation, please update the Session Channel by using `/session update`!'
+                                                                    )
                                                                     .setTimestamp(),
                                                             ],
                                                             ephemeral: true,
                                                         });
                                                     } else {
                                                         const row = new ActionRowBuilder().addComponents(
-                                                            new ButtonBuilder().setCustomId('join').setLabel('Join Game').setStyle(ButtonStyle.Success),
-                                                            new ButtonBuilder().setCustomId('leave').setLabel('Leave Game').setStyle(ButtonStyle.Danger)
+                                                            new ButtonBuilder()
+                                                                .setCustomId('join')
+                                                                .setLabel('Join Game')
+                                                                .setStyle(ButtonStyle.Success),
+                                                            new ButtonBuilder()
+                                                                .setCustomId('leave')
+                                                                .setLabel('Leave Game')
+                                                                .setStyle(ButtonStyle.Danger)
                                                         );
                                                         const ses1 = new EmbedBuilder()
                                                             .setColor('Aqua')
@@ -1182,7 +1335,8 @@ class Command {
                                                                             if (!u.char_id) {
                                                                                 const mes = await i.deferReply();
                                                                                 await mes.edit({
-                                                                                    content: 'You have not selected a Character!\n\nPlease user </character select:> before you click this Button again!',
+                                                                                    content:
+                                                                                        'You have not selected a Character!\n\nPlease user </character select:> before you click this Button again!',
                                                                                     ephemeral: true,
                                                                                 });
                                                                             } else {
@@ -1207,11 +1361,19 @@ class Command {
                                                                                                     .then(async (msg1) => {
                                                                                                         client.database.writeDevLog(msg1);
                                                                                                         await mes.edit({
-                                                                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                                            embeds: [
+                                                                                                                new EmbedBuilder()
+                                                                                                                    .setColor('Red')
+                                                                                                                    .setTitle('An Error occurred...')
+                                                                                                                    .setDescription(`${err}`)
+                                                                                                                    .setTimestamp(),
+                                                                                                            ],
                                                                                                             ephemeral: true,
                                                                                                         });
                                                                                                     })
-                                                                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
+                                                                                                    .catch((err1) =>
+                                                                                                        client.database.writeDevLog(`${err1}`)
+                                                                                                    );
                                                                                             });
                                                                                     })
                                                                                     .catch(async (err) => {
@@ -1221,7 +1383,13 @@ class Command {
                                                                                             .then(async (msg1) => {
                                                                                                 client.database.writeDevLog(msg1);
                                                                                                 await mes.edit({
-                                                                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                                    embeds: [
+                                                                                                        new EmbedBuilder()
+                                                                                                            .setColor('Red')
+                                                                                                            .setTitle('An Error occurred...')
+                                                                                                            .setDescription(`${err}`)
+                                                                                                            .setTimestamp(),
+                                                                                                    ],
                                                                                                     ephemeral: true,
                                                                                                 });
                                                                                             })
@@ -1236,7 +1404,13 @@ class Command {
                                                                                 .then(async (msg1) => {
                                                                                     client.database.writeDevLog(msg1);
                                                                                     await mes.edit({
-                                                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                        embeds: [
+                                                                                            new EmbedBuilder()
+                                                                                                .setColor('Red')
+                                                                                                .setTitle('An Error occurred...')
+                                                                                                .setDescription(`${err}`)
+                                                                                                .setTimestamp(),
+                                                                                        ],
                                                                                         ephemeral: true,
                                                                                     });
                                                                                 })
@@ -1249,7 +1423,8 @@ class Command {
                                                                             if (!u.char_id) {
                                                                                 const mes = await i.deferReply();
                                                                                 await mes.edit({
-                                                                                    content: 'You have not selected a Character!\n\nPlease user </character select:> before you click this Button again!',
+                                                                                    content:
+                                                                                        'You have not selected a Character!\n\nPlease user </character select:> before you click this Button again!',
                                                                                     ephemeral: true,
                                                                                 });
                                                                             } else {
@@ -1274,11 +1449,19 @@ class Command {
                                                                                                     .then(async (msg1) => {
                                                                                                         client.database.writeDevLog(msg1);
                                                                                                         await mes.edit({
-                                                                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                                            embeds: [
+                                                                                                                new EmbedBuilder()
+                                                                                                                    .setColor('Red')
+                                                                                                                    .setTitle('An Error occurred...')
+                                                                                                                    .setDescription(`${err}`)
+                                                                                                                    .setTimestamp(),
+                                                                                                            ],
                                                                                                             ephemeral: true,
                                                                                                         });
                                                                                                     })
-                                                                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
+                                                                                                    .catch((err1) =>
+                                                                                                        client.database.writeDevLog(`${err1}`)
+                                                                                                    );
                                                                                             });
                                                                                     })
                                                                                     .catch(async (err) => {
@@ -1288,7 +1471,13 @@ class Command {
                                                                                             .then(async (msg1) => {
                                                                                                 client.database.writeDevLog(msg1);
                                                                                                 await mes.edit({
-                                                                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                                    embeds: [
+                                                                                                        new EmbedBuilder()
+                                                                                                            .setColor('Red')
+                                                                                                            .setTitle('An Error occurred...')
+                                                                                                            .setDescription(`${err}`)
+                                                                                                            .setTimestamp(),
+                                                                                                    ],
                                                                                                     ephemeral: true,
                                                                                                 });
                                                                                             })
@@ -1303,7 +1492,13 @@ class Command {
                                                                                 .then(async (msg1) => {
                                                                                     client.database.writeDevLog(msg1);
                                                                                     await mes.edit({
-                                                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                        embeds: [
+                                                                                            new EmbedBuilder()
+                                                                                                .setColor('Red')
+                                                                                                .setTitle('An Error occurred...')
+                                                                                                .setDescription(`${err}`)
+                                                                                                .setTimestamp(),
+                                                                                        ],
                                                                                         ephemeral: true,
                                                                                     });
                                                                                 })
@@ -1333,7 +1528,13 @@ class Command {
                                                             client.database.writeDevLog(msg1);
                                                             await interaction.reply({
                                                                 embeds: [
-                                                                    new EmbedBuilder().setColor('Red').setTitle('Error 401: Unauthorized').setDescription('You may not use this Command on a Session that has already begun or ended!').setTimestamp(),
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('Error 401: Unauthorized')
+                                                                        .setDescription(
+                                                                            'You may not use this Command on a Session that has already begun or ended!'
+                                                                        )
+                                                                        .setTimestamp(),
                                                                 ],
                                                                 ephemeral: true,
                                                             });
@@ -1352,14 +1553,22 @@ class Command {
                                                                     new EmbedBuilder()
                                                                         .setColor('Red')
                                                                         .setTitle(`${err}`)
-                                                                        .setDescription('Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.')
+                                                                        .setDescription(
+                                                                            'Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.'
+                                                                        )
                                                                         .setTimestamp(),
                                                                 ],
                                                                 ephemeral: true,
                                                             });
                                                         } else {
                                                             await interaction.reply({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('An Error occurred...')
+                                                                        .setDescription(`${err}`)
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         }
@@ -1375,12 +1584,26 @@ class Command {
                                             client.database.writeDevLog(msg1);
                                             if (String(err).includes('Error 404')) {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find User in Database. Please contact the Develeoper if this Issue persists.').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription(
+                                                                'Could not find User in Database. Please contact the Develeoper if this Issue persists.'
+                                                            )
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -1414,7 +1637,9 @@ class Command {
                                                                         new EmbedBuilder()
                                                                             .setColor('Red')
                                                                             .setTitle('Error 406: Invalid Channel')
-                                                                            .setDescription('Could not find the Channel provided during Session Creation, please update the Session Channel by using `/session update`!')
+                                                                            .setDescription(
+                                                                                'Could not find the Channel provided during Session Creation, please update the Session Channel by using `/session update`!'
+                                                                            )
                                                                             .setTimestamp(),
                                                                     ],
                                                                     ephemeral: true,
@@ -1457,7 +1682,13 @@ class Command {
                                                         .then(async (msg1) => {
                                                             client.database.writeDevLog(msg1);
                                                             await interaction.reply({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('Error 401: Unauthorized').setDescription('You may not use this Command on a Session that has ended!').setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('Error 401: Unauthorized')
+                                                                        .setDescription('You may not use this Command on a Session that has ended!')
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         })
@@ -1475,14 +1706,22 @@ class Command {
                                                                     new EmbedBuilder()
                                                                         .setColor('Red')
                                                                         .setTitle(`${err}`)
-                                                                        .setDescription('Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.')
+                                                                        .setDescription(
+                                                                            'Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.'
+                                                                        )
                                                                         .setTimestamp(),
                                                                 ],
                                                                 ephemeral: true,
                                                             });
                                                         } else {
                                                             await interaction.reply({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('An Error occurred...')
+                                                                        .setDescription(`${err}`)
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         }
@@ -1498,12 +1737,26 @@ class Command {
                                             client.database.writeDevLog(msg1);
                                             if (String(err).includes('Error 404')) {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find User in Database. Please contact the Develeoper if this Issue persists.').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription(
+                                                                'Could not find User in Database. Please contact the Develeoper if this Issue persists.'
+                                                            )
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }
@@ -1537,7 +1790,9 @@ class Command {
                                                                         new EmbedBuilder()
                                                                             .setColor('Red')
                                                                             .setTitle('Error 406: Invalid Channel')
-                                                                            .setDescription('Could not find the Channel provided during Session Creation, please update the Session Channel by using `/session update`!')
+                                                                            .setDescription(
+                                                                                'Could not find the Channel provided during Session Creation, please update the Session Channel by using `/session update`!'
+                                                                            )
                                                                             .setTimestamp(),
                                                                     ],
                                                                     ephemeral: true,
@@ -1592,14 +1847,22 @@ class Command {
                                                                                             new EmbedBuilder()
                                                                                                 .setColor('Red')
                                                                                                 .setTitle(`${err}`)
-                                                                                                .setDescription('Could not find GM in the Database! Contact the Developer if this Issue persists.')
+                                                                                                .setDescription(
+                                                                                                    'Could not find GM in the Database! Contact the Developer if this Issue persists.'
+                                                                                                )
                                                                                                 .setTimestamp(),
                                                                                         ],
                                                                                         ephemeral: true,
                                                                                     });
                                                                                 } else {
                                                                                     await interaction.reply({
-                                                                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                                        embeds: [
+                                                                                            new EmbedBuilder()
+                                                                                                .setColor('Red')
+                                                                                                .setTitle('An Error occurred...')
+                                                                                                .setDescription(`${err}`)
+                                                                                                .setTimestamp(),
+                                                                                        ],
                                                                                         ephemeral: true,
                                                                                     });
                                                                                 }
@@ -1613,7 +1876,13 @@ class Command {
                                                                     .then(async (msg1) => {
                                                                         client.database.writeDevLog(msg1);
                                                                         await interaction.reply({
-                                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                            embeds: [
+                                                                                new EmbedBuilder()
+                                                                                    .setColor('Red')
+                                                                                    .setTitle('An Error occurred...')
+                                                                                    .setDescription(`${err}`)
+                                                                                    .setTimestamp(),
+                                                                            ],
                                                                             ephemeral: true,
                                                                         });
                                                                     })
@@ -1626,7 +1895,15 @@ class Command {
                                                         .then(async (msg1) => {
                                                             client.database.writeDevLog(msg1);
                                                             await interaction.reply({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('Error 401: Unauthorized').setDescription('You may not use this Command on a Session that has not stated yet!').setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('Error 401: Unauthorized')
+                                                                        .setDescription(
+                                                                            'You may not use this Command on a Session that has not stated yet!'
+                                                                        )
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         })
@@ -1649,14 +1926,22 @@ class Command {
                                                                     new EmbedBuilder()
                                                                         .setColor('Red')
                                                                         .setTitle(`${err}`)
-                                                                        .setDescription('Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.')
+                                                                        .setDescription(
+                                                                            'Could not find the selected Session in the Database. Please contact the Developer if this Issue persists.'
+                                                                        )
                                                                         .setTimestamp(),
                                                                 ],
                                                                 ephemeral: true,
                                                             });
                                                         } else {
                                                             await interaction.reply({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('An Error occurred...')
+                                                                        .setDescription(`${err}`)
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         }
@@ -1672,12 +1957,26 @@ class Command {
                                             client.database.writeDevLog(msg1);
                                             if (String(err).includes('Error 404')) {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find User in Database. Please contact the Develeoper if this Issue persists.').setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle(`${err}`)
+                                                            .setDescription(
+                                                                'Could not find User in Database. Please contact the Develeoper if this Issue persists.'
+                                                            )
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             } else {
                                                 await interaction.reply({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                    embeds: [
+                                                        new EmbedBuilder()
+                                                            .setColor('Red')
+                                                            .setTitle('An Error occurred...')
+                                                            .setDescription(`${err}`)
+                                                            .setTimestamp(),
+                                                    ],
                                                     ephemeral: true,
                                                 });
                                             }

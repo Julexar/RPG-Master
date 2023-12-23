@@ -1,4 +1,12 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits, StringSelectMenuBuilder } from 'discord.js';
+import {
+    ActionRowBuilder,
+    ApplicationCommandOptionType,
+    ButtonBuilder,
+    ButtonStyle,
+    EmbedBuilder,
+    PermissionFlagsBits,
+    StringSelectMenuBuilder,
+} from 'discord.js';
 class Command {
     constructor() {
         this.name = 'notes';
@@ -320,12 +328,24 @@ class Command {
                                 client.database.writeDevLog(`${msg}`);
                                 if (String(err).includes('Error 404')) {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find any Server Notes in the Database!').setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle(`${err}`)
+                                                .setDescription('Could not find any Server Notes in the Database!')
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 } else {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 }
@@ -457,12 +477,24 @@ class Command {
                                 client.database.writeDevLog(`${msg}`);
                                 if (String(err).includes('Error 404')) {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find any Global Notes in the Database!').setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle(`${err}`)
+                                                .setDescription('Could not find any Global Notes in the Database!')
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 } else {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 }
@@ -500,12 +532,24 @@ class Command {
                                 client.database.writeDevLog(`${mes}`);
                                 if (String(err).includes('Error 404')) {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database!').setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle(`${err}`)
+                                                .setDescription('Could not find that Note in the Database!')
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 } else {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 }
@@ -541,12 +585,24 @@ class Command {
                                 client.database.writeDevLog(`${mes}`);
                                 if (String(err).includes('Error 404')) {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database!').setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle(`${err}`)
+                                                .setDescription('Could not find that Note in the Database!')
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 } else {
                                     await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('An Error occurred...')
+                                                .setDescription(`${err}`)
+                                                .setTimestamp(),
+                                        ],
                                         ephemeral: true,
                                     });
                                 }
@@ -559,28 +615,35 @@ class Command {
 
     async noteCreator(client, interaction, type, member) {
         const filter = (m) => m.user.id == member.user.id;
-        const menu = new EmbedBuilder().setColor('Yellow').setTitle('Note Creator').setAuthor({ name: member.user.username, iconURL: member.user.avatarURL() }).setFields(
-            {
-                name: 'Title',
-                value: ' ',
-                inline: true,
-            },
-            {
-                name: 'Private?',
-                value: 'false',
-                inline: true,
-            },
-            {
-                name: 'Content',
-                value: ' ',
-            }
-        );
+        const menu = new EmbedBuilder()
+            .setColor('Yellow')
+            .setTitle('Note Creator')
+            .setAuthor({ name: member.user.username, iconURL: member.user.avatarURL() })
+            .setFields(
+                {
+                    name: 'Title',
+                    value: ' ',
+                    inline: true,
+                },
+                {
+                    name: 'Private?',
+                    value: 'false',
+                    inline: true,
+                },
+                {
+                    name: 'Content',
+                    value: ' ',
+                }
+            );
         const row1 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('title').setLabel('Change Title').setStyle(ButtonStyle.Primary).setEmoji('🔤'),
             new ButtonBuilder().setCustomId('content').setLabel('Change Content').setStyle(ButtonStyle.Primary).setEmoji('📝'),
             new ButtonBuilder().setCustomId('priv').setLabel('Toggle Private').setStyle(ButtonStyle.Primary).setEmoji('🔁')
         );
-        const row2 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('finish').setLabel('Finish').setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger));
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('finish').setLabel('Finish').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
+        );
         const msg = await interaction.reply({
             embeds: [menu],
             components: [row1, row2],
@@ -705,12 +768,24 @@ class Command {
                                     client.database.writeDevLog(`${mes1}`);
                                     if (String(err).includes('Error 409')) {
                                         await m.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('A Note with this Content/Title already exists!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription('A Note with this Content/Title already exists!')
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else {
                                         await m.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('An Error occurred...')
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     }
@@ -738,12 +813,24 @@ class Command {
                                     client.database.writeDevLog(`${mes1}`);
                                     if (String(err).includes('Error 409')) {
                                         await m.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('A Note with this Content/Title already exists!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription('A Note with this Content/Title already exists!')
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else {
                                         await m.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('An Error occurred...')
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     }
@@ -779,7 +866,9 @@ class Command {
         const filter = (m) => m.user.id == member.user.id;
         if (!noteId) {
             const rows = [];
-            const row = new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('selnote').setMinValues(1).setMaxValues(1).setPlaceholder('No Note selected...'));
+            const row = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder().setCustomId('selnote').setMinValues(1).setMaxValues(1).setPlaceholder('No Note selected...')
+            );
             rows.push(row);
             if (type == 'server') {
                 client.database
@@ -881,12 +970,26 @@ class Command {
                                                             .catch((err) => client.database.writeDevLog(`${err}`));
                                                         if (String(err).includes('Error 404')) {
                                                             await messag.edit({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle(`${err}`)
+                                                                        .setDescription(
+                                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
+                                                                        )
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         } else {
                                                             await messag.edit({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('An Error occurred...')
+                                                                        .setDescription(`${err}`)
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         }
@@ -928,14 +1031,28 @@ class Command {
                                         if (String(err).includes('Error 404')) {
                                             await mes.edit({
                                                 content: '',
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle(`${err}`)
+                                                        .setDescription(
+                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
+                                                        )
+                                                        .setTimestamp(),
+                                                ],
                                                 components: [],
                                                 ephemeral: true,
                                             });
                                         } else {
                                             await mes.edit({
                                                 content: '',
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle('An Error occurred...')
+                                                        .setDescription(`${err}`)
+                                                        .setTimestamp(),
+                                                ],
                                                 components: [],
                                                 ephemeral: true,
                                             });
@@ -1005,7 +1122,13 @@ class Command {
                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                         if (String(err).includes('Error 404')) {
                             await interaction.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('This Character does not have any Notes!').setTimestamp()],
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setColor('Red')
+                                        .setTitle(`${err}`)
+                                        .setDescription('This Character does not have any Notes!')
+                                        .setTimestamp(),
+                                ],
                                 ephemeral: true,
                             });
                         } else {
@@ -1111,12 +1234,26 @@ class Command {
                                                             .catch((err) => client.database.writeDevLog(`${err}`));
                                                         if (String(err).includes('Error 404')) {
                                                             await messag.edit({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle(`${err}`)
+                                                                        .setDescription(
+                                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
+                                                                        )
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         } else {
                                                             await messag.edit({
-                                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                                embeds: [
+                                                                    new EmbedBuilder()
+                                                                        .setColor('Red')
+                                                                        .setTitle('An Error occurred...')
+                                                                        .setDescription(`${err}`)
+                                                                        .setTimestamp(),
+                                                                ],
                                                                 ephemeral: true,
                                                             });
                                                         }
@@ -1158,14 +1295,28 @@ class Command {
                                         if (String(err).includes('Error 404')) {
                                             await mes.edit({
                                                 content: '',
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle(`${err}`)
+                                                        .setDescription(
+                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
+                                                        )
+                                                        .setTimestamp(),
+                                                ],
                                                 components: [],
                                                 ephemeral: true,
                                             });
                                         } else {
                                             await mes.edit({
                                                 content: '',
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                embeds: [
+                                                    new EmbedBuilder()
+                                                        .setColor('Red')
+                                                        .setTitle('An Error occurred...')
+                                                        .setDescription(`${err}`)
+                                                        .setTimestamp(),
+                                                ],
                                                 components: [],
                                                 ephemeral: true,
                                             });
@@ -1235,7 +1386,13 @@ class Command {
                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                         if (String(err).includes('Error 404')) {
                             await interaction.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('This Character does not have any Notes!').setTimestamp()],
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setColor('Red')
+                                        .setTitle(`${err}`)
+                                        .setDescription('This Character does not have any Notes!')
+                                        .setTimestamp(),
+                                ],
                                 ephemeral: true,
                             });
                         } else {
@@ -1250,10 +1407,18 @@ class Command {
             let note;
             if (type == 'server') {
                 note = await client.database.getServerNote(interaction.guild, member.user, { id: noteId }).catch(async (err) => {
-                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                    client.database.writeDevLog(
+                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
+                    );
                     if (String(err).includes('Error 404')) {
                         await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Red')
+                                    .setTitle(`${err}`)
+                                    .setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!')
+                                    .setTimestamp(),
+                            ],
                             ephemeral: true,
                         });
                     } else {
@@ -1268,7 +1433,11 @@ class Command {
                         new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
                         new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                     );
-                    const embed = new EmbedBuilder().setColor('Yellow').setAuthor({ name: member.user.displayName, iconURL: member.user.avatarURL() }).setDescription(note.content).setTimestamp();
+                    const embed = new EmbedBuilder()
+                        .setColor('Yellow')
+                        .setAuthor({ name: member.user.displayName, iconURL: member.user.avatarURL() })
+                        .setDescription(note.content)
+                        .setTimestamp();
                     if (note.title) {
                         embed.setTitle(`${note.title} (#${note.id})`);
                     } else {
@@ -1291,22 +1460,42 @@ class Command {
                             client.database
                                 .remServerNote(interaction.guild, member.user, note)
                                 .then(async (m) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await mes.edit({
                                         content: `${m}`,
                                         ephemeral: true,
                                     });
                                 })
                                 .catch(async (err) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `${err}`)
+                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
+                                    );
                                     if (String(err).includes('Error 404')) {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription(
+                                                        'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
+                                                    )
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('An Error occurred...')
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     }
@@ -1328,7 +1517,11 @@ class Command {
                                 ephemeral: true,
                             });
                         } else {
-                            client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                            client.database.writeDevLog(
+                                await client.database
+                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                    .catch((err) => client.database.writeDevLog(`${err}`))
+                            );
                         }
                         setTimeout(async () => {
                             await msg.delete();
@@ -1337,10 +1530,18 @@ class Command {
                 }
             } else if (type == 'global') {
                 note = await client.database.getGlobalNote(member.user, { id: noteId }).catch(async (err) => {
-                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                    client.database.writeDevLog(
+                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
+                    );
                     if (String(err).includes('Error 404')) {
                         await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Red')
+                                    .setTitle(`${err}`)
+                                    .setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!')
+                                    .setTimestamp(),
+                            ],
                             ephemeral: true,
                         });
                     } else {
@@ -1355,7 +1556,11 @@ class Command {
                         new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
                         new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                     );
-                    const embed = new EmbedBuilder().setColor('Yellow').setAuthor({ name: member.user.displayName, iconURL: member.user.avatarURL() }).setDescription(note.content).setTimestamp();
+                    const embed = new EmbedBuilder()
+                        .setColor('Yellow')
+                        .setAuthor({ name: member.user.displayName, iconURL: member.user.avatarURL() })
+                        .setDescription(note.content)
+                        .setTimestamp();
                     if (note.title) {
                         embed.setTitle(`${note.title} (#${note.id})`);
                     } else {
@@ -1378,22 +1583,42 @@ class Command {
                             client.database
                                 .remGlobalNote(member.user, note)
                                 .then(async (m) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await mes.edit({
                                         content: `${m}`,
                                         ephemeral: true,
                                     });
                                 })
                                 .catch(async (err) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `${err}`)
+                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
+                                    );
                                     if (String(err).includes('Error 404')) {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription(
+                                                        'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
+                                                    )
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('An Error occurred...')
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     }
@@ -1415,7 +1640,11 @@ class Command {
                                 ephemeral: true,
                             });
                         } else {
-                            client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                            client.database.writeDevLog(
+                                await client.database
+                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                    .catch((err) => client.database.writeDevLog(`${err}`))
+                            );
                         }
                         setTimeout(async () => {
                             await msg.delete();
@@ -1454,7 +1683,10 @@ class Command {
             new ButtonBuilder().setCustomId('content').setStyle(ButtonStyle.Primary).setEmoji('📝').setLabel('Change Content'),
             new ButtonBuilder().setCustomId('priv').setStyle(ButtonStyle.Primary).setEmoji('🎚️').setLabel('Change Visibility')
         );
-        const row2 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('finish').setStyle(ButtonStyle.Success).setLabel('Finish'), new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel'));
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('finish').setStyle(ButtonStyle.Success).setLabel('Finish'),
+            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
+        );
         if (type == 'server') {
             client.database
                 .getServerNote(interaction.guild, member.user, { id: noteId })
@@ -1498,7 +1730,11 @@ class Command {
                                         content: 'Reply collection timed out...',
                                     });
                                 } else {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                            .catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
@@ -1530,7 +1766,11 @@ class Command {
                                         content: 'Reply collection timed out...',
                                     });
                                 } else {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                            .catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
@@ -1543,16 +1783,21 @@ class Command {
                             });
                         } else if (i.customId == 'priv') {
                             const privsel = new ActionRowBuilder().addComponents(
-                                new StringSelectMenuBuilder().setCustomId('privsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Option selected...').addOptions(
-                                    {
-                                        label: 'True',
-                                        value: 'true',
-                                    },
-                                    {
-                                        label: 'False',
-                                        value: 'false',
-                                    }
-                                )
+                                new StringSelectMenuBuilder()
+                                    .setCustomId('privsel')
+                                    .setMinValues(1)
+                                    .setMaxValues(1)
+                                    .setPlaceholder('No Option selected...')
+                                    .addOptions(
+                                        {
+                                            label: 'True',
+                                            value: 'true',
+                                        },
+                                        {
+                                            label: 'False',
+                                            value: 'false',
+                                        }
+                                    )
                             );
                             const mes = await i.deferReply();
                             await mes.edit({
@@ -1579,7 +1824,11 @@ class Command {
                                         ephemeral: true,
                                     });
                                 } else {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                            .catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
@@ -1598,22 +1847,42 @@ class Command {
                             client.database
                                 .updateServerNote(interaction.guild, member.user, note)
                                 .then(async (m) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await mes.edit({
                                         embeds: [new EmbedBuilder().setColor('Green').setDescription(m).setTimestamp()],
                                         ephemeral: true,
                                     });
                                 })
                                 .catch(async (err) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `${err}`)
+                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
+                                    );
                                     if (String(err).includes('Error 404')) {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Please contact the Developer if this Issue persists!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription(
+                                                        'Could not find that Note in the Database. Please contact the Developer if this Issue persists!'
+                                                    )
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('An Error occurred...')
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     }
@@ -1629,10 +1898,18 @@ class Command {
                     });
                 })
                 .catch(async (err) => {
-                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                    client.database.writeDevLog(
+                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
+                    );
                     if (String(err).includes('Error 404')) {
                         await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Please contact the Developer if the Issue persists!').setTimestamp()],
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Red')
+                                    .setTitle(`${err}`)
+                                    .setDescription('Could not find that Note in the Database. Please contact the Developer if the Issue persists!')
+                                    .setTimestamp(),
+                            ],
                             ephemeral: true,
                         });
                     } else {
@@ -1685,7 +1962,11 @@ class Command {
                                         content: 'Reply collection timed out...',
                                     });
                                 } else {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                            .catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
@@ -1717,7 +1998,11 @@ class Command {
                                         content: 'Reply collection timed out...',
                                     });
                                 } else {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                            .catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
@@ -1730,16 +2015,21 @@ class Command {
                             });
                         } else if (i.customId == 'priv') {
                             const privsel = new ActionRowBuilder().addComponents(
-                                new StringSelectMenuBuilder().setCustomId('privsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Option selected...').addOptions(
-                                    {
-                                        label: 'True',
-                                        value: 'true',
-                                    },
-                                    {
-                                        label: 'False',
-                                        value: 'false',
-                                    }
-                                )
+                                new StringSelectMenuBuilder()
+                                    .setCustomId('privsel')
+                                    .setMinValues(1)
+                                    .setMaxValues(1)
+                                    .setPlaceholder('No Option selected...')
+                                    .addOptions(
+                                        {
+                                            label: 'True',
+                                            value: 'true',
+                                        },
+                                        {
+                                            label: 'False',
+                                            value: 'false',
+                                        }
+                                    )
                             );
                             const mes = await i.deferReply();
                             await mes.edit({
@@ -1766,7 +2056,11 @@ class Command {
                                         ephemeral: true,
                                     });
                                 } else {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `Collected ${collected.size} Interactions`).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
+                                            .catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
@@ -1785,22 +2079,42 @@ class Command {
                             client.database
                                 .updateGlobalNote(member.user, note)
                                 .then(async (m) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`)));
+                                    client.database.writeDevLog(
+                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
+                                    );
                                     await mes.edit({
                                         embeds: [new EmbedBuilder().setColor('Green').setDescription(m).setTimestamp()],
                                         ephemeral: true,
                                     });
                                 })
                                 .catch(async (err) => {
-                                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                                    client.database.writeDevLog(
+                                        await client.database
+                                            .writeLog(interaction.guild, `${err}`)
+                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
+                                    );
                                     if (String(err).includes('Error 404')) {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Please contact the Developer if this Issue persists!').setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle(`${err}`)
+                                                    .setDescription(
+                                                        'Could not find that Note in the Database. Please contact the Developer if this Issue persists!'
+                                                    )
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     } else {
                                         await mes.edit({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                            embeds: [
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('An Error occurred...')
+                                                    .setDescription(`${err}`)
+                                                    .setTimestamp(),
+                                            ],
                                             ephemeral: true,
                                         });
                                     }
@@ -1816,10 +2130,18 @@ class Command {
                     });
                 })
                 .catch(async (err) => {
-                    client.database.writeDevLog(await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`)));
+                    client.database.writeDevLog(
+                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
+                    );
                     if (String(err).includes('Error 404')) {
                         await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Note in the Database. Please contact the Developer if the Issue persists!').setTimestamp()],
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor('Red')
+                                    .setTitle(`${err}`)
+                                    .setDescription('Could not find that Note in the Database. Please contact the Developer if the Issue persists!')
+                                    .setTimestamp(),
+                            ],
                             ephemeral: true,
                         });
                     } else {

@@ -115,7 +115,10 @@ class ServerMember {
 
     static async add(server, member) {
         if (await this.exists(server, member)) {
-            throw new DuplicateError('Duplicate Server Member', `The User \"${member.user.username}\" is already a Member of the Server \"${server.name}\"!`);
+            throw new DuplicateError(
+                'Duplicate Server Member',
+                `The User \"${member.user.username}\" is already a Member of the Server \"${server.name}\"!`
+            );
         }
 
         const sql = 'INSERT INTO server_members (server_id, user_id, display_name) VALUES($1, $2, $3)';

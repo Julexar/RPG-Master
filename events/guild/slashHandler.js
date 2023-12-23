@@ -14,11 +14,21 @@ class slashHandler {
             const command = client.slashCommands.get(interaction.commandName);
             if (!command) {
                 return interaction.reply({
-                    embeds: [new EmbedBuilder().setColor('Red').setTitle('Error 404: Command not found').setDescription("This Command doesn't exit within the Bot's files, please contact the Developer about this Issue.").setTimestamp()],
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor('Red')
+                            .setTitle('Error 404: Command not found')
+                            .setDescription("This Command doesn't exit within the Bot's files, please contact the Developer about this Issue.")
+                            .setTimestamp(),
+                    ],
                 });
             }
             if (command.permissions) {
-                if (command.permissions.bot && command.permissions.bot.length && !interaction.channel.permissionsFor(interaction.guild.me).has(command.permissions.bot)) {
+                if (
+                    command.permissions.bot &&
+                    command.permissions.bot.length &&
+                    !interaction.channel.permissionsFor(interaction.guild.me).has(command.permissions.bot)
+                ) {
                     let perms = interaction.channel.permissionsFor(interaction.guild.me).missing(command.permissions.bot);
                     return interaction.reply({
                         embeds: [

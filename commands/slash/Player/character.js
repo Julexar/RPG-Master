@@ -76,7 +76,11 @@ class Command {
         switch (option.getSubcommand()) {
             case 'select':
                 const rows = [];
-                rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('charsel').setMaxValues(1).setPlaceholder('No Character selected...')));
+                rows.push(
+                    new ActionRowBuilder().addComponents(
+                        new StringSelectMenuBuilder().setCustomId('charsel').setMaxValues(1).setPlaceholder('No Character selected...')
+                    )
+                );
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
                     new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
@@ -89,7 +93,14 @@ class Command {
                         let num = 0;
                         for (const char of chars) {
                             if (count == 25) {
-                                rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('charsel').setMaxValues(1).setPlaceholder('No Character selected...')));
+                                rows.push(
+                                    new ActionRowBuilder().addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('charsel')
+                                            .setMaxValues(1)
+                                            .setPlaceholder('No Character selected...')
+                                    )
+                                );
                                 num++;
                                 count = 0;
                             }
@@ -127,7 +138,15 @@ class Command {
                                                     .writeLog(server, `${err}`)
                                                     .then(async () => {
                                                         await mes.edit({
-                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Character in the Database. Contact the Developer if this Issue persists.').setTimestamp()],
+                                                            embeds: [
+                                                                new EmbedBuilder()
+                                                                    .setColor('Red')
+                                                                    .setTitle(`${err}`)
+                                                                    .setDescription(
+                                                                        'Could not find that Character in the Database. Contact the Developer if this Issue persists.'
+                                                                    )
+                                                                    .setTimestamp(),
+                                                            ],
                                                             ephemeral: true,
                                                         });
                                                     })
@@ -137,7 +156,13 @@ class Command {
                                                     .writeLog(server, `${err}`)
                                                     .then(async () => {
                                                         await mes.edit({
-                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                            embeds: [
+                                                                new EmbedBuilder()
+                                                                    .setColor('Red')
+                                                                    .setTitle('An Error occurred...')
+                                                                    .setDescription(`${err}`)
+                                                                    .setTimestamp(),
+                                                            ],
                                                             ephemeral: true,
                                                         });
                                                     })
@@ -196,7 +221,15 @@ class Command {
                                                     .writeLog(server, `${err}`)
                                                     .then(async () => {
                                                         await mes.edit({
-                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Character in the Database. Contact the Developer if this Issue persists.').setTimestamp()],
+                                                            embeds: [
+                                                                new EmbedBuilder()
+                                                                    .setColor('Red')
+                                                                    .setTitle(`${err}`)
+                                                                    .setDescription(
+                                                                        'Could not find that Character in the Database. Contact the Developer if this Issue persists.'
+                                                                    )
+                                                                    .setTimestamp(),
+                                                            ],
                                                             ephemeral: true,
                                                         });
                                                     })
@@ -206,7 +239,13 @@ class Command {
                                                     .writeLog(server, `${err}`)
                                                     .then(async () => {
                                                         await mes.edit({
-                                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                                            embeds: [
+                                                                new EmbedBuilder()
+                                                                    .setColor('Red')
+                                                                    .setTitle('An Error occurred...')
+                                                                    .setDescription(`${err}`)
+                                                                    .setTimestamp(),
+                                                            ],
                                                             ephemeral: true,
                                                         });
                                                     })
@@ -277,7 +316,9 @@ class Command {
                             .writeLog(server, `${err}`)
                             .then(async () => {
                                 await interaction.reply({
-                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
+                                    embeds: [
+                                        new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp(),
+                                    ],
                                     ephemeral: true,
                                 });
                             })

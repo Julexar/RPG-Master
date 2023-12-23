@@ -29,7 +29,11 @@ class CharacterRaceFeat {
 
     static async getOne(server, char, race, feat) {
         if (feat.id) {
-            const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3', [char.id, race.id, feat.id]);
+            const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3', [
+                char.id,
+                race.id,
+                feat.id,
+            ]);
 
             if (results.length === 0) {
                 throw new NotFoundError('Character Race Feat not found', 'Could not find that racial Feat for that Character in the Database!');
@@ -49,10 +53,17 @@ class CharacterRaceFeat {
         }
 
         const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
-        const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3', [char.id, race.id, dbFeat.id]);
+        const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3', [
+            char.id,
+            race.id,
+            dbFeat.id,
+        ]);
 
         if (results.length === 0) {
-            throw new NotFoundError('Character Race Feat not found', 'Could not find a racial Feat with that name for that Character in the Database!');
+            throw new NotFoundError(
+                'Character Race Feat not found',
+                'Could not find a racial Feat with that name for that Character in the Database!'
+            );
         }
 
         const charRaceFeat = results[0];
@@ -69,13 +80,21 @@ class CharacterRaceFeat {
 
     static async exists(server, char, race, feat) {
         if (feat.id) {
-            const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3', [char.id, race.id, feat.id]);
+            const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3', [
+                char.id,
+                race.id,
+                feat.id,
+            ]);
 
             return results.length === 1;
         }
 
         const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
-        const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3', [char.id, race.id, dbFeat.id]);
+        const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3', [
+            char.id,
+            race.id,
+            dbFeat.id,
+        ]);
 
         return results.length === 1;
     }

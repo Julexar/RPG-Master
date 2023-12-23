@@ -1,12 +1,12 @@
-import fs from "fs";
+import fs from 'fs';
 
 const commands = [];
 
-const dirs = fs.readdirSync("./commands/slash")
+const dirs = fs.readdirSync('./commands/slash');
 for (const dir of dirs) {
-    const files = fs.readdirSync(`./commands/slash/${dir}`)
+    const files = fs.readdirSync(`./commands/slash/${dir}`);
     for (const file of files) {
-        const module = await import(`./${dir}/${file}`)
+        const module = await import(`./${dir}/${file}`);
         const command = module.default;
 
         commands.push(command);

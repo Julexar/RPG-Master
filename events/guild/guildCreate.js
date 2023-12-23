@@ -296,7 +296,10 @@ class Event {
                                                         })
                                                         .catch(async (err1) => {
                                                             await client.database
-                                                                .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
+                                                                .writeLog(
+                                                                    server,
+                                                                    `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`
+                                                                )
                                                                 .then((msg2) => client.database.writeDevLog(msg2))
                                                                 .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                         });
@@ -335,7 +338,10 @@ class Event {
                                                             })
                                                             .catch(async (err2) => {
                                                                 await client.database
-                                                                    .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
+                                                                    .writeLog(
+                                                                        server,
+                                                                        `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`
+                                                                    )
                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                     .catch((err3) => client.database.writeDevLog(`${err3}`));
                                                             });
@@ -639,7 +645,10 @@ class Event {
                                                             })
                                                             .catch(async (err1) => {
                                                                 await client.database
-                                                                    .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
+                                                                    .writeLog(
+                                                                        server,
+                                                                        `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`
+                                                                    )
                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                             });
@@ -672,13 +681,19 @@ class Event {
                                                                 })
                                                                 .then(async () => {
                                                                     await client.database
-                                                                        .writeLog(server, `Successfully added restrictions to Command /${command.name}`)
+                                                                        .writeLog(
+                                                                            server,
+                                                                            `Successfully added restrictions to Command /${command.name}`
+                                                                        )
                                                                         .then((msg) => client.database.writeDevLog(msg))
                                                                         .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                 })
                                                                 .catch(async (err2) => {
                                                                     await client.database
-                                                                        .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
+                                                                        .writeLog(
+                                                                            server,
+                                                                            `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`
+                                                                        )
                                                                         .then((msg) => client.database.writeDevLog(msg))
                                                                         .catch((err3) => client.database.writeDevLog(`${err3}`));
                                                                 });

@@ -40,7 +40,11 @@ class Session {
             return results[0];
         }
 
-        const results = await this.query('SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3', [server.id, user.id, session.name]);
+        const results = await this.query('SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3', [
+            server.id,
+            user.id,
+            session.name,
+        ]);
 
         if (results.length === 0) {
             throw new NotFoundError('Session not found', 'Could not find a Session with that name of that User in the Database!');
@@ -56,7 +60,11 @@ class Session {
             return results.length === 1;
         }
 
-        const results = await this.query('SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3', [server.id, user.id, session.name]);
+        const results = await this.query('SELECT * FROM sessions WHERE server_id = $1 AND gm_id = $2 AND name = $3', [
+            server.id,
+            user.id,
+            session.name,
+        ]);
 
         return results.length === 1;
     }
@@ -68,8 +76,22 @@ class Session {
 
         const date = moment().format('YYYY-MM-DD HH:mm:ss');
 
-        const sql = 'INSERT INTO sessions (server_id, gm_id, name, description, levels, players, min_runtime, max_runtime, start_time, end_time, date, channel, difficulty, started, finished) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)';
-        await query(sql, [server.id, user.id, session.name, session.description, session.levels, session.players, session.min_runtime, session.max_runtime, session.start_time, date, session.channel, session.difficulty]);
+        const sql =
+            'INSERT INTO sessions (server_id, gm_id, name, description, levels, players, min_runtime, max_runtime, start_time, end_time, date, channel, difficulty, started, finished) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)';
+        await query(sql, [
+            server.id,
+            user.id,
+            session.name,
+            session.description,
+            session.levels,
+            session.players,
+            session.min_runtime,
+            session.max_runtime,
+            session.start_time,
+            date,
+            session.channel,
+            session.difficulty,
+        ]);
 
         return 'Successfully added Session to Database';
     }

@@ -1,3 +1,3 @@
-import { CommandBuilder } from "./slash-commands.js";
+import { CommandBuilder } from './slash-commands.js';
 
 export { CommandBuilder };

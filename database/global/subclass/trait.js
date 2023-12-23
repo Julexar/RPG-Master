@@ -50,8 +50,22 @@ class SubclassTrait {
             throw new DuplicateError('Duplicate Subclass Trait', 'That Trait already exists for that Subclass in the Database!');
         }
 
-        const sql = 'INSERT INTO subclass_traits (sub_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)';
-        await query(sql, [sub.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat]);
+        const sql =
+            'INSERT INTO subclass_traits (sub_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)';
+        await query(sql, [
+            sub.id,
+            trait.level,
+            trait.name,
+            trait.description,
+            trait.type,
+            trait.visible,
+            trait.val,
+            trait.replace,
+            trait.abil_replace,
+            trait.dmg_dice,
+            trait.dmg_dice_size,
+            trait.dmg_stat,
+        ]);
 
         return 'Successfully added Subclass Trait to Database';
     }
@@ -71,8 +85,23 @@ class SubclassTrait {
             throw new NotFoundError('Subclass Trait not found', 'Could not find that Trait for that Subclass in the Database!');
         }
 
-        const sql = 'UPDATE subclass_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg-dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE sub_id = $12 AND id = $13';
-        await query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, sub.id, trait.id]);
+        const sql =
+            'UPDATE subclass_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg-dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE sub_id = $12 AND id = $13';
+        await query(sql, [
+            trait.level,
+            trait.name,
+            trait.description,
+            trait.type,
+            trait.visible,
+            trait.val,
+            trait.replace,
+            trait.abil_replace,
+            trait.dmg_dice,
+            trait.dmg_dice_size,
+            trait.dmg_stat,
+            sub.id,
+            trait.id,
+        ]);
 
         return 'Successfully updated Subclass Trait in Database';
     }

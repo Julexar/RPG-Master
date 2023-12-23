@@ -318,13 +318,19 @@ class Event {
                                                                 })
                                                                 .then(async () => {
                                                                     await client.database
-                                                                        .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                        .writeLog(
+                                                                            guild,
+                                                                            `Successfully added restrictions to Command /${command.name}`
+                                                                        )
                                                                         .then((msg1) => client.database.writeDevLog(msg1))
                                                                         .catch((err) => client.database.writeDevLog(`${err}`));
                                                                 })
                                                                 .catch(async (err) => {
                                                                     await client.database
-                                                                        .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err}`)
+                                                                        .writeLog(
+                                                                            guild,
+                                                                            `Failed to add restrictions to Command /${command.name}\nReason:\n${err}`
+                                                                        )
                                                                         .then((msg1) => client.database.writeDevLog(msg1))
                                                                         .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                 });
@@ -357,13 +363,19 @@ class Event {
                                                                     })
                                                                     .then(async () => {
                                                                         await client.database
-                                                                            .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                            .writeLog(
+                                                                                guild,
+                                                                                `Successfully added restrictions to Command /${command.name}`
+                                                                            )
                                                                             .then((msg) => client.database.writeDevLog(msg))
                                                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                     })
                                                                     .catch(async (err1) => {
                                                                         await client.database
-                                                                            .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
+                                                                            .writeLog(
+                                                                                guild,
+                                                                                `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`
+                                                                            )
                                                                             .then((msg) => client.database.writeDevLog(msg))
                                                                             .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                     });
@@ -427,7 +439,10 @@ class Event {
                                                             await users.forEach(async (user) => {
                                                                 if (!guild.members.cache.get(user.id)) {
                                                                     await client.database
-                                                                        .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                                        .writeLog(
+                                                                            guild,
+                                                                            `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                                        )
                                                                         .then((msg2) => client.database.writeDevLog(msg2))
                                                                         .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                     await client.database
@@ -509,13 +524,19 @@ class Event {
                                                             .getMember(guild)
                                                             .then(async (users) => {
                                                                 await client.database
-                                                                    .writeLog(guild, 'Found Members in Database, checking if they exist on the Server...')
+                                                                    .writeLog(
+                                                                        guild,
+                                                                        'Found Members in Database, checking if they exist on the Server...'
+                                                                    )
                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                 await users.forEach(async (user) => {
                                                                     if (!guild.members.cache.get(user.id)) {
                                                                         await client.database
-                                                                            .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                                            .writeLog(
+                                                                                guild,
+                                                                                `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                                            )
                                                                             .then((msg1) => client.database.writeDevLog(msg1))
                                                                             .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                         await client.database
@@ -563,7 +584,9 @@ class Event {
                                                                                             await client.database
                                                                                                 .writeLog(guild, msg1)
                                                                                                 .then((msg2) => client.database.writeDevLog(msg2))
-                                                                                                .catch((err4) => client.database.writeDevLog(`${err4}`));
+                                                                                                .catch((err4) =>
+                                                                                                    client.database.writeDevLog(`${err4}`)
+                                                                                                );
                                                                                         })
                                                                                         .catch(async (err4) => {
                                                                                             await client.database
@@ -638,7 +661,10 @@ class Event {
                                                 .set(commandArray)
                                                 .then(async (commands) => {
                                                     await client.database
-                                                        .writeLog(guild, 'Successfully registered Server Commands, attempting to write Server Commands to Database...')
+                                                        .writeLog(
+                                                            guild,
+                                                            'Successfully registered Server Commands, attempting to write Server Commands to Database...'
+                                                        )
                                                         .then((msg1) => client.database.writeDevLog(msg1))
                                                         .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                     commands.forEach(async (command) => {
@@ -676,13 +702,19 @@ class Event {
                                                                                     })
                                                                                     .then(async () => {
                                                                                         await client.database
-                                                                                            .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                            .writeLog(
+                                                                                                guild,
+                                                                                                `Successfully added restrictions to Command /${command.name}`
+                                                                                            )
                                                                                             .then((msg2) => client.database.writeDevLog(msg2))
                                                                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                                     })
                                                                                     .catch(async (err1) => {
                                                                                         await client.database
-                                                                                            .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
+                                                                                            .writeLog(
+                                                                                                guild,
+                                                                                                `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`
+                                                                                            )
                                                                                             .then((msg2) => client.database.writeDevLog(msg2))
                                                                                             .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                                     });
@@ -715,15 +747,25 @@ class Event {
                                                                                         })
                                                                                         .then(async () => {
                                                                                             await client.database
-                                                                                                .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                                .writeLog(
+                                                                                                    guild,
+                                                                                                    `Successfully added restrictions to Command /${command.name}`
+                                                                                                )
                                                                                                 .then((msg1) => client.database.writeDevLog(msg1))
-                                                                                                .catch((err2) => client.database.writeDevLog(`${err2}`));
+                                                                                                .catch((err2) =>
+                                                                                                    client.database.writeDevLog(`${err2}`)
+                                                                                                );
                                                                                         })
                                                                                         .catch(async (err2) => {
                                                                                             await client.database
-                                                                                                .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
+                                                                                                .writeLog(
+                                                                                                    guild,
+                                                                                                    `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`
+                                                                                                )
                                                                                                 .then((msg1) => client.database.writeDevLog(msg1))
-                                                                                                .catch((err3) => client.database.writeDevLog(`${err3}`));
+                                                                                                .catch((err3) =>
+                                                                                                    client.database.writeDevLog(`${err3}`)
+                                                                                                );
                                                                                         });
                                                                                 })
                                                                                 .catch(async (err2) => {
@@ -734,7 +776,10 @@ class Event {
                                                                                 });
                                                                         } else {
                                                                             await client.database
-                                                                                .writeLog(guild, `Failed to register Server Command /${command.name}\nReason:\n${err1}`)
+                                                                                .writeLog(
+                                                                                    guild,
+                                                                                    `Failed to register Server Command /${command.name}\nReason:\n${err1}`
+                                                                                )
                                                                                 .then((msg1) => client.database.writeDevLog(msg1))
                                                                                 .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                         }
@@ -764,13 +809,19 @@ class Event {
                                                             .getMember(guild)
                                                             .then(async (users) => {
                                                                 await client.database
-                                                                    .writeLog(guild, 'Found Members in Database, checking if they exist on the Server...')
+                                                                    .writeLog(
+                                                                        guild,
+                                                                        'Found Members in Database, checking if they exist on the Server...'
+                                                                    )
                                                                     .then((msg2) => client.database.writeDevLog(msg2))
                                                                     .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                 await users.forEach(async (user) => {
                                                                     if (!guild.members.cache.get(user.id)) {
                                                                         await client.database
-                                                                            .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                                            .writeLog(
+                                                                                guild,
+                                                                                `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                                            )
                                                                             .then((msg2) => client.database.writeDevLog(msg2))
                                                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                         await client.database
@@ -818,7 +869,9 @@ class Event {
                                                                                             await client.database
                                                                                                 .writeLog(guild, msg1)
                                                                                                 .then((msg2) => client.database.writeDevLog(msg2))
-                                                                                                .catch((err3) => client.database.writeDevLog(`${err3}`));
+                                                                                                .catch((err3) =>
+                                                                                                    client.database.writeDevLog(`${err3}`)
+                                                                                                );
                                                                                         })
                                                                                         .catch(async (err3) => {
                                                                                             await client.database
@@ -852,13 +905,19 @@ class Event {
                                                                 .getMember(guild)
                                                                 .then(async (users) => {
                                                                     await client.database
-                                                                        .writeLog(guild, 'Found Members in Database, checking if they exist on the Server...')
+                                                                        .writeLog(
+                                                                            guild,
+                                                                            'Found Members in Database, checking if they exist on the Server...'
+                                                                        )
                                                                         .then((msg1) => client.database.writeDevLog(msg1))
                                                                         .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                     await users.forEach(async (user) => {
                                                                         if (!guild.members.cache.get(user.id)) {
                                                                             await client.database
-                                                                                .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                                                .writeLog(
+                                                                                    guild,
+                                                                                    `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                                                )
                                                                                 .then((msg1) => client.database.writeDevLog(msg1))
                                                                                 .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                             await client.database
@@ -877,7 +936,10 @@ class Event {
                                                                                 });
                                                                         } else {
                                                                             await client.database
-                                                                                .writeLog(guild, `Found Member \"${user.name}\" in Server - Skipping...`)
+                                                                                .writeLog(
+                                                                                    guild,
+                                                                                    `Found Member \"${user.name}\" in Server - Skipping...`
+                                                                                )
                                                                                 .then((msg1) => client.database.writeDevLog(msg1))
                                                                                 .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                         }
@@ -906,13 +968,17 @@ class Event {
                                                                                                 await client.database
                                                                                                     .writeLog(guild, msg1)
                                                                                                     .then((msg2) => client.database.writeDevLog(msg2))
-                                                                                                    .catch((err4) => client.database.writeDevLog(`${err4}`));
+                                                                                                    .catch((err4) =>
+                                                                                                        client.database.writeDevLog(`${err4}`)
+                                                                                                    );
                                                                                             })
                                                                                             .catch(async (err4) => {
                                                                                                 await client.database
                                                                                                     .writeLog(guild, `${err4}`)
                                                                                                     .then((msg1) => client.database.writeDevLog(msg1))
-                                                                                                    .catch((err5) => client.database.writeDevLog(err5));
+                                                                                                    .catch((err5) =>
+                                                                                                        client.database.writeDevLog(err5)
+                                                                                                    );
                                                                                             });
                                                                                     } else {
                                                                                         await client.database
@@ -981,12 +1047,18 @@ class Event {
                                                     .set(commandArray)
                                                     .then(async (commands) => {
                                                         await client.database
-                                                            .writeLog(guild, 'Successfully registered Server Commands, attempting to write Server Commands to Database...')
+                                                            .writeLog(
+                                                                guild,
+                                                                'Successfully registered Server Commands, attempting to write Server Commands to Database...'
+                                                            )
                                                             .then((msg) => client.database.writeDevLog(msg))
                                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                         commands.forEach(async (command) => {
                                                             await client.database
-                                                                .writeLog(guild, `Attempting to register Server Command /${command.name} in Database...`)
+                                                                .writeLog(
+                                                                    guild,
+                                                                    `Attempting to register Server Command /${command.name} in Database...`
+                                                                )
                                                                 .then((msg) => client.database.writeDevLog(msg))
                                                                 .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                             await client.database
@@ -1019,15 +1091,25 @@ class Event {
                                                                                         })
                                                                                         .then(async () => {
                                                                                             await client.database
-                                                                                                .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                                .writeLog(
+                                                                                                    guild,
+                                                                                                    `Successfully added restrictions to Command /${command.name}`
+                                                                                                )
                                                                                                 .then((msg1) => client.database.writeDevLog(msg1))
-                                                                                                .catch((err1) => client.database.writeDevLog(`${err1}`));
+                                                                                                .catch((err1) =>
+                                                                                                    client.database.writeDevLog(`${err1}`)
+                                                                                                );
                                                                                         })
                                                                                         .catch(async (err1) => {
                                                                                             await client.database
-                                                                                                .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
+                                                                                                .writeLog(
+                                                                                                    guild,
+                                                                                                    `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`
+                                                                                                )
                                                                                                 .then((msg1) => client.database.writeDevLog(msg1))
-                                                                                                .catch((err2) => client.database.writeDevLog(`${err2}`));
+                                                                                                .catch((err2) =>
+                                                                                                    client.database.writeDevLog(`${err2}`)
+                                                                                                );
                                                                                         });
                                                                                 })
                                                                                 .catch(async (err1) => {
@@ -1040,7 +1122,10 @@ class Event {
                                                                         .catch(async (err1) => {
                                                                             if (String(err1).includes('Error 409')) {
                                                                                 await client.database
-                                                                                    .writeLog(guild, `${err1} - Searching Database for restrictions...`)
+                                                                                    .writeLog(
+                                                                                        guild,
+                                                                                        `${err1} - Searching Database for restrictions...`
+                                                                                    )
                                                                                     .then((msg) => client.database.writeDevLog(msg))
                                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                                 await client.database
@@ -1058,15 +1143,25 @@ class Event {
                                                                                             })
                                                                                             .then(async () => {
                                                                                                 await client.database
-                                                                                                    .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                                    .writeLog(
+                                                                                                        guild,
+                                                                                                        `Successfully added restrictions to Command /${command.name}`
+                                                                                                    )
                                                                                                     .then((msg) => client.database.writeDevLog(msg))
-                                                                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
+                                                                                                    .catch((err2) =>
+                                                                                                        client.database.writeDevLog(`${err2}`)
+                                                                                                    );
                                                                                             })
                                                                                             .catch(async (err2) => {
                                                                                                 await client.database
-                                                                                                    .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
+                                                                                                    .writeLog(
+                                                                                                        guild,
+                                                                                                        `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`
+                                                                                                    )
                                                                                                     .then((msg) => client.database.writeDevLog(msg))
-                                                                                                    .catch((err3) => client.database.writeDevLog(`${err3}`));
+                                                                                                    .catch((err3) =>
+                                                                                                        client.database.writeDevLog(`${err3}`)
+                                                                                                    );
                                                                                             });
                                                                                     })
                                                                                     .catch(async (err2) => {
@@ -1077,7 +1172,10 @@ class Event {
                                                                                     });
                                                                             } else {
                                                                                 await client.database
-                                                                                    .writeLog(guild, `Failed to register Server Command /${command.name}\nReason:\n${err1}`)
+                                                                                    .writeLog(
+                                                                                        guild,
+                                                                                        `Failed to register Server Command /${command.name}\nReason:\n${err1}`
+                                                                                    )
                                                                                     .then((msg) => client.database.writeDevLog(msg))
                                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                             }
@@ -1132,7 +1230,10 @@ class Event {
                                                 await users.forEach(async (user) => {
                                                     if (!guild.members.cache.get(user.user_id)) {
                                                         await client.database
-                                                            .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                            .writeLog(
+                                                                guild,
+                                                                `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                            )
                                                             .then((msg2) => client.database.writeDevLog(msg2))
                                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                         await client.database
@@ -1220,7 +1321,10 @@ class Event {
                                                     await users.forEach(async (user) => {
                                                         if (!guild.members.cache.get(user.id)) {
                                                             await client.database
-                                                                .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                                .writeLog(
+                                                                    guild,
+                                                                    `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                                )
                                                                 .then((msg1) => client.database.writeDevLog(msg1))
                                                                 .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                             await client.database
@@ -1343,7 +1447,10 @@ class Event {
                                     .set(commandArray)
                                     .then(async (commands) => {
                                         await client.database
-                                            .writeLog(guild, 'Successfully registered Server Commands, attempting to write Server Commands to Database...')
+                                            .writeLog(
+                                                guild,
+                                                'Successfully registered Server Commands, attempting to write Server Commands to Database...'
+                                            )
                                             .then((msg1) => client.database.writeDevLog(msg1))
                                             .catch((err1) => client.database.writeDevLog(`${err1}`));
                                         commands.forEach(async (command) => {
@@ -1381,13 +1488,19 @@ class Event {
                                                                         })
                                                                         .then(async () => {
                                                                             await client.database
-                                                                                .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                .writeLog(
+                                                                                    guild,
+                                                                                    `Successfully added restrictions to Command /${command.name}`
+                                                                                )
                                                                                 .then((msg2) => client.database.writeDevLog(msg2))
                                                                                 .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                         })
                                                                         .catch(async (err1) => {
                                                                             await client.database
-                                                                                .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
+                                                                                .writeLog(
+                                                                                    guild,
+                                                                                    `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`
+                                                                                )
                                                                                 .then((msg2) => client.database.writeDevLog(msg2))
                                                                                 .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                         });
@@ -1420,13 +1533,19 @@ class Event {
                                                                             })
                                                                             .then(async () => {
                                                                                 await client.database
-                                                                                    .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                    .writeLog(
+                                                                                        guild,
+                                                                                        `Successfully added restrictions to Command /${command.name}`
+                                                                                    )
                                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                             })
                                                                             .catch(async (err2) => {
                                                                                 await client.database
-                                                                                    .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
+                                                                                    .writeLog(
+                                                                                        guild,
+                                                                                        `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`
+                                                                                    )
                                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                                     .catch((err3) => client.database.writeDevLog(`${err3}`));
                                                                             });
@@ -1439,7 +1558,10 @@ class Event {
                                                                     });
                                                             } else {
                                                                 await client.database
-                                                                    .writeLog(guild, `Failed to register Server Command /${command.name}\nReason:\n${err1}`)
+                                                                    .writeLog(
+                                                                        guild,
+                                                                        `Failed to register Server Command /${command.name}\nReason:\n${err1}`
+                                                                    )
                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                             }
@@ -1475,7 +1597,10 @@ class Event {
                                                     await users.forEach(async (user) => {
                                                         if (!guild.members.cache.get(user.id)) {
                                                             await client.database
-                                                                .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                                .writeLog(
+                                                                    guild,
+                                                                    `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                                )
                                                                 .then((msg2) => client.database.writeDevLog(msg2))
                                                                 .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                             await client.database
@@ -1563,7 +1688,10 @@ class Event {
                                                         await users.forEach(async (user) => {
                                                             if (!guild.members.cache.get(user.id)) {
                                                                 await client.database
-                                                                    .writeLog(guild, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
+                                                                    .writeLog(
+                                                                        guild,
+                                                                        `Could not find \"${user.name}\" in the Server - Removing from Database...`
+                                                                    )
                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                 await client.database
@@ -1686,7 +1814,10 @@ class Event {
                                         .set(commandArray)
                                         .then(async (commands) => {
                                             await client.database
-                                                .writeLog(guild, 'Successfully registered Server Commands, attempting to write Server Commands to Database...')
+                                                .writeLog(
+                                                    guild,
+                                                    'Successfully registered Server Commands, attempting to write Server Commands to Database...'
+                                                )
                                                 .then((msg) => client.database.writeDevLog(msg))
                                                 .catch((err1) => client.database.writeDevLog(`${err1}`));
                                             commands.forEach(async (command) => {
@@ -1724,13 +1855,19 @@ class Event {
                                                                             })
                                                                             .then(async () => {
                                                                                 await client.database
-                                                                                    .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                    .writeLog(
+                                                                                        guild,
+                                                                                        `Successfully added restrictions to Command /${command.name}`
+                                                                                    )
                                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                                     .catch((err1) => client.database.writeDevLog(`${err1}`));
                                                                             })
                                                                             .catch(async (err1) => {
                                                                                 await client.database
-                                                                                    .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
+                                                                                    .writeLog(
+                                                                                        guild,
+                                                                                        `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`
+                                                                                    )
                                                                                     .then((msg1) => client.database.writeDevLog(msg1))
                                                                                     .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                             });
@@ -1763,13 +1900,19 @@ class Event {
                                                                                 })
                                                                                 .then(async () => {
                                                                                     await client.database
-                                                                                        .writeLog(guild, `Successfully added restrictions to Command /${command.name}`)
+                                                                                        .writeLog(
+                                                                                            guild,
+                                                                                            `Successfully added restrictions to Command /${command.name}`
+                                                                                        )
                                                                                         .then((msg) => client.database.writeDevLog(msg))
                                                                                         .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                                 })
                                                                                 .catch(async (err2) => {
                                                                                     await client.database
-                                                                                        .writeLog(guild, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
+                                                                                        .writeLog(
+                                                                                            guild,
+                                                                                            `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`
+                                                                                        )
                                                                                         .then((msg) => client.database.writeDevLog(msg))
                                                                                         .catch((err3) => client.database.writeDevLog(`${err3}`));
                                                                                 });
@@ -1782,7 +1925,10 @@ class Event {
                                                                         });
                                                                 } else {
                                                                     await client.database
-                                                                        .writeLog(guild, `Failed to register Server Command /${command.name}\nReason:\n${err1}`)
+                                                                        .writeLog(
+                                                                            guild,
+                                                                            `Failed to register Server Command /${command.name}\nReason:\n${err1}`
+                                                                        )
                                                                         .then((msg) => client.database.writeDevLog(msg))
                                                                         .catch((err2) => client.database.writeDevLog(`${err2}`));
                                                                 }
