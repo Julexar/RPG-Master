@@ -954,10 +954,139 @@ class Command extends CommandBuilder {
                         });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
-                    break;
-                    case 'edit':
-                        //TODO: Add Edit Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('armor')
+                                .setPlaceholder('No Armor selected...')
+                                .setMaxValues(1)
+                        );
+
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        )
+
+                        rows.push(selrow);
+                        let num, count, page = 0;
+
+                        const armors = await client.database.Server.armors.getAll(server);
+
+                        for (const armor of armors) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: armor.name,
+                                value: `${armor.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: `Select an Armor:`,
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'armor':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'armor', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select an Armor:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select an Armor:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
@@ -969,9 +1098,6 @@ class Command extends CommandBuilder {
                     case 'remove':
                         //TODO: Add Remove Options
                     break;
-                    case 'edit':
-                        //TODO: Add Edit Options
-                    break;
                 }
             break;
             case 'condition':
@@ -981,9 +1107,6 @@ class Command extends CommandBuilder {
                     break;
                     case 'remove':
                         //TODO: Add Remove Options
-                    break;
-                    case 'edit':
-                        //TODO: Add Edit Options
                     break;
                 }
             break;
@@ -995,9 +1118,6 @@ class Command extends CommandBuilder {
                     case 'remove':
                         //TODO: Add Remove Options
                     break;
-                    case 'edit':
-                        //TODO: Add Edit Options
-                    break;
                 }
             break;
             case 'feat':
@@ -1007,9 +1127,6 @@ class Command extends CommandBuilder {
                     break;
                     case 'remove':
                         //TODO: Add Remove Options
-                    break;
-                    case 'edit':
-                        //TODO: Add Edit Options
                     break;
                 }
             break;
@@ -1021,9 +1138,6 @@ class Command extends CommandBuilder {
                     case 'remove':
                         //TODO: Add Remove Options
                     break;
-                    case 'edit':
-                        //TODO: Add Edit Options
-                    break;
                 }
             break;
             case 'subclass':
@@ -1034,9 +1148,6 @@ class Command extends CommandBuilder {
                     case 'remove':
                         //TODO: Add Remove Options
                     break;
-                    case 'edit':
-                        //TODO: Add Edit Options
-                    break;
                 }
             break;
             case 'subrace':
@@ -1046,9 +1157,6 @@ class Command extends CommandBuilder {
                     break;
                     case 'remove':
                         //TODO: Add Remove Options
-                    break;
-                    case 'edit':
-                        //TODO: Add Edit Options
                     break;
                 }
             break;
@@ -1061,26 +1169,19 @@ async function addAsset(server, type, asset) {
         case 'armor':
             return await addArmor(server, asset);
         case 'class':
-
-        break;
+            return await addClass(server, asset);
         case 'condition':
-
-        break;
+            return await addCondition(server, asset);
         case 'dmgtype':
-
-        break;
+            return await addDmgtype(server, asset);
         case 'feat':
-
-        break;
+            return await addFeat(server, asset);
         case 'race':
-
-        break;
+            return await addRace(server, asset);
         case 'subclass':
-
-        break;
+            return await addSubclass(server, asset);
         case 'subrace':
-
-        break;
+            return await addSubrace(server, asset);
     }
 }
 
@@ -1114,7 +1215,7 @@ async function addClass(server, clas) {
 
 async function addCondition(server, condition) {
     try {
-        const msg = await client.database.Condition.add(condition)
+        const msg = await client.database.Server.conditions.add(server, condition)
 
         return new SuccessEmbed(msg || "Success", `Successfully added Condition \`${condition.name}\` to the Server!`);
     } catch (err) {
@@ -1124,15 +1225,209 @@ async function addCondition(server, condition) {
 
         return new ErrorEmbed(err, true);
     }
+}
 
+async function addDmgtype(server, dmgtype) {
+    try {
+        const msg = await client.database.Server.dmgtypes.add(server, dmgtype)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Damage Type \`${dmgtype.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function addFeat(server, feat) {
+    try {
+        const msg = await client.database.Server.feats.add(server, feat)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Feat \`${feat.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function addRace(server, race) {
+    try {
+        const msg = await client.database.Server.races.add(server, race)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Race \`${race.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function addSubclass(server, subclass) {
+    try {
+        const msg = await client.database.Server.subclasses.add(server, subclass)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Subclass \`${subclass.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function addSubrace(server, subrace) {
+    try {
+        const msg = await client.database.Server.subraces.add(server, subrace)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Subrace \`${subrace.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
 }
 
 async function removeAsset(server, type, asset) {
-    //TODO: Create removeAsset Function
+    switch (type) {
+        case 'armor':
+            return await removeArmor(server, asset);
+        case 'class':
+            return await removeClass(server, asset);
+        case 'condition':
+            return await removeCondition(server, asset);
+        case 'dmgtype':
+            return await removeDmgtype(server, asset);
+        case 'feat':
+            return await removeFeat(server, asset);
+        case 'race':
+            return await removeRace(server, asset);
+        case 'subclass':
+            return await removeSubclass(server, asset);
+        case 'subrace':
+            return await removeSubrace(server, asset);
+    }
 }
 
-async function editAsset(server, type, asset) {
-    //TODO: Create editAsset Function
+async function removeArmor(server, armor) {
+    try {
+        const msg = await client.database.Armor.remove(server, armor)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Armor \`${armor.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function removeClass(server, clas) {
+    try {
+        const msg = await client.database.Server.classes.remove(server, clas)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Class \`${clas.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function removeCondition(server, condition) {
+    try {
+        const msg = await client.database.Server.conditions.remove(server, condition)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Condition \`${condition.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function removeDmgtype(server, dmgtype) {
+    try {
+        const msg = await client.database.Server.dmgtypes.remove(server, dmgtype)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Damage Type \`${dmgtype.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function removeFeat(server, feat) {
+    try {
+        const msg = await client.database.Server.feats.remove(server, feat)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Feat \`${feat.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function removeRace(server, race) {
+    try {
+        const msg = await client.database.Server.races.remove(server, race)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Race \`${race.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function removeSubclass(server, subclass) {
+    try {
+        const msg = await client.database.Server.subclasses.remove(server, subclass)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Subclass \`${subclass.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function removeSubrace(server, subrace) {
+    try {
+        const msg = await client.database.Server.subraces.remove(server, subrace)
+
+        return new SuccessEmbed(msg || "Success", `Successfully removed Subrace \`${subrace.name}\` from the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
 }
 
 const command = new Command({
@@ -1230,53 +1525,6 @@ const command = new Command({
                 {
                     name: 'subrace',
                     description: 'Removes a custom Subrace',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-            ],
-        },
-        {
-            name: 'edit',
-            description: 'Edits an existing Game Asset',
-            type: ApplicationCommandOptionType.SubcommandGroup,
-            options: [
-                {
-                    name: 'armor',
-                    description: 'Edits a custom Armor',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-                {
-                    name: 'class',
-                    description: 'Edits a custom Class',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-                {
-                    name: 'condition',
-                    description: 'Edits a custom Condition',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-                {
-                    name: 'dmgtype',
-                    description: 'Edits a custom Damagetype',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-                {
-                    name: 'feat',
-                    description: 'Edits a custom Feat',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-                {
-                    name: 'race',
-                    description: 'Edits a custom Race',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-                {
-                    name: 'subclass',
-                    description: 'Edits a custom Subclass',
-                    type: ApplicationCommandOptionType.Subcommand,
-                },
-                {
-                    name: 'subrace',
-                    description: 'Edits a custom Subrace',
                     type: ApplicationCommandOptionType.Subcommand,
                 },
             ],
