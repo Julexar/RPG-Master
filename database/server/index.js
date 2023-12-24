@@ -2,6 +2,7 @@ import { psql } from '../psql.js';
 import { DuplicateError, NotFoundError } from '../../custom/errors';
 import { ServerArmor } from './armor.js';
 import { ServerCommand } from './command';
+import { ServerCondition } from './condition.js';
 import { ServerLog } from './log.js';
 import { ServerMember } from './member.js';
 import { ServerNote } from './note.js';
@@ -19,6 +20,7 @@ class server {
     constructor() {
         this.armors = ServerArmor;
         this.commands = ServerCommand;
+        this.conditions = ServerCondition;
         this.logs = ServerLog;
         this.members = ServerMember;
         this.notes = ServerNote;
