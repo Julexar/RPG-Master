@@ -1,12 +1,4 @@
-import {
-    ActionRowBuilder,
-    ApplicationCommandOptionType,
-    ButtonBuilder,
-    ButtonStyle,
-    EmbedBuilder,
-    PermissionFlagsBits,
-    StringSelectMenuBuilder,
-} from 'discord.js';
+import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits, StringSelectMenuBuilder } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { NotFoundError, DuplicateError, ForbiddenError } from '../../../custom/errors';
@@ -17,11 +9,11 @@ class Command extends CommandBuilder {
         super(data);
 
         this.enabled = true;
-        this.nick = 'g';
-    }
+        this.nick = "g"
+    };
 
     /**
-     *
+     * 
      * @param {import("discord.js").CommandInteraction} interaction
      */
     async run(interaction) {
@@ -30,51 +22,65 @@ class Command extends CommandBuilder {
         const user = member.user;
         const guild = interaction.guild;
 
-        const server = await client.database.Server.getOne(guild);
+        const server = await client.database.Server.getOne(guild)
 
         let allowed = false;
 
-        if (member.permissions.has(PermissionFlagsBits.Administrator)) allowed = true;
-        if (member.roles.cache.has(server.admin_role) || member.roles.cache.has(server.mod_role)) allowed = true;
+        if (member.permissions.has(PermissionFlagsBits.Administrator)) allowed = true
+        if (member.roles.cache.has(server.admin_role) || member.roles.cache.has(server.mod_role)) allowed = true
         if (server.gm_edit) {
-            if (member.roles.cache.has(server.dm_role)) allowed = true;
-            else if (await client.database.Server.gms.getOne(server, user)) allowed = true;
+            if (member.roles.cache.has(server.dm_role)) allowed = true
+            else if (await client.database.Server.gms.getOne(server, user)) allowed = true
         }
 
         if (!allowed) {
-            const roles = server.gm_edit
-                ? `<@&${server.admin_role}>, <@&${server.mod_role}>, <@&${server.dm_role}>`
-                : `<@&${server.admin_role}>, <@&${server.mod_role}>`;
+            const roles = server.gm_edit ? `<@&${server.admin_role}>, <@&${server.mod_role}>, <@&${server.dm_role}>` : `<@&${server.admin_role}>, <@&${server.mod_role}>`
 
-            const err = new ForbiddenError('Missing Permission', `You do not have Permission to use this Command!`);
+            const err = new ForbiddenError("Missing Permission", `You do not have Permission to use this Command!`)
 
-            client.writeServerLog(guild, err);
+            client.writeServerLog(guild, err)
 
             return await interaction.reply({
                 embeds: [
-                    new ErrorEmbed(err, false).setDescription(
-                        `You do not have Permission to use this Command!\n\nOnly People with the following Roles may use this Command: ${roles}`
-                    ),
+                    new ErrorEmbed(err, false)
+                    .setDescription(`You do not have Permission to use this Command!\n\nOnly People with the following Roles may use this Command: ${roles}`)
                 ],
-                ephemeral: true,
+                ephemeral: true
             });
         }
 
-        const menu = new EmbedBuilder().setColor('#00ffff');
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('name').setLabel('Set Name').setEmoji('🔤').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('desc').setLabel('Set Description').setEmoji('📝').setStyle(ButtonStyle.Primary)
+        const menu = new EmbedBuilder()
+        .setColor('#00ffff');
+        
+        const row1 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('name')
+                .setLabel('Set Name')
+                .setEmoji('🔤')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('desc')
+                .setLabel('Set Description')
+                .setEmoji('📝')
+                .setStyle(ButtonStyle.Primary)
         );
         const row2 = new ActionRowBuilder();
         const row3 = new ActionRowBuilder();
-        const row4 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('finish').setLabel('Finish').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
+        const row4 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('finish')
+                .setLabel('Finish')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId('cancel')
+                .setLabel('Cancel')
+                .setStyle(ButtonStyle.Danger)
         );
 
-        let msg, collector;
-        const filter = (m) => m.user.id === user.id;
+        let msg, collector, embed, emph;
+        const filter = m => m.user.id === user.id;
 
         switch (option.getSubcommand()) {
             case 'armor':
@@ -91,112 +97,136 @@ class Command extends CommandBuilder {
                             magical: false,
                             magic_bonus: 0,
                             attune: false,
-                            attune_req: null,
+                            attune_req: null
                         };
 
                         row1.addComponents(
-                            new ButtonBuilder().setCustomId('type').setLabel('Set Type').setEmoji('🏷️').setStyle(ButtonStyle.Primary),
-                            new ButtonBuilder().setCustomId('rarity').setLabel('Set Rarity').setEmoji('🌟').setStyle(ButtonStyle.Primary),
-                            new ButtonBuilder().setCustomId('dex_bonus').setLabel('Set Dex Bonus').setEmoji('🏹').setStyle(ButtonStyle.Primary)
+                            new ButtonBuilder()
+                                .setCustomId('type')
+                                .setLabel('Set Type')
+                                .setEmoji('🏷️')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('rarity')
+                                .setLabel('Set Rarity')
+                                .setEmoji('🌟')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('dex_bonus')
+                                .setLabel('Set Dex Bonus')
+                                .setEmoji('🏹')
+                                .setStyle(ButtonStyle.Primary)
                         );
 
                         row2.addComponents(
-                            new ButtonBuilder().setCustomId('ac').setLabel('Set AC').setEmoji('🛡️').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('ac')
+                                .setLabel('Set AC')
+                                .setEmoji('🛡️')
+                                .setStyle(ButtonStyle.Primary),
                             new ButtonBuilder()
                                 .setCustomId('str_req')
                                 .setLabel('Set Strength Requirement')
                                 .setEmoji('💪')
                                 .setStyle(ButtonStyle.Primary),
-                            new ButtonBuilder().setCustomId('magical').setLabel('Make Magical').setEmoji('✨').setStyle(ButtonStyle.Primary),
-                            new ButtonBuilder().setCustomId('attune').setLabel('Toggle Attunement').setEmoji('🔮').setStyle(ButtonStyle.Primary)
+                            new ButtonBuilder()
+                                .setCustomId('magical')
+                                .setLabel('Make Magical')
+                                .setEmoji('✨')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('attune')
+                                .setLabel('Toggle Attunement')
+                                .setEmoji('🔮')
+                                .setStyle(ButtonStyle.Primary)
                         );
 
                         menu.setTitle('Armor Creator')
-                            .setFields([
-                                {
-                                    name: 'Name',
-                                    value: armor.name || ' ',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Type',
-                                    value: armor.type || ' ',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Rarity',
-                                    value: armor.rarity || ' ',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Requires Attunement',
-                                    value: armor.attune ? `Yes (${armor.attune_req})` : 'No',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Magical',
-                                    value: armor.magical ? 'Yes' : 'No',
-                                    inline: true,
-                                },
-                                {
-                                    name: '\u200b',
-                                    value: '\u200b',
-                                    inline: false,
-                                },
-                                {
-                                    name: 'AC',
-                                    value: armor.ac || ' ',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Dex Bonus',
-                                    value: armor.dex_bonus || ' ',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Strength Requirement',
-                                    value: armor.str_req || ' ',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Description',
-                                    value: armor.description || ' ',
-                                    inline: false,
-                                },
-                            ])
-                            .setTimestamp();
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: armor.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Type',
+                                value: armor.type || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Rarity',
+                                value: armor.rarity || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Requires Attunement',
+                                value: armor.attune ? `Yes (${armor.attune_req})` : 'No',
+                                inline: true
+                            },
+                            {
+                                name: 'Magical',
+                                value: armor.magical ? 'Yes' : 'No',
+                                inline: true
+                            },
+                            {
+                                name: '\u200b',
+                                value: '\u200b',
+                                inline: false
+                            },
+                            {
+                                name: 'AC',
+                                value: armor.ac || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Dex Bonus',
+                                value: armor.dex_bonus || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Strength Requirement',
+                                value: armor.str_req || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Description',
+                                value: armor.description || '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
 
                         msg = await interaction.reply({
                             embeds: [menu],
                             components: [row1, row2, row4],
-                            ephemeral: true,
+                            ephemeral: true
                         });
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             let mes, filt, mescol, col;
 
                             switch (i.customId) {
                                 case 'name':
                                     mes = await i.followUp({
-                                        content: `<@${user.id}> Please enter the Name of the Armor!`,
+                                        content: `<@${user.id}> Please enter the Name of the Armor!`
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
-                                    mescol = i.channel.createMessageComponentCollector({ filt, time: 35000, max: 1 });
+                                    mescol = i.channel.createMessageComponentCollector({ filt, time: 35000, max: 1})
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         armor.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: `<@${user.id}> You took too long to respond!`,
+                                                content: `<@${user.id}> You took too long to respond!`
                                             });
                                         } else {
                                             client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
@@ -205,13 +235,13 @@ class Command extends CommandBuilder {
                                                 await mes.edit({
                                                     embeds: [menu],
                                                     components: [row1, row2, row3, row4],
-                                                    ephemeral: true,
+                                                    ephemeral: true
                                                 });
                                             } else {
                                                 await mes.edit({
                                                     embeds: [menu],
                                                     components: [row1, row2, row4],
-                                                    ephemeral: true,
+                                                    ephemeral: true
                                                 });
                                             }
                                         }
@@ -220,168 +250,881 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                    break;
+                                break;
                                 case 'type':
-                                    //TODO: Add Type Selection
-                                    break;
+                                    const tsel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('type')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'Light',
+                                                    value: 'Light'
+                                                },
+                                                {
+                                                    label: 'Medium',
+                                                    value: 'Medium'
+                                                },
+                                                {
+                                                    label: 'Heavy',
+                                                    value: 'Heavy'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: "Select a Type:",
+                                        components: [tsel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'type') {
+                                            menu.data.fields[1].value = `${j.values[0]} Armor`;
+                                            armor.type = j.values[0];
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'rarity':
-                                    //TODO: Add Rarity Selection
-                                    break;
+                                    const rsel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('rarity')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'Common',
+                                                    value: 'Common'
+                                                },
+                                                {
+                                                    label: 'Uncommon',
+                                                    value: 'Uncommon'
+                                                },
+                                                {
+                                                    label: 'Rare',
+                                                    value: 'Rare'
+                                                },
+                                                {
+                                                    label: 'Very Rare',
+                                                    value: 'Very Rare'
+                                                },
+                                                {
+                                                    label: 'Legendary',
+                                                    value: 'Legendary'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: "Select a Rarity:",
+                                        components: [rsel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'rarity') {
+                                            menu.data.fields[2].value = j.values[0];
+                                            armor.rarity = j.values[0];
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'attune':
-                                    //TODO: Add Attunement Selection
-                                    break;
+                                    const asel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('attune')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'Yes',
+                                                    value: 'Yes'
+                                                },
+                                                {
+                                                    label: 'No',
+                                                    value: 'No'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: "Select an Option:",
+                                        components: [asel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'attune') {
+                                            if (j.values[0] === 'Yes') {
+                                                armor.attune = true;
+                                                if (armor.attune_req) menu.data.fields[3].value = `Yes (${armor.attune_req})`;
+                                                else menu.data.fields[3].value = 'Yes';
+
+                                                row3.addComponents(
+                                                    new ButtonBuilder()
+                                                        .setCustomId('attune_req')
+                                                        .setLabel('Set Attunement Requirement')
+                                                        .setEmoji('🔮')
+                                                        .setStyle(ButtonStyle.Primary)
+                                                );
+                                            } else {
+                                                armor.attune = false;
+                                                menu.data.fields[3].value = 'No';
+                                            }
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'magical':
-                                    //TODO: Add Magical Selection
-                                    break;
+                                    const msel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('magical')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'Yes',
+                                                    value: 'Yes'
+                                                },
+                                                {
+                                                    label: 'No',
+                                                    value: 'No'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: "Select an Option:",
+                                        components: [msel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'magical') {
+                                            if (j.values[0] === 'Yes') {
+                                                armor.magical = true;
+                                                menu.data.fields[3].value = 'Yes';
+                                            } else {
+                                                armor.magical = false;
+                                                menu.data.fields[3].value = 'No';
+                                            }
+
+                                            if (armor.magical) {
+                                                row3.addComponents(
+                                                    new ButtonBuilder()
+                                                        .setCustomId('magic_bonus')
+                                                        .setLabel('Set Magic Bonus')
+                                                        .setEmoji('✨')
+                                                        .setStyle(ButtonStyle.Primary)
+                                                );
+
+                                                menu.setFields([
+                                                    {
+                                                        name: 'Name',
+                                                        value: armor.name || '\ ',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Type',
+                                                        value: armor.type || '\ ',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Rarity',
+                                                        value: armor.rarity || '\ ',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Requires Attunement',
+                                                        value: armor.attune ? `Yes (${armor.attune_req})` : 'No',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Magical',
+                                                        value: armor.magical ? 'Yes' : 'No',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Magic Bonus',
+                                                        value: armor.magic_bonus || '\ ',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: '\u200b',
+                                                        value: '\u200b',
+                                                        inline: false
+                                                    },
+                                                    {
+                                                        name: 'AC',
+                                                        value: armor.ac || '\ ',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Dex Bonus',
+                                                        value: armor.dex_bonus || '\ ',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Strength Requirement',
+                                                        value: armor.str_req || '\ ',
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Description',
+                                                        value: armor.description || '\ ',
+                                                        inline: false
+                                                    }
+                                                ]);
+                                            }
+
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'ac':
-                                    //TODO: Add AC Selection
-                                    break;
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Reply with a Number!"
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000 });
+
+                                    mescol.on('collect', async j => {
+                                        if (isNaN(j.content)) {
+                                            let mesag = await j.deferReply();
+
+                                            await mesag.edit({
+                                                content: "Please provide a valid Number!"
+                                            });
+
+                                            setTimeout(async () => {
+                                                await mesag.delete();
+                                            }, 5000);
+                                        } else {
+                                            armor.ac = Number(j.content);
+                                            menu.data.fields[6].value = j.content;
+                                            mescol.stop();
+                                        }
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Reply collection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'dex_bonus':
-                                    //TODO: Add Dex Bonus Selection
-                                    break;
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Reply with a Number!"
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000 });
+
+                                    mescol.on('collect', async j => {
+                                        if (isNaN(j.content)) {
+                                            let mesag = await j.deferReply();
+
+                                            await mesag.edit({
+                                                content: "Please provide a valid Number!"
+                                            });
+
+                                            setTimeout(async () => {
+                                                await mesag.delete();
+                                            }, 5000);
+                                        } else {
+                                            armor.dex_bonus = Number(j.content);
+                                            menu.data.fields[7].value = j.content;
+                                            mescol.stop();
+                                        }
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Reply collection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'str_req':
-                                    //TODO: Add Strength Requirement Selection
-                                    break;
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Reply with a Number!"
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000 });
+
+                                    mescol.on('collect', async j => {
+                                        if (isNaN(j.content)) {
+                                            let mesag = await j.deferReply();
+
+                                            await mesag.edit({
+                                                content: "Please provide a valid Number!"
+                                            });
+
+                                            setTimeout(async () => {
+                                                await mesag.delete();
+                                            }, 5000);
+                                        } else {
+                                            armor.str_req = Number(j.content);
+                                            menu.data.fields[8].value = j.content;
+                                            mescol.stop();
+                                        }
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Reply collection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'desc':
-                                    //TODO: Add Description Selection
-                                    break;
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Reply with a Description!"
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000 });
+
+                                    mescol.on('collect', async j => {
+                                        armor.description = j.content;
+
+                                        menu.data.fields[9].value = armor.description;
+
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Reply collection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'attune_req':
-                                    //TODO: Add Attunement Requirement Selection
-                                    break;
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Reply with the Attunement Requirement!"
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000 });
+
+                                    mescol.on('collect', async j => {
+                                        armor.attune_req = j.content;
+                                        menu.data.fields[3].value = `Yes (${armor.attune_req})`;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Reply collection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (armor.magical || armor.attune) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
                                 case 'magic_bonus':
-                                    //TODO: Add Magic Bonus Selection
-                                    break;
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Reply with a Number!"
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000 });
+
+                                    mescol.on('collect', async j => {
+                                        if (isNaN(j.content)) {
+                                            let mesag = await j.deferReply();
+
+                                            await mesag.edit({
+                                                content: "Please provide a valid Number!"
+                                            });
+
+                                            setTimeout(async () => {
+                                                await mesag.delete();
+                                            }, 5000);
+                                        } else {
+                                            armor.magic_bonus = Number(j.content);
+                                            menu.data.fields[5].value = j.content;
+                                            mescol.stop();
+                                        }
+                                    });
+                                break;
                                 case 'finish':
-                                    //TODO: Add Finish Function
-                                    break;
+                                    mes = await i.deferReply();
+
+                                    embed = await addAsset(server, 'armor', armor);
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
                                 case 'cancel':
-                                    //TODO: Add Cancel Function
-                                    break;
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
                                     embeds: [],
                                     components: [],
-                                    ephemeral: true,
+                                    ephemeral: true
                                 });
                             } else {
-                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
                             }
 
                             setTimeout(async () => {
                                 await msg.delete();
                             }, 5000);
                         });
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'class':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
                         //TODO: Add Add Options
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'condition':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
                         //TODO: Add Add Options
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'dmgtype':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
                         //TODO: Add Add Options
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'feat':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
                         //TODO: Add Add Options
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'race':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
                         //TODO: Add Add Options
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'subclass':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
                         //TODO: Add Add Options
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'subrace':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
                         //TODO: Add Add Options
-                        break;
+                    break;
                     case 'remove':
                         //TODO: Add Remove Options
-                        break;
+                    break;
                     case 'edit':
                         //TODO: Add Edit Options
-                        break;
+                    break;
                 }
-                break;
+            break;
         }
     }
 }
 
 async function addAsset(server, type, asset) {
-    //TODO: Create addAsset Function
+    switch (type) {
+        case 'armor':
+            return await addArmor(server, asset);
+        case 'class':
+
+        break;
+        case 'condition':
+
+        break;
+        case 'dmgtype':
+
+        break;
+        case 'feat':
+
+        break;
+        case 'race':
+
+        break;
+        case 'subclass':
+
+        break;
+        case 'subrace':
+
+        break;
+    }
+}
+
+async function addArmor(server, armor) {
+    try {
+        const msg = await client.database.Armor.add(server, armor)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Armor \`${armor.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function addClass(server, clas) {
+    try {
+        const msg = await client.database.Server.classes.add(server, clas)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Class \`${clas.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+}
+
+async function addCondition(server, condition) {
+    try {
+        const msg = await client.database.Condition.add(condition)
+
+        return new SuccessEmbed(msg || "Success", `Successfully added Condition \`${condition.name}\` to the Server!`);
+    } catch (err) {
+        client.writeServerLog(server, err)
+
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+
+        return new ErrorEmbed(err, true);
+    }
+
 }
 
 async function removeAsset(server, type, asset) {
@@ -538,7 +1281,7 @@ const command = new Command({
                 },
             ],
         },
-    ],
+    ]
 });
 
 export { command };
