@@ -1,6 +1,7 @@
 import { psql } from '../psql.js';
-import { DuplicateError, NotFoundError } from '../../custom/errors/index.js';
-import { ServerCommand } from './command/index.js';
+import { DuplicateError, NotFoundError } from '../../custom/errors';
+import { ServerArmor } from './armor.js';
+import { ServerCommand } from './command';
 import { ServerLog } from './log.js';
 import { ServerMember } from './member.js';
 import { ServerNote } from './note.js';
@@ -10,12 +11,13 @@ import { ServerSubclass } from './subclass.js';
 import { ServerRace } from './race.js';
 import { ServerSubrace } from './subrace.js';
 import { GameMaster } from './gamemaster.js';
-import { Session } from './session/session.js';
+import { Session } from './session';
 import { Prefix } from './prefix.js';
 const query = psql.query;
 
 class server {
     constructor() {
+        this.armors = ServerArmor;
         this.commands = ServerCommand;
         this.logs = ServerLog;
         this.members = ServerMember;
