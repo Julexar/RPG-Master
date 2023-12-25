@@ -215,7 +215,7 @@ class Command extends CommandBuilder {
 
                                     filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
-                                    mescol = i.channel.createMessageComponentCollector({ filt, time: 35000, max: 1})
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
 
                                     mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
@@ -1093,70 +1093,2873 @@ class Command extends CommandBuilder {
             case 'class':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
-                        //TODO: Add Add Options
+                        let clas = {
+                            name: null,
+                            description: null,
+                            hitdice: null,
+                            hitdice_size: null,
+                            caster: false,
+                            cast_lvl: 0,
+                            cast_stat: null,
+                            sub: false
+                        }
+
+                        row1.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('name')
+                                .setLabel('Set Name')
+                                .setEmoji('🔤')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('desc')
+                                .setLabel('Set Description')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('hitdice')
+                                .setLabel('Set Hit Dice')
+                                .setEmoji('🎲')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        row2.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('caster')
+                                .setLabel('Toggle Caster')
+                                .setEmoji('🧙')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('sub')
+                                .setLabel('Toggle Subclass')
+                                .setEmoji('📚')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        menu.setTitle('Class Creator')
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: clas.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Hit Dice',
+                                value: clas.hitdice_size || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Caster',
+                                value: clas.caster ? `Yes (${clas.cast_stat})` : 'No',
+                                inline: true
+                            },
+                            {
+                                name: 'Subclass',
+                                value: clas.sub ? 'Yes' : 'No',
+                                inline: true
+                            },
+                            {
+                                name: 'Description',
+                                value: clas.description || '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row2, row4],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            let mes, filt, mescol, col;
+
+                            switch (i.customId) {
+                                case 'name':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Name of the Class!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                        clas.name = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            if (clas.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'hitdice':
+                                    const hsel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('hitdice')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'd6',
+                                                    value: 'd6'
+                                                },
+                                                {
+                                                    label: 'd8',
+                                                    value: 'd8'
+                                                },
+                                                {
+                                                    label: 'd10',
+                                                    value: 'd10'
+                                                },
+                                                {
+                                                    label: 'd12',
+                                                    value: 'd12'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: "Select a Hit Dice:",
+                                        components: [hsel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'hitdice') {
+                                            menu.data.fields[1].value = `${j.values[0]}`;
+                                            clas.hitdice_size = j.values[0];
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+                                            
+                                            if (clas.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'caster':
+                                    const csel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('caster')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'Yes',
+                                                    value: 'Yes'
+                                                },
+                                                {
+                                                    label: 'No',
+                                                    value: 'No'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Select an Option:",
+                                        components: [csel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'caster') {
+                                            if (j.values[0] === 'Yes') {
+                                                clas.caster = true;
+                                                menu.data.fields[2].value = `Yes (${clas.cast_stat})`;
+                                                row3.addComponents(
+                                                    new ButtonBuilder()
+                                                        .setCustomId('cast_stat')
+                                                        .setLabel('Set Casting Stat')
+                                                        .setEmoji('📊')
+                                                        .setStyle(ButtonStyle.Primary),
+                                                    new ButtonBuilder()
+                                                        .setCustomId('cast_lvl')
+                                                        .setLabel('Set Casting Level')
+                                                        .setEmoji('📈')
+                                                        .setStyle(ButtonStyle.Primary)
+                                                );
+                                            } else {
+                                                clas.caster = false;
+                                                menu.data.fields[2].value = 'No';
+                                            }
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+                                            
+                                            if (clas.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'cast_stat':
+                                    const cstsel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('cast_stat')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'Strength',
+                                                    value: 'str'
+                                                },
+                                                {
+                                                    label: 'Dexterity',
+                                                    value: 'dex'
+                                                },
+                                                {
+                                                    label: 'Constitution',
+                                                    value: 'con'
+                                                },
+                                                {
+                                                    label: 'Intelligence',
+                                                    value: 'int'
+                                                },
+                                                {
+                                                    label: 'Wisdom',
+                                                    value: 'wis'
+                                                },
+                                                {
+                                                    label: 'Charisma',
+                                                    value: 'cha'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Select a Casting Stat:",
+                                        components: [cstsel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'cast_stat') {
+                                            const lvl = clas.cast_lvl === 1 ? 'Full Caster' : (clas.cast_lvl === 0 ? 'Special Caster' : 'Half Caster')
+                                            menu.data.fields[2].value = `Yes, ${lvl} (${j.values[0]})`;
+                                            clas.cast_stat = j.values[0];
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+                                            
+                                            if (clas.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'cast_lvl':
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Reply with a Number!"
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000 });
+
+                                    mescol.on('collect', async j => {
+                                        if (isNaN(j.content)) {
+                                            let mesag = await j.deferReply();
+
+                                            await mesag.edit({
+                                                content: "Please provide a valid Number!"
+                                            });
+
+                                            setTimeout(async () => {
+                                                await mesag.delete();
+                                            }, 5000);
+                                        } else {
+                                            clas.cast_lvl = Number(j.content);
+                                            const lvl = clas.cast_lvl === 1 ? 'Full Caster' : (clas.cast_lvl === 0 ? 'Special Caster' : 'Half Caster')
+                                            menu.data.fields[2].value = `Yes, ${lvl} (${clas.cast_stat})`;
+                                            mescol.stop();
+                                        }
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Reply collection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+                                            
+                                            if (clas.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'sub':
+                                    const ssel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('subsel')
+                                            .setPlaceholder('No Option selected...')
+                                            .addOptions([
+                                                {
+                                                    label: 'Yes',
+                                                    value: 'Yes'
+                                                },
+                                                {
+                                                    label: 'No',
+                                                    value: 'No'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.deferReply();
+
+                                    await mes.edit({
+                                        content: "Select an Option:",
+                                        components: [ssel],
+                                        ephemeral: true
+                                    });
+
+                                    col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1});
+
+                                    col.on('collect', async j => {
+                                        if (j.customId === 'subsel') {
+                                            if (j.values[0] === 'Yes') {
+                                                clas.sub = true;
+                                                menu.data.fields[3].value = 'Yes';
+                                            } else {
+                                                clas.sub = false;
+                                                menu.data.fields[3].value = 'No';
+                                            }
+                                            col.stop();
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: "Selection timed out...",
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+                                            
+                                            if (clas.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row3, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'finish':
+                                    mes = await i.deferReply();
+
+                                    embed = await addAsset(server, 'class', clas);
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    embeds: [],
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('class')
+                                .setPlaceholder('No Class selected...')
+                                .setMaxValues(1)
+                        );
+
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+                        rows.push(selrow);
+                        num, count, page = 0;
+
+                        const classes = await client.database.Server.classes.getAll(server);
+
+                        for (const clas of classes) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: clas.name,
+                                value: `${clas.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: `Select a Class:`,
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'class':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'class', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Class:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Class:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
             case 'condition':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
-                        //TODO: Add Add Options
+                        let condition = {
+                            name: null,
+                            description: null
+                        };
+
+                        row1.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('name')
+                                .setLabel('Set Name')
+                                .setEmoji('🔤')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('desc')
+                                .setLabel('Set Description')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        menu.setTitle('Condition Creator')
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: condition.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Description',
+                                value: condition.description || '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row4],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            let mes, filt, mescol;
+
+                            switch (i.customId) {
+                                case 'name':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Name of the Condition!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                        condition.name = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'desc':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Description of the Condition!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[1].value = j.content;
+                                        condition.description = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'finish':
+                                    mes = await i.deferReply();
+
+                                    embed = await addAsset(server, 'condition', condition);
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    embeds: [],
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('condsel')
+                                .setPlaceholder('No Condition selected...')
+                                .setMaxValues(1)
+                        );
+
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+                        rows.push(selrow);
+
+                        num, count, page = 0;
+
+                        const conditions = await client.database.Server.conditions.getAll(server);
+
+                        for (const condition of conditions) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: condition.name,
+                                value: `${condition.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: `Select a Condition:`,
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'condsel':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'condition', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Condition:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Condition:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
             case 'dmgtype':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
-                        //TODO: Add Add Options
+                        let dmgtype = {
+                            name: null,
+                            description: null
+                        };
+
+                        row1.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('name')
+                                .setLabel('Set Name')
+                                .setEmoji('🔤')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('desc')
+                                .setLabel('Set Description')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        menu.setTitle('Damage Type Creator')
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: dmgtype.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Description',
+                                value: dmgtype.description || '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row4],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            let mes, filt, mescol;
+
+                            switch (i.customId) {
+                                case 'name':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Name of the Damage Type!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                        dmgtype.name = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'desc':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Description of the Damage Type!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[1].value = j.content;
+                                        dmgtype.description = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'finish':
+                                    mes = await i.deferReply();
+
+                                    embed = await addAsset(server, 'dmgtype', dmgtype);
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    embeds: [],
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('dmgtypesel')
+                                .setPlaceholder('No Damage Type selected...')
+                                .setMaxValues(1)
+                        );
+
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+                        rows.push(selrow);
+
+                        num, count, page = 0;
+
+                        const dmgtypes = await client.database.Server.dmgtypes.getAll(server);
+
+                        for (const dmgtype of dmgtypes) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: dmgtype.name,
+                                value: `${dmgtype.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: `Select a Damagetype:`,
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'dmgtypesel':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'dmgtype', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Damage Type:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Damage Type:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
             case 'feat':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
-                        //TODO: Add Add Options
+                        let feat = {
+                            name: null,
+                            description: null,
+                            prerequisites: [],
+                            options: []
+                        }
+
+                        row1.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('name')
+                                .setLabel('Set Name')
+                                .setEmoji('🔤')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('desc')
+                                .setLabel('Set Description')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('type')
+                                .setLabel('Set Type')
+                                .setEmoji('📋')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        row2.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prereq')
+                                .setLabel('Set Prerequisites')
+                                .setEmoji('📖')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('options')
+                                .setLabel('Set Options')
+                                .setEmoji('📑')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        menu.setTitle('Feat Creator')
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: feat.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Prerequisites',
+                                value: feat.prerequisites.length > 0 ? feat.prerequisites.join('\n') : '\ ',
+                                inline: false
+                            },
+                            {
+                                name: 'Description',
+                                value: feat.description || '\ ',
+                                inline: false
+                            },
+                            {
+                                name: 'Options',
+                                value: feat.options.length > 0 ? feat.options.join('\n') : '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row2, row4],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            let mes, filt, mescol;
+
+                            switch (i.customId) {
+                                case 'name':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Name of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                        feat.name = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'desc':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Description of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[3].value = j.content;
+                                        feat.description = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'prereq':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Prerequisites of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[1].value = j.content;
+                                        feat.prerequisites = j.content.split(',');
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'options':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Options of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[3].value = j.content;
+                                        feat.options = j.content.split(',');
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'finish':
+                                    mes = await i.deferReply();
+
+                                    embed = await addAsset(server, 'feat', feat);
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    embeds: [],
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('featsel')
+                                .setPlaceholder('No Feat selected...')
+                                .setMaxValues(1)
+                        );
+
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+                        rows.push(selrow);
+
+                        num, count, page = 0;
+
+                        const feats = await client.database.Server.feats.getAll(server);
+
+                        for (const feat of feats) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: feat.name,
+                                value: `${feat.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: `Select a Feat:`,
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'featsel':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'feat', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Feat:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: `Select a Feat:`,
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
             case 'race':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
-                        //TODO: Add Add Options
+                        let race = {
+                            name: null,
+                            description: null,
+                            speed: null,
+                            sub: false,
+                            feat: false
+                        };
+
+                        row1.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('name')
+                                .setLabel('Set Name')
+                                .setEmoji('🔤')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('desc')
+                                .setLabel('Set Description')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('speed')
+                                .setLabel('Set Speed')
+                                .setEmoji('🏃')
+                                .setStyle(ButtonStyle.Primary),
+                        );
+
+                        row2.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('sub')
+                                .setLabel('Toggle Subrace')
+                                .setEmoji('👪')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('feat')
+                                .setLabel('Toggle Feat')
+                                .setEmoji('📖')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        menu.setTitle("Race Creator")
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: race.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Speed',
+                                value: String(race.speed) || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Has Subraces?',
+                                value: race.sub ? 'Yes' : 'No',
+                                inline: true
+                            },
+                            {
+                                name: 'Lvl 1 Feat?',
+                                value: race.feat ? 'Yes' : 'No',
+                            },
+                            {
+                                name: 'Description',
+                                value: race.description || '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row2, row4],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'name':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Name of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                        race.name = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Messages`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'desc':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Description of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[4].value = j.content;
+                                        race.description = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'speed':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Speed of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        if (isNaN(j.content)) {
+                                            let mesag = await j.deferReply();
+
+                                            await mesag.edit({
+                                                content: "Please provide a valid Number!"
+                                            });
+
+                                            setTimeout(async () => {
+                                                await mesag.delete();
+                                            }, 5000);
+                                        } else {
+                                            menu.data.fields[1].value = j.content;
+                                            race.speed = Number(j.content);
+                                            mescol.stop();
+                                        }
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond or entered an invalid number!`
+                                            });
+                                        } else {
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'sub':
+                                    const ssel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('subsel')
+                                            .setPlaceholder('No Option selected...')
+                                            .setMaxValues(1)
+                                            .setOptions([
+                                                {
+                                                    label: 'Yes',
+                                                    value: 'true'
+                                                },
+                                                {
+                                                    label: 'No',
+                                                    value: 'false'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.followUp({
+                                        content: 'Select an Option:',
+                                        components: [ssel],
+                                        ephemeral: true
+                                    });
+
+                                    mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[2].value = Boolean(j.values[0]) ? 'Yes' : 'No';
+                                        race.sub = Boolean(j.values[0]);
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'You took too long to respond!'
+                                            });
+                                        } else {
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'feat':
+                                    const fesel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('featsel')
+                                            .setPlaceholder('No Option selected...')
+                                            .setMaxValues(1)
+                                            .setOptions([
+                                                {
+                                                    label: 'Yes',
+                                                    value: 'true'
+                                                },
+                                                {
+                                                    label: 'No',
+                                                    value: 'false'
+                                                }
+                                            ])
+                                    );
+                                    
+                                    mes = await i.followUp({
+                                        content: 'Select an Option:',
+                                        components: [fesel],
+                                        ephemeral: true
+                                    });
+
+                                    mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[3].value = Boolean(j.values[0]) ? 'Yes' : 'No';
+                                        race.feat = Boolean(j.values[0]);
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'You took too long to respond!'
+                                            });
+                                        } else {
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'finish':
+                                    mes = await i.deferReply();
+
+                                    embed = await addAsset(server, 'race', race)
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    embeds: [],
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('racesel')
+                                .setPlaceholder('No Race selected...')
+                                .setMaxValues(1)
+                        );
+
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+                        rows.push(selrow);
+
+                        num, count, page = 0;
+
+                        const races = await client.database.Server.races.getAll(server);
+
+                        for (const race of races) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: race.name,
+                                value: `${race.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: 'Select a Race to remove:',
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'racesel':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'race', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Select a Race to remove:',
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Select a Race to remove:',
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
             case 'subclass':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
-                        //TODO: Add Add Options
+                        let subclass = {
+                            name: null,
+                            description: null,
+                            caster: false,
+                            cast_stat: null,
+                            cast_lvl: null
+                        };
+
+                        row1.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('name')
+                                .setLabel('Set Name')
+                                .setEmoji('🔤')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('desc')
+                                .setLabel('Set Description')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('caster')
+                                .setLabel('Toggle Caster')
+                                .setEmoji('🧙')
+                                .setStyle(ButtonStyle.Primary),
+                        );
+
+                        menu.setTitle("Subclass Creator")
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: subclass.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Caster?',
+                                value: subclass.caster ? 'Yes' : 'No',
+                                inline: true
+                            },
+                            {
+                                name: 'Description',
+                                value: subclass.description || '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row4],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'name':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Name of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                        subclass.name = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Messages`);
+
+                                            if (subclass.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'desc':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Description of the Feat!`
+                                    });
+                                    
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[2].value = j.content;
+                                        subclass.description = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            if (subclass.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'caster':
+                                    const csel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('castersel')
+                                            .setPlaceholder('No Option selected...')
+                                            .setMaxValues(1)
+                                            .setOptions([
+                                                {
+                                                    label: 'Yes',
+                                                    value: 'true'
+                                                },
+                                                {
+                                                    label: 'No',
+                                                    value: 'false'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.followUp({
+                                        content: 'Select an Option:',
+                                        components: [csel],
+                                        ephemeral: true
+                                    });
+
+                                    mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        subclass.caster = Boolean(j.values[0]);
+
+                                        if (subclass.caster) {
+                                            const lvl = subclass.cast_lvl === 1 ? 'Full Caster' : (subclass.cast_lvl === 0 ? 'Special Caster' : 'Half Caster');
+                                            menu.data.fields[1].value = Boolean(j.values[0]) ? (subclass.cast_stat ? `Yes, ${lvl} (${subclass.cast_stat})` : `Yes, ${lvl}`) : 'No';
+                                            row2.setComponents(
+                                                new ButtonBuilder()
+                                                    .setCustomId('cast_stat')
+                                                    .setLabel('Set Casting Stat')
+                                                    .setEmoji('📊')
+                                                    .setStyle(ButtonStyle.Primary),
+                                                new ButtonBuilder()
+                                                    .setCustomId('cast_lvl')
+                                                    .setLabel('Set Casting Level')
+                                                    .setEmoji('📈')
+                                                    .setStyle(ButtonStyle.Primary)
+                                            );
+                                        } else {
+                                            menu.data.fields[1].value = 'No';
+                                        }
+
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Selection timed out...'
+                                            });
+                                        } else {
+                                            if (subclass.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'cast_stat':
+                                    const cssel = new ActionRowBuilder()
+                                    .addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('caststatsel')
+                                            .setPlaceholder('No Option selected...')
+                                            .setMaxValues(1)
+                                            .setOptions([
+                                                {
+                                                    label: 'Strength',
+                                                    value: 'str'
+                                                },
+                                                {
+                                                    label: 'Dexterity',
+                                                    value: 'dex'
+                                                },
+                                                {
+                                                    label: 'Constitution',
+                                                    value: 'con'
+                                                },
+                                                {
+                                                    label: 'Intelligence',
+                                                    value: 'int'
+                                                },
+                                                {
+                                                    label: 'Wisdom',
+                                                    value: 'wis'
+                                                },
+                                                {
+                                                    label: 'Charisma',
+                                                    value: 'cha'
+                                                }
+                                            ])
+                                    );
+
+                                    mes = await i.followUp({
+                                        content: 'Select an Option:',
+                                        components: [cssel],
+                                        ephemeral: true
+                                    });
+
+                                    mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        const lvl = subclass.cast_lvl === 1 ? 'Full Caster' : (subclass.cast_lvl === 0 ? 'Special Caster' : 'Half Caster');
+                                        menu.data.fields[1].value = Boolean(j.values[0]) ? (subclass.cast_stat ? `Yes, ${lvl} (${subclass.cast_stat})` : `Yes, ${lvl}`) : 'No';
+
+                                        row2.setComponents(
+                                            new ButtonBuilder()
+                                                .setCustomId('cast_stat')
+                                                .setLabel('Set Casting Stat')
+                                                .setEmoji('📊')
+                                                .setStyle(ButtonStyle.Primary),
+                                            new ButtonBuilder()
+                                                .setCustomId('cast_lvl')
+                                                .setLabel('Set Casting Level')
+                                                .setEmoji('📈')
+                                                .setStyle(ButtonStyle.Primary)
+                                        );
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Selection timed out...'
+                                            });
+                                        } else {
+                                            if (subclass.caster) {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row2, row4],
+                                                    ephemeral: true
+                                                });
+                                            } else {
+                                                await mes.edit({
+                                                    embeds: [menu],
+                                                    components: [row1, row4],
+                                                    ephemeral: true
+                                                });
+                                            }
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    embeds: [],
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('subclassesel')
+                                .setPlaceholder('No Subclass selected...')
+                                .setMaxValues(1)
+                        );
+                        
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+                        rows.push(selrow);
+
+                        num, count, page = 0;
+
+                        const subclasses = await client.database.Server.subclasses.getAll(server);
+
+                        for (const subclass of subclasses) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: subclass.name,
+                                value: `${subclass.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: 'Select a Subclass to remove:',
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+                        
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'subclassesel':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'subclass', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Select a Subclass to remove:',
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Select a Subclass to remove:',
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
             case 'subrace':
                 switch (option.getSubcommandGroup()) {
                     case 'add':
-                        //TODO: Add Add Options
+                        let subrace = {
+                            name: null,
+                            description: null
+                        };
+
+                        row1.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('name')
+                                .setLabel('Set Name')
+                                .setEmoji('🔤')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId('desc')
+                                .setLabel('Set Description')
+                                .setEmoji('📝')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        menu.setTitle("Subrace Creator")
+                        .setFields([
+                            {
+                                name: 'Name',
+                                value: subrace.name || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Description',
+                                value: subrace.description || '\ ',
+                                inline: false
+                            }
+                        ])
+                        .setTimestamp();
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row4],
+                            ephemeral: true
+                        });
+                        
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'name':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Name of the Feat!`
+                                    });
+
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                        subrace.name = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            client.writeServerLog(guild, `Collected ${collected.size} Messages`);
+
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'desc':
+                                    mes = await i.followUp({
+                                        content: `<@${user.id}> Please enter the Description of the Feat!`
+                                    });
+                                    
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1})
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[1].value = j.content;
+                                        subrace.description = j.content;
+                                        mescol.stop();
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: `<@${user.id}> You took too long to respond!`
+                                            });
+                                        } else {
+                                            await mes.edit({
+                                                embeds: [menu],
+                                                components: [row1, row4],
+                                                ephemeral: true
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'finish':
+                                    mes = await i.deferReply();
+
+                                    embed = await addAsset(server, 'subrace', subrace)
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    embeds: [],
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                     case 'remove':
-                        //TODO: Add Remove Options
+                        const rows = [];
+
+                        const selrow = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('subracesel')
+                                .setPlaceholder('No Subrace selected...')
+                                .setMaxValues(1)
+                        );
+                        
+                        const butRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setEmoji('⏪')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setEmoji('⏩')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('cancel')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+                        rows.push(selrow);
+
+                        num, count, page = 0;
+
+                        const subraces = await client.database.Server.subraces.getAll(server);
+
+                        for (const subrace of subraces) {
+                            if (count === 24) {
+                                rows.push(selrow);
+                                count = 0;
+                                num++;
+                            }
+
+                            rows[num].components[0].addOptions({
+                                label: subrace.name,
+                                value: `${subrace.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: 'Select a Subrace to remove:',
+                            components: [rows[page], butRow],
+                            ephemeral: true
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'subracesel':
+                                    mes = await i.deferReply();
+
+                                    embed = await removeAsset(server, 'subrace', {id: Number(i.values[0])});
+
+                                    emph = embed.data.color === "#FF0000";
+
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            butRow.components[0].setDisabled(true);
+                                            butRow.components[1].setDisabled(false);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Select a Subrace to remove:',
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(true);
+                                        } else {
+                                            butRow.components[0].setDisabled(false);
+                                            butRow.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Select a Subrace to remove:',
+                                            components: [rows[page], butRow],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(guild, `Collected ${collected.size} Interactions`)
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
                     break;
                 }
             break;
