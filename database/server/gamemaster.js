@@ -1,5 +1,5 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError, ForbiddenError } from '../../custom/errors/index.js';
+import { NotFoundError, DuplicateError, ForbiddenError } from '../../custom/errors';
 const query = psql.query;
 
 class GameMaster {
