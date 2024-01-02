@@ -62,7 +62,7 @@ class ServerCommandRestriction {
         return results.length >= 1;
     }
 
-    static async add(command, rest) {
+    static async add(server, command, rest) {
         try {
             const restriction = await this.getOne(command, rest);
 
@@ -88,7 +88,7 @@ class ServerCommandRestriction {
         }
     }
 
-    static async remove(command, rest) {
+    static async remove(server, command, rest) {
         if (!(await this.exists(command, rest))) {
             throw new NotFoundError('Restriction not found', 'Could not find that Restriction for that Server Command in the Database!');
         }
@@ -97,6 +97,13 @@ class ServerCommandRestriction {
 
         return `Successfully removed restriction of Command \"${cmd.name}\" in Server \"${server.name}\"`;
     }
+
+    static async toggle(command) {
+        const sql = 'UPDATE server_command_restrictions SET enabled = NOT enabled WHERE cmd_id = $1';
+        await query(sql, [command])
+
+        return `Successfully toggled restrictions of Command \"${command.name}\" in Server \"${server.name}\"`;
+    };
 }
 
 export { ServerCommandRestriction };
