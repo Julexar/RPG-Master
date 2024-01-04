@@ -1,11 +1,24 @@
-class Command {
-    constructor() {
-        this.name = 'save';
-        this.nick = 's';
-        this.description = 'Rolls a Saving Throw';
+import { CommandBuilder } from "../../../custom/builders";
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.enabled = false;
     }
 
-    async run(client, interaction) {}
-}
-export default new Command();
+    /**
+     * @param {import("discord.js").CommandInteraction} interaction
+     */
+    async run(interaction) {
+        //TODO: Implement Saving Throws
+    };
+};
+
+const command = new Command({
+    name: 'save',
+    nick: 's',
+    description: 'Rolls a Saving Throw'
+});
+
+export { command };
