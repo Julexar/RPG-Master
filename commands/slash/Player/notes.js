@@ -7,2151 +7,1597 @@ import {
     PermissionFlagsBits,
     StringSelectMenuBuilder,
 } from 'discord.js';
-class Command {
-    constructor() {
-        this.name = 'notes';
-        this.description = 'Note related Commands';
+import { CommandBuilder } from '../../../custom/builders';
+import { client } from '../../..';
+import { SuccessEmbed, ErrorEmbed, NoteEmbed } from '../../../custom/embeds';
+import { NotFoundError, DuplicateError } from '../../../custom/errors';
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.enabled = true;
-        this.defaultMemberPermissions = [PermissionFlagsBits.SendMessages];
-        this.options = [
-            {
-                name: 'view',
-                description: 'Shows a List of your Notes',
-                type: ApplicationCommandOptionType.SubcommandGroup,
-                options: [
-                    {
-                        name: 'server',
-                        description: 'Shows server specific Notes',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'private',
-                                description: 'When true, shows private Notes',
-                                type: ApplicationCommandOptionType.Boolean,
-                                required: true,
-                            },
-                            {
-                                name: 'id',
-                                description: 'Provide the ID of a Note',
-                                type: ApplicationCommandOptionType.Number,
-                                required: false,
-                                minValue: 1,
-                            },
-                        ],
-                    },
-                    {
-                        name: 'global',
-                        description: 'Shows global Notes',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'private',
-                                description: 'When true, shows private Notes',
-                                type: ApplicationCommandOptionType.Boolean,
-                                required: true,
-                            },
-                            {
-                                name: 'id',
-                                description: 'Provide the ID of a Note',
-                                type: ApplicationCommandOptionType.Number,
-                                required: false,
-                                minValue: 1,
-                            },
-                        ],
-                    },
-                ],
-            },
-            {
-                name: 'add',
-                description: 'Adds a Note',
-                type: ApplicationCommandOptionType.SubcommandGroup,
-                options: [
-                    {
-                        name: 'server',
-                        description: 'Adds a server specific Note',
-                        type: ApplicationCommandOptionType.Subcommand,
-                    },
-                    {
-                        name: 'global',
-                        description: 'Adds a global Note',
-                        type: ApplicationCommandOptionType.Subcommand,
-                    },
-                ],
-            },
-            {
-                name: 'remove',
-                description: 'Removes a Note',
-                type: ApplicationCommandOptionType.SubcommandGroup,
-                options: [
-                    {
-                        name: 'server',
-                        description: 'Removes a server specific Note',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'id',
-                                description: 'Provide the ID of the Note',
-                                type: ApplicationCommandOptionType.Number,
-                                required: false,
-                                minValue: 1,
-                            },
-                        ],
-                    },
-                    {
-                        name: 'global',
-                        description: 'Removes a global Note',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'id',
-                                description: 'Provide the ID of the Note',
-                                type: ApplicationCommandOptionType.Number,
-                                required: false,
-                                minValue: 1,
-                            },
-                        ],
-                    },
-                ],
-            },
-            {
-                name: 'edit',
-                description: 'Edits a Note',
-                type: ApplicationCommandOptionType.SubcommandGroup,
-                options: [
-                    {
-                        name: 'server',
-                        description: 'Edits a server specific Note',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'id',
-                                description: 'Provide the ID of the Note',
-                                type: ApplicationCommandOptionType.Number,
-                                required: true,
-                                minValue: 1,
-                            },
-                        ],
-                    },
-                    {
-                        name: 'global',
-                        description: 'Edits a global Note',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'id',
-                                description: 'Provide the ID of the Note',
-                                type: ApplicationCommandOptionType.Number,
-                                required: true,
-                                minValue: 1,
-                            },
-                        ],
-                    },
-                ],
-            },
-        ];
     }
 
-    async run(client, interaction) {
+    /**
+     * @param {import('discord.js').CommandInteraction} interaction
+     */
+    async run(interaction) {
+        const server = interaction.guild;
         const option = interaction.options;
         const member = interaction.member;
-        const noteId = option.getNumber('id');
+        const user = member.user;
+        const filter = m => m.user.id === user.id;
+        let msg, menu, menus, rows, row, row1, row2, collector, count, num, page, emph, notes, embed;
+
+        const private = option.getBoolean('private');
+
         switch (option.getSubcommandGroup()) {
             case 'view':
+                row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('prev')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⏪')
+                        .setDisabled(true),
+                    new ButtonBuilder()
+                        .setCustomId('next')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⏩')
+                );
+
                 switch (option.getSubcommand()) {
                     case 'server':
-                        this.viewNote(client, interaction, 'server', member, noteId);
-                        return;
+                        try {
+                            menu = new NoteEmbed('Server Notes List', 'Here is a List of your Server Notes:');
+                            menus = [];
+                            menus.push(menu);
+
+                            count, num, page = 0;
+
+                            notes = await client.database.Server.notes.getAll(server, user)
+
+                            for (const note of notes) {
+                                if (count === 9) {
+                                    menus.push(menu);
+                                    count = 0;
+                                    num++;
+                                }
+
+                                const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;	
+
+                                menus[num].addFields({
+                                    name: title,
+                                    value: note.content,
+                                });
+
+                                count++;
+                            }
+
+                            msg = await interaction.reply({
+                                embeds: [menus[page]],
+                                components: [row],
+                                ephemeral: private
+                            });
+
+                            collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                            collector.on('collect', async i => {
+                                await i.deferUpdate();
+
+                                switch (i.customId) {
+                                    case 'prev':
+                                        if (page > 0) {
+                                            page--;
+
+                                            if (page === 0) {
+                                                row.components[0].setDisabled(true);
+                                                row.components[1].setDisabled(false);
+                                            } else {
+                                                row.components[0].setDisabled(false);
+                                                row.components[1].setDisabled(false);
+                                            }
+
+                                            await msg.edit({
+                                                embeds: [menus[page]],
+                                                components: [row],
+                                                ephemeral: private
+                                            });
+                                        }
+                                    break;
+                                    case 'next':
+                                        if (page < menus.length - 1) {
+                                            page++;
+
+                                            if (page === menus.length - 1) {
+                                                row.components[0].setDisabled(false);
+                                                row.components[1].setDisabled(true);
+                                            } else {
+                                                row.components[0].setDisabled(false);
+                                                row.components[1].setDisabled(false);
+                                            }
+
+                                            await msg.edit({
+                                                embeds: [menus[page]],
+                                                components: [row],
+                                                ephemeral: private
+                                            });
+                                        }
+                                    break;
+                                }
+                            });
+
+                            collector.on('end', async collected => {
+                                if (collected.size > 0) {
+                                    client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                                }
+
+                                row.components[0].setDisabled(true);
+                                row.components[1].setDisabled(true);
+
+                                await msg.edit({
+                                    embeds: [menus[page]],
+                                    components: [row],
+                                    ephemeral: private
+                                });
+                            });
+                        } catch (err) {
+                            client.logServerError(server, err);
+
+                            if (err instanceof NotFoundError) 
+                                await interaction.reply({
+                                    embeds: [new ErrorEmbed(err, false)],
+                                    ephemeral: true
+                                });
+                            else 
+                                await interaction.reply({
+                                    embeds: [new ErrorEmbed(err, true)],
+                                    ephemeral: true
+                                });
+                        }
+                    break;
                     case 'global':
-                        this.viewNote(client, interaction, 'global', member, noteId);
-                        return;
+                        try {
+                            menu = new NoteEmbed('Global Notes List', 'Here is a List of your Global Notes:');
+                            menus = [];
+                            menus.push(menu);
+
+                            count, num, page = 0;
+
+                            notes = await client.database.User.notes.getAll(user)
+
+                            for (const note of notes) {
+                                if (count === 9) {
+                                    menus.push(menu);
+                                    count = 0;
+                                    num++;
+                                }
+
+                                const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;	
+
+                                menus[num].addFields({
+                                    name: title,
+                                    value: note.content,
+                                });
+
+                                count++;
+                            }
+
+                            msg = await interaction.reply({
+                                embeds: [menus[page]],
+                                components: [row],
+                                ephemeral: private
+                            });
+
+                            collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                            collector.on('collect', async i => {
+                                await i.deferUpdate();
+
+                                switch (i.customId) {
+                                    case 'prev':
+                                        if (page > 0) {
+                                            page--;
+
+                                            if (page === 0) {
+                                                row.components[0].setDisabled(true);
+                                                row.components[1].setDisabled(false);
+                                            } else {
+                                                row.components[0].setDisabled(false);
+                                                row.components[1].setDisabled(false);
+                                            }
+
+                                            await msg.edit({
+                                                embeds: [menus[page]],
+                                                components: [row],
+                                                ephemeral: private
+                                            });
+                                        }
+                                    break;
+                                    case 'next':
+                                        if (page < menus.length - 1) {
+                                            page++;
+
+                                            if (page === menus.length - 1) {
+                                                row.components[0].setDisabled(false);
+                                                row.components[1].setDisabled(true);
+                                            } else {
+                                                row.components[0].setDisabled(false);
+                                                row.components[1].setDisabled(false);
+                                            }
+
+                                            await msg.edit({
+                                                embeds: [menus[page]],
+                                                components: [row],
+                                                ephemeral: private
+                                            });
+                                        }
+                                    break;
+                                }
+                            });
+
+                            collector.on('end', async collected => {
+                                if (collected.size > 0) {
+                                    client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                                }
+
+                                row.components[0].setDisabled(true);
+                                row.components[1].setDisabled(true);
+
+                                await msg.edit({
+                                    embeds: [menus[page]],
+                                    components: [row],
+                                    ephemeral: private
+                                });
+                            });
+                        } catch (err) {
+                            client.logServerError(server, err);
+
+                            if (err instanceof NotFoundError) 
+                                await interaction.reply({
+                                    embeds: [new ErrorEmbed(err, false)],
+                                    ephemeral: true
+                                });
+                            else 
+                                await interaction.reply({
+                                    embeds: [new ErrorEmbed(err, true)],
+                                    ephemeral: true
+                                });
+                        }
+                    break;
                 }
-                return;
+            break;
             case 'add':
+                let mes, mescol, mesfil;
+
+                row1 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('title')
+                        .setStyle(ButtonStyle.Primary)
+                        .setLabel('Change Title')
+                        .setEmoji('🔤'),
+                    new ButtonBuilder()
+                        .setCustomId('content')
+                        .setStyle(ButtonStyle.Primary)
+                        .setLabel('Change Content')
+                        .setEmoji('📝'),
+                    new ButtonBuilder()
+                        .setCustomId('private')
+                        .setStyle(ButtonStyle.Primary)
+                        .setLabel('Toggle Privacy')
+                        .setEmoji('🔁')
+                );
+
+                row2 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('finish')
+                        .setStyle(ButtonStyle.Success)
+                        .setLabel('Finish'),
+                    new ButtonBuilder()
+                        .setCustomId('cancel')
+                        .setStyle(ButtonStyle.Danger)
+                        .setLabel('Cancel')
+                );
+
                 switch (option.getSubcommand()) {
                     case 'server':
-                        this.noteCreator(client, interaction, 'server', member);
-                        return;
+                        menu = new NoteEmbed('Note Creator', null, [
+                            {
+                                name: 'Title',
+                                value: '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Private?',
+                                value: 'false',
+                                inline: true
+                            },
+                            {
+                                name: 'Content',
+                                value: '\ ',
+                            }
+                        ]);
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row2],
+                            ephemeral: Boolean(menu.data.fields[1].value)
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'title':
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: 'Please reply with a new Title.',
+                                    });;
+
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'content':
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: 'Please reply with new Content.',
+                                    });;
+
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[2].value = j.content;
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'private':
+                                    await i.deferUpdate();
+
+                                    menu.data.fields[1].value = !Boolean(menu.data.fields[1].value);
+
+                                    await msg.edit({
+                                        embeds: [menu],
+                                        components: [row1, row2],
+                                        ephemeral: Boolean(menu.data.fields[1].value)
+                                    });
+                                break;
+                                case 'finish':
+                                    const note = {
+                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        content: menu.data.fields[2].value,
+                                        private: Boolean(menu.data.fields[1].value)
+                                    }
+
+                                    embed = await this.addServerNote(server, note);
+
+                                    emph = embed.data.color === '#FF0000';
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+
+                                    await msg.edit({
+                                        content: 'Note creation has been cancelled.',
+                                        embeds: [],
+                                        components: [],
+                                        ephemeral: true
+                                    });
+
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size > 0) {
+                                client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            await msg.edit({
+                                embeds: [menu],
+                                components: [],
+                                ephemeral: Boolean(menu.data.fields[1].value)
+                            });
+                        });
+                    break;
                     case 'global':
-                        this.noteCreator(client, interaction, 'global', member);
-                        return;
+                        menu = new NoteEmbed('Note Creator', null, [
+                            {
+                                name: 'Title',
+                                value: '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Private?',
+                                value: 'false',
+                                inline: true
+                            },
+                            {
+                                name: 'Content',
+                                value: '\ ',
+                            }
+                        ]);
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row1, row2],
+                            ephemeral: Boolean(menu.data.fields[1].value)
+                        });
+                        
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'title':
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: 'Please reply with a new Title.',
+                                    });;
+
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'content':
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: 'Please reply with new Content.',
+                                    });;
+
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[2].value = j.content;
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row1, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'private':
+                                    await i.deferUpdate();
+
+                                    menu.data.fields[1].value = !Boolean(menu.data.fields[1].value);
+
+                                    await msg.edit({
+                                        embeds: [menu],
+                                        components: [row1, row2],
+                                        ephemeral: Boolean(menu.data.fields[1].value)
+                                    });
+                                break;
+                                case 'finish':
+                                    const note = {
+                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        content: menu.data.fields[2].value,
+                                        private: Boolean(menu.data.fields[1].value)
+                                    }
+
+                                    embed = await this.addGlobalNote(user, note);
+
+                                    emph = embed.data.color === '#FF0000';
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+
+                                    await msg.edit({
+                                        content: 'Note creation has been cancelled.',
+                                        embeds: [],
+                                        components: [],
+                                        ephemeral: true
+                                    });
+
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size > 0) {
+                                client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            await msg.edit({
+                                embeds: [menu],
+                                components: [],
+                                ephemeral: Boolean(menu.data.fields[1].value)
+                            });
+                        });
+                    break;
                 }
-                return;
+            break;
             case 'remove':
+                row = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId('selnote')
+                        .setPlaceholder('No Note selected...')
+                        .setMinValues(1)
+                        .setMaxValues(1)
+                );
+
+                row2 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('prev')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⏪')
+                        .setDisabled(true),
+                    new ButtonBuilder()
+                        .setCustomId('next')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⏩'),
+                    new ButtonBuilder()
+                        .setCustomId('cancel')
+                        .setStyle(ButtonStyle.Danger)
+                        .setLabel('Cancel')
+                );
+
+                rows.push(row);
+
+                count, num, page = 0;
+
+                let notes;
+
                 switch (option.getSubcommand()) {
                     case 'server':
-                        this.noteRemover(client, interaction, 'server', member, noteId);
-                        return;
+                        notes = await client.database.Server.notes.getAll(server, user);
+
+                        for (const note of notes) {
+                            if (count === 24) {
+                                rows.push(row);
+                                count = 0;
+                                num++;
+                            }
+
+                            const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
+
+                            rows[num].components[0].addOptions({
+                                label: title,
+                                value: `${note.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: 'Please select a Note to remove:',
+                            components: [rows[page], row2],
+                            ephemeral: true
+                        });
+                        
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'selnote':
+                                    mes = await i.deferReply();
+
+                                    const note = await client.database.Server.notes.getOne(server, user, {id: Number(i.values[0])})
+
+                                    const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
+
+                                    embed = new EmbedBuilder()
+                                    .setColor('#FFFF00')
+                                    .setTitle(title)
+                                    .setAuthor({ name: user.displayName, iconURL: user.avatarURL() })
+                                    .setDescription(note.content)
+                                    .setTimestamp()
+
+                                    const row3 = new ActionRowBuilder()
+                                    .addComponents(
+                                        new ButtonBuilder()
+                                            .setCustomId('confirm')
+                                            .setStyle(ButtonStyle.Success)
+                                            .setLabel('Confirm'),
+                                        new ButtonBuilder()
+                                            .setCustomId('cancel')
+                                            .setStyle(ButtonStyle.Danger)
+                                            .setLabel('Cancel')
+                                    );
+                                    
+                                    await mes.edit({
+                                        content: 'Are you sure you want to remove this Note?',
+                                        embeds: [embed],
+                                        components: [row3],
+                                        ephemeral: note.private
+                                    });
+
+                                    const col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
+
+                                    col.on('collect', async j => {
+                                        const mes2 = await j.deferReply();
+                                        switch (j.customId) {
+                                            case 'confirm':
+                                                let embed2 = await this.removeServerNote(server, user, note);
+
+                                                emph = embed2.data.color === '#FF0000';
+
+                                                await mes2.edit({
+                                                    embeds: [embed2],
+                                                    ephemeral: emph
+                                                });
+                                            break;
+                                            case 'cancel':
+                                                await mes2.edit({
+                                                    content: 'Note removal has been cancelled.',
+                                                    embeds: [],
+                                                    components: [],
+                                                    ephemeral: true
+                                                });
+
+                                                col.stop();
+                                            break;
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Confirmation collection timed out...',
+                                                embeds: [],
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            row2.components[0].setDisabled(true);
+                                            row2.components[1].setDisabled(false);
+                                        } else {
+                                            row2.components[0].setDisabled(false);
+                                            row2.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Please select a Note to remove:',
+                                            components: [rows[page], row2],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            row2.components[0].setDisabled(false);
+                                            row2.components[1].setDisabled(true);
+                                        } else {
+                                            row2.components[0].setDisabled(false);
+                                            row2.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Please select a Note to remove:',
+                                            components: [rows[page], row2],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+
+                                    await msg.edit({
+                                        content: 'Note removal has been cancelled.',
+                                        components: [],
+                                        ephemeral: true
+                                    });
+
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Note selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                    break;
                     case 'global':
-                        this.noteRemover(client, interaction, 'global', member, noteId);
-                        return;
+                        notes = await client.database.User.notes.getAll(user);
+
+                        count, num, page = 0;
+
+                        for (const note of notes) {
+                            if (count === 24) {
+                                rows.push(row);
+                                count = 0;
+                                num++;
+                            }
+
+                            const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
+
+                            rows[num].components[0].addOptions({
+                                label: title,
+                                value: `${note.id}`
+                            });
+
+                            count++;
+                        }
+
+                        msg = await interaction.reply({
+                            content: 'Please select a Note to remove:',
+                            components: [rows[page], row2],
+                            ephemeral: true
+                        });
+                        
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'selnote':
+                                    mes = await i.deferReply();
+
+                                    const note = await client.database.User.notes.getOne(user, {id: Number(i.values[0])})
+
+                                    const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
+
+                                    embed = new EmbedBuilder()
+                                    .setColor('#FFFF00')
+                                    .setTitle(title)
+                                    .setAuthor({ name: user.displayName, iconURL: user.avatarURL() })
+                                    .setDescription(note.content)
+                                    .setTimestamp()
+
+                                    const row3 = new ActionRowBuilder()
+                                    .addComponents(
+                                        new ButtonBuilder()
+                                            .setCustomId('confirm')
+                                            .setStyle(ButtonStyle.Success)
+                                            .setLabel('Confirm'),
+                                        new ButtonBuilder()
+                                            .setCustomId('cancel')
+                                            .setStyle(ButtonStyle.Danger)
+                                            .setLabel('Cancel')
+                                    );
+                                    
+                                    await mes.edit({
+                                        content: 'Are you sure you want to remove this Note?',
+                                        embeds: [embed],
+                                        components: [row3],
+                                        ephemeral: note.private
+                                    });
+
+                                    const col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
+
+                                    col.on('collect', async j => {
+                                        const mes2 = await j.deferReply();
+                                        switch (j.customId) {
+                                            case 'confirm':
+                                                let embed2 = await this.removeGlobalNote(user, note);
+
+                                                emph = embed2.data.color === '#FF0000';
+
+                                                await mes2.edit({
+                                                    embeds: [embed2],
+                                                    ephemeral: emph
+                                                });
+                                            break;
+                                            case 'cancel':
+                                                await mes2.edit({
+                                                    content: 'Note removal has been cancelled.',
+                                                    embeds: [],
+                                                    components: [],
+                                                    ephemeral: true
+                                                });
+
+                                                col.stop();
+                                            break;
+                                        }
+                                    });
+
+                                    col.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Confirmation collection timed out...',
+                                                embeds: [],
+                                                components: [],
+                                                ephemeral: true
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'prev':
+                                    await i.deferUpdate();
+
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            row2.components[0].setDisabled(true);
+                                            row2.components[1].setDisabled(false);
+                                        } else {
+                                            row2.components[0].setDisabled(false);
+                                            row2.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Please select a Note to remove:',
+                                            components: [rows[page], row2],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    await i.deferUpdate();
+
+                                    if (page < rows.length - 1) {
+                                        page++;
+
+                                        if (page === rows.length - 1) {
+                                            row2.components[0].setDisabled(false);
+                                            row2.components[1].setDisabled(true);
+                                        } else {
+                                            row2.components[0].setDisabled(false);
+                                            row2.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            content: 'Please select a Note to remove:',
+                                            components: [rows[page], row2],
+                                            ephemeral: true
+                                        });
+                                    }
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+
+                                    await msg.edit({
+                                        content: 'Note removal has been cancelled.',
+                                        components: [],
+                                        ephemeral: true
+                                    });
+
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Note selection timed out...',
+                                    components: [],
+                                    ephemeral: true
+                                });
+                            } else {
+                                client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                    break;
                 }
-                return;
+            break;
             case 'edit':
+                const noteID = option.getNumber('id');
+
+                menu = new NoteEmbed('Note Editor');
+
+                let note;
+
+                row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('title')
+                        .setStyle(ButtonStyle.Primary)
+                        .setLabel('Change Title')
+                        .setEmoji('🔤'),
+                    new ButtonBuilder()
+                        .setCustomId('content')
+                        .setStyle(ButtonStyle.Primary)
+                        .setLabel('Change Content')
+                        .setEmoji('📝'),
+                    new ButtonBuilder()
+                        .setCustomId('private')
+                        .setStyle(ButtonStyle.Primary)
+                        .setLabel('Toggle Privacy')
+                        .setEmoji('🔁')
+                );
+
+                row2 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('finish')
+                        .setStyle(ButtonStyle.Success)
+                        .setLabel('Finish'),
+                    new ButtonBuilder()
+                        .setCustomId('cancel')
+                        .setStyle(ButtonStyle.Danger)
+                        .setLabel('Cancel')
+                );
+
                 switch (option.getSubcommand()) {
                     case 'server':
-                        this.noteEditor(client, interaction, 'server', member, noteId);
-                        return;
+                        note = await client.database.Server.notes.getOne(server, user, {id: noteID});
+
+                        menu.addFields(
+                            {
+                                name: 'Title',
+                                value: note.title || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Private?',
+                                value: `${note.private}`,
+                                inline: true
+                            },
+                            {
+                                name: 'Content',
+                                value: note.content,
+                            }
+                        );
+
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row, row2],
+                            ephemeral: Boolean(menu.data.fields[1].value)
+                        });
+                        
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'title':
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: 'Please reply with a new Title.',
+                                    });;
+
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'content':
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: 'Please reply with new Content.',
+                                    });;
+
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[2].value = j.content;
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'private':
+                                    await i.deferUpdate();
+
+                                    menu.data.fields[1].value = !Boolean(menu.data.fields[1].value);
+
+                                    await msg.edit({
+                                        embeds: [menu],
+                                        components: [row, row2],
+                                        ephemeral: Boolean(menu.data.fields[1].value)
+                                    });
+                                break;
+                                case 'finish':
+                                    const note = {
+                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        content: menu.data.fields[2].value,
+                                        private: Boolean(menu.data.fields[1].value)
+                                    }
+
+                                    embed = await this.editServerNote(server, note);
+
+                                    emph = embed.data.color === '#FF0000';
+
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        embeds: [embed],
+                                        ephemeral: emph
+                                    });
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+
+                                    await msg.edit({
+                                        content: 'Note editing has been cancelled.',
+                                        embeds: [],
+                                        components: [],
+                                        ephemeral: true
+                                    });
+
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size > 0) {
+                                client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            await msg.edit({
+                                embeds: [menu],
+                                components: [],
+                                ephemeral: Boolean(menu.data.fields[1].value)
+                            });
+                        });
+                    break;
                     case 'global':
-                        this.noteEditor(client, interaction, 'global', member, noteId);
-                        return;
-                }
-                return;
-        }
-    }
+                        note = await client.database.User.notes.getOne(user, {id: noteID});
 
-    viewNote(client, interaction, type, member, noteId) {
-        const filter = (m) => m.user.id == member.user.id;
-        const menu = new EmbedBuilder().setColor('Yellow').setAuthor({ name: member.user.username, iconURL: member.user.avatarURL() });
-        if (!noteId) {
-            if (type == 'server') {
-                menu.setTitle('Server Notes List');
-                const menus = [];
-                menus.push(menu);
-                client.database
-                    .getServerNote(member.guild, member.user)
-                    .then(async (notes) => {
-                        let count = 0;
-                        let num = 0;
-                        const priv = option.getBoolean('private');
-                        if (priv) {
-                            for (const note of notes) {
-                                if (count == 9) {
-                                    menus.push(menu);
-                                    count = 0;
-                                    num++;
-                                }
-                                if (note.private) {
-                                    if (note.title) {
-                                        menus[num].addFields({
-                                            name: `${note.title} (#${note.id})`,
-                                            value: note.content,
-                                        });
-                                    } else {
-                                        menus[num].addFields({
-                                            name: `Note #${note.id}`,
-                                            value: note.content,
-                                        });
-                                    }
-                                }
+                        menu.addFields(
+                            {
+                                name: 'Title',
+                                value: note.title || '\ ',
+                                inline: true
+                            },
+                            {
+                                name: 'Private?',
+                                value: `${note.private}`,
+                                inline: true
+                            },
+                            {
+                                name: 'Content',
+                                value: note.content,
                             }
-                        } else {
-                            for (const note of notes) {
-                                if (count == 9) {
-                                    menus.push(menu);
-                                    count = 0;
-                                    num++;
-                                }
-                                if (note.title) {
-                                    menus[num].addFields({
-                                        name: `${note.title} (#${note.id})`,
-                                        value: note.content,
-                                    });
-                                } else {
-                                    menus[num].addFields({
-                                        name: `Note #${note.id}`,
-                                        value: note.content,
-                                    });
-                                }
-                            }
-                        }
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
-                            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
                         );
-                        let page = 0;
-                        const msg = await interaction.reply({
-                            embeds: [menus[page]],
-                            components: [row],
-                            ephemeral: priv,
-                        });
-                        const collector = msg.createMessageComponentCollector({
-                            filter,
-                            time: 90000,
-                        });
-                        collector.on('collect', async (i) => {
-                            await i.deferUpdate();
-                            if (i.customId == 'prev') {
-                                if (page > 0) {
-                                    page--;
-                                    if (page == 0) {
-                                        row.components[0].setDisabled(true);
-                                        row.components[1].setDisabled(false);
-                                    } else {
-                                        row.components[0].setDisabled(false);
-                                        row.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        embeds: [menus[page]],
-                                        components: [row],
-                                        emphemeral: priv,
-                                    });
-                                }
-                            } else if (i.customId == 'next') {
-                                if (page < menus.length - 1) {
-                                    page++;
-                                    if (page == menus.length - 1) {
-                                        row.components[0].setDisabled(false);
-                                        row.components[1].setDisabled(true);
-                                    } else {
-                                        row.components[0].setDisabled(false);
-                                        row.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        embeds: [menus[page]],
-                                        components: [row],
-                                        emphemeral: priv,
-                                    });
-                                }
-                            }
-                        });
-                        collector.on('end', async (collected) => {
-                            if (collected.size === 0) {
-                                row.components[0].setDisabled(true);
-                                row.components[1].setDisabled(true);
-                                await msg.edit({
-                                    embeds: [menus[page]],
-                                    components: [row],
-                                    ephemeral: priv,
-                                });
-                            } else {
-                                client.database
-                                    .writeLog(member.guild, `Collected ${collected.size} Interactions`)
-                                    .then((mes) => client.database.writeDevLog(`${mes}`))
-                                    .catch((err) => client.database.writeDevLog(`${err}`));
-                            }
-                        });
-                    })
-                    .catch((err) => {
-                        client.database
-                            .writeLog(member.guild, `${err}`)
-                            .then(async (msg) => {
-                                client.database.writeDevLog(`${msg}`);
-                                if (String(err).includes('Error 404')) {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle(`${err}`)
-                                                .setDescription('Could not find any Server Notes in the Database!')
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                } else {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle('An Error occurred...')
-                                                .setDescription(`${err}`)
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                }
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    });
-            } else if (type == 'global') {
-                menu.setTitle('Global Notes List');
-                const menus = [];
-                menus.push(menu);
-                client.database
-                    .getGlobalNote(member.user)
-                    .then(async (notes) => {
-                        let count = 0;
-                        let num = 0;
-                        const priv = option.getBoolean('private');
-                        if (priv) {
-                            for (const note of notes) {
-                                if (count == 9) {
-                                    menus.push(menu);
-                                    count = 0;
-                                    num++;
-                                }
-                                if (note.private) {
-                                    if (note.title) {
-                                        menus[num].addFields({
-                                            name: `${note.title} (#${note.id})`,
-                                            value: note.content,
-                                        });
-                                    } else {
-                                        menus[num].addFields({
-                                            name: `Note #${note.id}`,
-                                            value: note.content,
-                                        });
-                                    }
-                                }
-                            }
-                        } else {
-                            for (const note of notes) {
-                                if (count == 9) {
-                                    menus.push(menu);
-                                    count = 0;
-                                    num++;
-                                }
-                                if (note.title) {
-                                    menus[num].addFields({
-                                        name: `${note.title} (#${note.id})`,
-                                        value: note.content,
-                                    });
-                                } else {
-                                    menus[num].addFields({
-                                        name: `Note #${note.id}`,
-                                        value: note.content,
-                                    });
-                                }
-                            }
-                        }
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
-                            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
-                        );
-                        let page = 0;
-                        const msg = await interaction.reply({
-                            embeds: [menus[page]],
-                            components: [row],
-                            ephemeral: priv,
-                        });
-                        const collector = msg.createMessageComponentCollector({
-                            filter,
-                            time: 90000,
-                        });
-                        collector.on('collect', async (i) => {
-                            await i.deferUpdate();
-                            if (i.customId == 'prev') {
-                                if (page > 0) {
-                                    page--;
-                                    if (page == 0) {
-                                        row.components[0].setDisabled(true);
-                                        row.components[1].setDisabled(false);
-                                    } else {
-                                        row.components[0].setDisabled(false);
-                                        row.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        embeds: [menus[page]],
-                                        components: [row],
-                                        emphemeral: priv,
-                                    });
-                                }
-                            } else if (i.customId == 'next') {
-                                if (page < menus.length - 1) {
-                                    page++;
-                                    if (page == menus.length - 1) {
-                                        row.components[0].setDisabled(false);
-                                        row.components[1].setDisabled(true);
-                                    } else {
-                                        row.components[0].setDisabled(false);
-                                        row.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        embeds: [menus[page]],
-                                        components: [row],
-                                        emphemeral: priv,
-                                    });
-                                }
-                            }
-                        });
-                        collector.on('end', async (collected) => {
-                            if (collected.size === 0) {
-                                row.components[0].setDisabled(true);
-                                row.components[1].setDisabled(true);
-                                await msg.edit({
-                                    embeds: [menus[page]],
-                                    components: [row],
-                                    ephemeral: priv,
-                                });
-                            } else {
-                                client.database
-                                    .writeLog(member.guild, `Collected ${collected.size} Interactions`)
-                                    .then((mes) => client.database.writeDevLog(`${mes}`))
-                                    .catch((err) => client.database.writeDevLog(`${err}`));
-                            }
-                        });
-                    })
-                    .catch((err) => {
-                        client.database
-                            .writeLog(member.guild, `${err}`)
-                            .then(async (msg) => {
-                                client.database.writeDevLog(`${msg}`);
-                                if (String(err).includes('Error 404')) {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle(`${err}`)
-                                                .setDescription('Could not find any Global Notes in the Database!')
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                } else {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle('An Error occurred...')
-                                                .setDescription(`${err}`)
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                }
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    });
-            }
-        } else {
-            if (type == 'server') {
-                client.database
-                    .getServerNote(member.guild, member.user, { id: noteId })
-                    .then(async (note) => {
-                        if (note.title) {
-                            menu.setTitle(`${note.title} (#${note.id})`);
-                        } else {
-                            menu.setTitle(`Note #${note.id}`);
-                        }
-                        menu.setDescription(note.content);
-                        menu.setTimestamp();
-                        if (note.private) {
-                            await interaction.reply({
-                                embeds: [menu],
-                                ephemeral: true,
-                            });
-                        } else {
-                            await interaction.reply({
-                                embeds: [menu],
-                            });
-                        }
-                    })
-                    .catch((err) => {
-                        client.database
-                            .writeLog(member.guild, `${err}`)
-                            .then(async (mes) => {
-                                client.database.writeDevLog(`${mes}`);
-                                if (String(err).includes('Error 404')) {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle(`${err}`)
-                                                .setDescription('Could not find that Note in the Database!')
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                } else {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle('An Error occurred...')
-                                                .setDescription(`${err}`)
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                }
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    });
-            } else if (type == 'global') {
-                client.database
-                    .getGlobalNote(member.user, { id: noteId })
-                    .then(async (note) => {
-                        if (note.title) {
-                            menu.setTitle(`${note.title} (#${note.id})`);
-                        } else {
-                            menu.setTitle(`Note #${note.id}`);
-                        }
-                        menu.setDescription(note.content);
-                        menu.setTimestamp();
-                        if (note.private) {
-                            await interaction.reply({
-                                embeds: [menu],
-                                ephemeral: true,
-                            });
-                        } else {
-                            await interaction.reply({
-                                embeds: [menu],
-                            });
-                        }
-                    })
-                    .catch((err) => {
-                        client.database
-                            .writeLog(member.guild, `${err}`)
-                            .then(async (mes) => {
-                                client.database.writeDevLog(`${mes}`);
-                                if (String(err).includes('Error 404')) {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle(`${err}`)
-                                                .setDescription('Could not find that Note in the Database!')
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                } else {
-                                    await interaction.reply({
-                                        embeds: [
-                                            new EmbedBuilder()
-                                                .setColor('Red')
-                                                .setTitle('An Error occurred...')
-                                                .setDescription(`${err}`)
-                                                .setTimestamp(),
-                                        ],
-                                        ephemeral: true,
-                                    });
-                                }
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    });
-            }
-        }
-    }
 
-    async noteCreator(client, interaction, type, member) {
-        const filter = (m) => m.user.id == member.user.id;
-        const menu = new EmbedBuilder()
-            .setColor('Yellow')
-            .setTitle('Note Creator')
-            .setAuthor({ name: member.user.username, iconURL: member.user.avatarURL() })
-            .setFields(
-                {
-                    name: 'Title',
-                    value: ' ',
-                    inline: true,
-                },
-                {
-                    name: 'Private?',
-                    value: 'false',
-                    inline: true,
-                },
-                {
-                    name: 'Content',
-                    value: ' ',
-                }
-            );
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('title').setLabel('Change Title').setStyle(ButtonStyle.Primary).setEmoji('🔤'),
-            new ButtonBuilder().setCustomId('content').setLabel('Change Content').setStyle(ButtonStyle.Primary).setEmoji('📝'),
-            new ButtonBuilder().setCustomId('priv').setLabel('Toggle Private').setStyle(ButtonStyle.Primary).setEmoji('🔁')
-        );
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('finish').setLabel('Finish').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
-        );
-        const msg = await interaction.reply({
-            embeds: [menu],
-            components: [row1, row2],
-            ephemeral: Boolean(menu.data.fields[1].value),
-        });
-        const collector = msg.createMessageComponentCollector({
-            filter,
-            time: 90000,
-        });
-        collector.on('collect', async (i) => {
-            if (i.customId == 'title') {
-                const mes = await i.deferReply();
-                await mes.edit({
-                    content: 'Reply with a new Title.',
-                });
-                const mesfil = (m) => m.reference.messageId == mes.id && m.author.id == member.user.id;
-                const mescol = i.channel.createMessageCollector({
-                    mesfil,
-                    time: 35000,
-                    max: 1,
-                });
-                mescol.on('collect', (j) => {
-                    menu.data.fields[0].value = j.content;
-                });
-                mescol.on('end', async (collected) => {
-                    if (collected.size === 0) {
-                        await mes.edit({
-                            content: 'Reply collection timed out...',
+                        msg = await interaction.reply({
+                            embeds: [menu],
+                            components: [row, row2],
+                            ephemeral: Boolean(menu.data.fields[1].value)
                         });
-                    } else {
-                        client.database
-                            .writeLog(member.guild, `Collected ${collected.size} Replies`)
-                            .then(async (mes1) => {
-                                client.database.writeDevLog(`${mes1}`);
-                                await msg.edit({
-                                    embeds: [menu],
-                                    components: [row1, row2],
-                                    ephemeral: Boolean(menu.data.fields[1].value),
-                                });
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            })
-                            .catch((err) => client.database.writeDevLog(`${err}`));
-                    }
-                });
-            } else if (i.customId == 'content') {
-                const mes = await i.deferReply();
-                await mes.edit({
-                    content: 'Reply with the Content of the Note!',
-                });
-                const mesfil = (m) => m.reference.messageId == mes.id && m.author.id == member.user.id;
-                const mescol = i.channel.createMessageCollector({
-                    mesfil,
-                    time: 35000,
-                    max: 1,
-                });
-                mescol.on('collect', (j) => {
-                    menu.data.fields[2].value = j.content;
-                });
-                mescol.on('end', async (collected) => {
-                    if (collected.size === 0) {
-                        await mes.edit({
-                            content: 'Reply collection timed out...',
-                        });
-                    } else {
-                        client.database
-                            .writeLog(member.guild, `Collected ${collected.size} Replies`)
-                            .then(async (mes1) => {
-                                client.database.writeDevLog(`${mes1}`);
-                                await msg.edit({
-                                    embeds: [menu],
-                                    components: [row1, row2],
-                                    ephemeral: Boolean(menu.data.fields[1].value),
-                                });
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            })
-                            .catch((err) => client.database.writeDevLog(`${err}`));
-                    }
-                });
-            } else if (i.customId == 'priv') {
-                await i.deferUpdate();
-                let bool = Boolean(menu.data.fields[1].value);
-                if (bool) {
-                    bool = false;
-                } else {
-                    bool = true;
-                }
-                menu.data.fields[1].value = `${bool}`;
-                await msg.edit({
-                    embeds: [menu],
-                    components: [row1, row2],
-                    ephemeral: bool,
-                });
-            } else if (i.customId == 'finish') {
-                const note = {
-                    title: menu.data.fields[0].value,
-                    content: menu.data.fields[2].value,
-                    private: Boolean(menu.data.fields[1].value),
-                };
-                const m = i.deferReply();
-                if (type == 'server') {
-                    client.database
-                        .addServerNote(member.guild, member.user, note)
-                        .then((mes) => {
-                            client.database
-                                .writeLog(member.guild, `${mes}`)
-                                .then(async (mes1) => {
-                                    client.database.writeDevLog(`${mes1}`);
-                                    await m.edit({
-                                        content: 'Note has been created successfully!',
-                                    });
-                                })
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        })
-                        .catch((err) => {
-                            client.database
-                                .writeLog(member.guild, `${err}`)
-                                .then(async (mes1) => {
-                                    client.database.writeDevLog(`${mes1}`);
-                                    if (String(err).includes('Error 409')) {
-                                        await m.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle(`${err}`)
-                                                    .setDescription('A Note with this Content/Title already exists!')
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    } else {
-                                        await m.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle('An Error occurred...')
-                                                    .setDescription(`${err}`)
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    }
-                                })
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        });
-                } else if (type == 'global') {
-                    client.database
-                        .addGlobalNote(member.user, note)
-                        .then((mes) => {
-                            client.database
-                                .writeLog(member.guild, `${mes}`)
-                                .then(async (mes1) => {
-                                    client.database.writeDevLog(`${mes1}`);
-                                    await m.edit({
-                                        content: 'Note has been created successfully!',
-                                    });
-                                })
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        })
-                        .catch((err) => {
-                            client.database
-                                .writeLog(member.guild, `${err}`)
-                                .then(async (mes1) => {
-                                    client.database.writeDevLog(`${mes1}`);
-                                    if (String(err).includes('Error 409')) {
-                                        await m.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle(`${err}`)
-                                                    .setDescription('A Note with this Content/Title already exists!')
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    } else {
-                                        await m.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle('An Error occurred...')
-                                                    .setDescription(`${err}`)
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    }
-                                })
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        });
-                }
-            } else if (i.customId == 'cancel') {
-                const mes = await i.deferReply();
-                await mes.edit({
-                    content: 'Note Creation has been cancelled...',
-                    ephemeral: true,
-                });
-                collector.stop();
-            }
-        });
-        collector.on('end', async (collected) => {
-            if (collected.size > 0) {
-                client.database
-                    .writeLog(member.guild, `Collected ${collected.size} Interactions`)
-                    .then((mes) => client.database.writeDevLog(`${mes}`))
-                    .catch((err) => client.database.writeDevLog(`${err}`));
-            }
-            await msg.edit({
-                embeds: [menu],
-                components: [],
-                ephemeral: Boolean(menu.data.fields[1].value),
-            });
-        });
-    }
 
-    async noteRemover(client, interaction, type, member, noteId) {
-        const filter = (m) => m.user.id == member.user.id;
-        if (!noteId) {
-            const rows = [];
-            const row = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder().setCustomId('selnote').setMinValues(1).setMaxValues(1).setPlaceholder('No Note selected...')
-            );
-            rows.push(row);
-            if (type == 'server') {
-                client.database
-                    .getServerNote(interaction.guild, member.user)
-                    .then(async (notes) => {
-                        let count = 0;
-                        let num = 0;
-                        for (const note of notes) {
-                            if (count == 24) {
-                                rows.push(row);
-                                count = 0;
-                                num++;
-                            }
-                            if (note.title) {
-                                rows[num].components[0].addOptions({
-                                    label: `${note.title} (#${note.id})`,
-                                    value: `${note.id}`,
-                                });
-                            } else {
-                                rows[num].components[0].addOptions({
-                                    label: `Note #${note.id}`,
-                                    value: `${note.id}`,
-                                });
-                            }
-                            count++;
-                        }
-                        const row2 = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
-                            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
-                            new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
-                        );
-                        let page = 0;
-                        const msg = await interaction.reply({
-                            content: 'Select a Note:',
-                            components: [rows[page], row2],
-                            ephemeral: true,
-                        });
-                        const collector = msg.createMessageComponentCollector({
-                            filter,
-                            time: 90000,
-                        });
-                        collector.on('collect', async (i) => {
-                            if (i.customId == 'selnote') {
-                                const mes = await i.deferReply();
-                                client.database
-                                    .getServerNote(interaction.guild, member.user, {
-                                        id: Number(i.values[0]),
-                                    })
-                                    .then(async (note) => {
-                                        const embed = new EmbedBuilder()
-                                            .setColor('Yellow')
-                                            .setDescription(note.content)
-                                            .setAuthor({
-                                                name: member.user.displayName,
-                                                iconURL: member.user.avatarURL(),
-                                            })
-                                            .setTimestamp();
-                                        if (note.title) {
-                                            embed.setTitle(`${note.title} (#${note.id})`);
-                                        } else {
-                                            embed.setTitle(`Note #${note.id}`);
-                                        }
-                                        const row3 = new ActionRowBuilder().addComponents(
-                                            new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
-                                            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
-                                        );
-                                        await mes.edit({
-                                            content: 'Are you sure you want to delete the following Note?',
-                                            embeds: [embed],
-                                            components: [row3],
-                                            ephemeral: true,
-                                        });
-                                        const col = mes.createMessageComponentCollector({
-                                            filter,
-                                            time: 35000,
-                                            max: 1,
-                                        });
-                                        col.on('collect', async (j) => {
-                                            const messag = await j.deferReply();
-                                            if (j.customId == 'confirm') {
-                                                await client.database
-                                                    .remServerNote(interaction.guild, member.user, {
-                                                        id: note.id,
-                                                    })
-                                                    .then(async (m) => {
-                                                        await client.database
-                                                            .writeLog(interaction.guild, m)
-                                                            .then((message) => client.database.writeDevLog(message))
-                                                            .catch((err) => client.database.writeDevLog(`${err}`));
-                                                        await messag.edit({
-                                                            content: 'Note has been successfully deleted!',
-                                                            ephemeral: true,
-                                                        });
-                                                    })
-                                                    .catch(async (err) => {
-                                                        await client.database
-                                                            .writeLog(interaction.guild, `${err}`)
-                                                            .then((m) => client.database.writeDevLog(m))
-                                                            .catch((err) => client.database.writeDevLog(`${err}`));
-                                                        if (String(err).includes('Error 404')) {
-                                                            await messag.edit({
-                                                                embeds: [
-                                                                    new EmbedBuilder()
-                                                                        .setColor('Red')
-                                                                        .setTitle(`${err}`)
-                                                                        .setDescription(
-                                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
-                                                                        )
-                                                                        .setTimestamp(),
-                                                                ],
-                                                                ephemeral: true,
-                                                            });
-                                                        } else {
-                                                            await messag.edit({
-                                                                embeds: [
-                                                                    new EmbedBuilder()
-                                                                        .setColor('Red')
-                                                                        .setTitle('An Error occurred...')
-                                                                        .setDescription(`${err}`)
-                                                                        .setTimestamp(),
-                                                                ],
-                                                                ephemeral: true,
-                                                            });
-                                                        }
-                                                    });
-                                            } else if (j.customId == 'cancel') {
-                                                await messag.edit({
-                                                    content: 'Removal of Note has been cancelled.',
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                            setTimeout(async () => {
-                                                await messag.delete();
-                                            }, 5000);
-                                        });
-                                        col.on('end', async (collected) => {
-                                            if (collected.size == 0) {
-                                                await mes.edit({
-                                                    content: 'Selection timed out...',
-                                                    embeds: [],
-                                                    components: [],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                client.database
-                                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                                    .then((m) => client.database.writeDevLog(m))
-                                                    .catch((err) => client.database.writeDevLog(`${err}`));
-                                            }
-                                            setTimeout(async () => {
-                                                await mes.delete();
-                                            }, 5000);
-                                        });
-                                    })
-                                    .catch(async (err) => {
-                                        await client.database
-                                            .writeLog(interaction.guild, `${err}`)
-                                            .then((m) => client.database.writeDevLog(m))
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                        if (String(err).includes('Error 404')) {
-                                            await mes.edit({
-                                                content: '',
-                                                embeds: [
-                                                    new EmbedBuilder()
-                                                        .setColor('Red')
-                                                        .setTitle(`${err}`)
-                                                        .setDescription(
-                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
-                                                        )
-                                                        .setTimestamp(),
-                                                ],
-                                                components: [],
-                                                ephemeral: true,
-                                            });
-                                        } else {
-                                            await mes.edit({
-                                                content: '',
-                                                embeds: [
-                                                    new EmbedBuilder()
-                                                        .setColor('Red')
-                                                        .setTitle('An Error occurred...')
-                                                        .setDescription(`${err}`)
-                                                        .setTimestamp(),
-                                                ],
-                                                components: [],
-                                                ephemeral: true,
-                                            });
-                                        }
-                                    });
-                            } else if (i.customId == 'prev') {
-                                await i.deferUpdate();
-                                if (page > 0) {
-                                    page--;
-                                    if (page == 0) {
-                                        row2.components[0].setDisabled(true);
-                                        row2.components[1].setDisabled(false);
-                                    } else {
-                                        row2.components[0].setDisabled(false);
-                                        row2.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        content: 'Select a Note:',
-                                        components: [rows[page], row2],
-                                        ephemeral: true,
-                                    });
-                                }
-                            } else if (i.customId == 'next') {
-                                await i.deferUpdate();
-                                if (page < rows.length - 1) {
-                                    page++;
-                                    if (page == rows.length - 1) {
-                                        row2.components[0].setDisabled(false);
-                                        row2.components[1].setDisabled(true);
-                                    } else {
-                                        row2.components[0].setDisabled(false);
-                                        row2.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        content: 'Select a Note:',
-                                        compoennts: [rows[page], row2],
-                                        ephemeral: true,
-                                    });
-                                }
-                            } else if (i.customId == 'cancel') {
-                                await i.deferUpdate();
-                                collector.stop();
-                            }
-                        });
-                        collector.on('end', async (collected) => {
-                            if (collected.size == 0) {
-                                await msg.edit({
-                                    content: 'Selection timed out...',
-                                    compoennts: [],
-                                    ephemeral: true,
-                                });
-                            } else {
-                                await client.database
-                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                    .then((m) => client.database.writeDevLog(m))
-                                    .catch((err) => client.database.writeDevLog(`${err}`));
-                            }
-                            setTimeout(async () => {
-                                await msg.delete();
-                            }, 5000);
-                        });
-                    })
-                    .catch(async (err) => {
-                        await client.database
-                            .writeLog(interaction.guild, `${err}`)
-                            .then((m) => client.database.writeDevLog(m))
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        if (String(err).includes('Error 404')) {
-                            await interaction.reply({
-                                embeds: [
-                                    new EmbedBuilder()
-                                        .setColor('Red')
-                                        .setTitle(`${err}`)
-                                        .setDescription('This Character does not have any Notes!')
-                                        .setTimestamp(),
-                                ],
-                                ephemeral: true,
-                            });
-                        } else {
-                            await interaction.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                ephemeral: true,
-                            });
-                        }
-                    });
-            } else if (type == 'global') {
-                client.database
-                    .getGlobalNote(member.user)
-                    .then(async (notes) => {
-                        let count = 0;
-                        let num = 0;
-                        for (const note of notes) {
-                            if (count == 24) {
-                                rows.push(row);
-                                count = 0;
-                                num++;
-                            }
-                            if (note.title) {
-                                rows[num].components[0].addOptions({
-                                    label: `${note.title} (#${note.id})`,
-                                    value: `${note.id}`,
-                                });
-                            } else {
-                                rows[num].components[0].addOptions({
-                                    label: `Note #${note.id}`,
-                                    value: `${note.id}`,
-                                });
-                            }
-                            count++;
-                        }
-                        const row2 = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
-                            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
-                            new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
-                        );
-                        let page = 0;
-                        const msg = await interaction.reply({
-                            content: 'Select a Note:',
-                            components: [rows[page], row2],
-                            ephemeral: true,
-                        });
-                        const collector = msg.createMessageComponentCollector({
-                            filter,
-                            time: 90000,
-                        });
-                        collector.on('collect', async (i) => {
-                            if (i.customId == 'selnote') {
-                                const mes = await i.deferReply();
-                                client.database
-                                    .getGlobalNote(member.user, { id: Number(i.values[0]) })
-                                    .then(async (note) => {
-                                        const embed = new EmbedBuilder()
-                                            .setColor('Yellow')
-                                            .setDescription(note.content)
-                                            .setAuthor({
-                                                name: member.user.displayName,
-                                                iconURL: member.user.avatarURL(),
-                                            })
-                                            .setTimestamp();
-                                        if (note.title) {
-                                            embed.setTitle(`${note.title} (#${note.id})`);
-                                        } else {
-                                            embed.setTitle(`Note #${note.id}`);
-                                        }
-                                        const row3 = new ActionRowBuilder().addComponents(
-                                            new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
-                                            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
-                                        );
-                                        await mes.edit({
-                                            content: 'Are you sure you want to delete the following Note?',
-                                            embeds: [embed],
-                                            components: [row3],
-                                            ephemeral: true,
-                                        });
-                                        const col = mes.createMessageComponentCollector({
-                                            filter,
-                                            time: 35000,
-                                            max: 1,
-                                        });
-                                        col.on('collect', async (j) => {
-                                            const messag = await j.deferReply();
-                                            if (j.customId == 'confirm') {
-                                                await client.database
-                                                    .remGlobalNote(member.user, { id: note.id })
-                                                    .then(async (m) => {
-                                                        await client.database
-                                                            .writeLog(interaction.guild, m)
-                                                            .then((message) => client.database.writeDevLog(message))
-                                                            .catch((err) => client.database.writeDevLog(`${err}`));
-                                                        await messag.edit({
-                                                            content: 'Note has been successfully deleted!',
-                                                            ephemeral: true,
-                                                        });
-                                                    })
-                                                    .catch(async (err) => {
-                                                        await client.database
-                                                            .writeLog(interaction.guild, `${err}`)
-                                                            .then((m) => client.database.writeDevLog(m))
-                                                            .catch((err) => client.database.writeDevLog(`${err}`));
-                                                        if (String(err).includes('Error 404')) {
-                                                            await messag.edit({
-                                                                embeds: [
-                                                                    new EmbedBuilder()
-                                                                        .setColor('Red')
-                                                                        .setTitle(`${err}`)
-                                                                        .setDescription(
-                                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
-                                                                        )
-                                                                        .setTimestamp(),
-                                                                ],
-                                                                ephemeral: true,
-                                                            });
-                                                        } else {
-                                                            await messag.edit({
-                                                                embeds: [
-                                                                    new EmbedBuilder()
-                                                                        .setColor('Red')
-                                                                        .setTitle('An Error occurred...')
-                                                                        .setDescription(`${err}`)
-                                                                        .setTimestamp(),
-                                                                ],
-                                                                ephemeral: true,
-                                                            });
-                                                        }
-                                                    });
-                                            } else if (j.customId == 'cancel') {
-                                                await messag.edit({
-                                                    content: 'Removal of Note has been cancelled.',
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                            setTimeout(async () => {
-                                                await messag.delete();
-                                            }, 5000);
-                                        });
-                                        col.on('end', async (collected) => {
-                                            if (collected.size == 0) {
-                                                await mes.edit({
-                                                    content: 'Selection timed out...',
-                                                    embeds: [],
-                                                    components: [],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                client.database
-                                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                                    .then((m) => client.database.writeDevLog(m))
-                                                    .catch((err) => client.database.writeDevLog(`${err}`));
-                                            }
-                                            setTimeout(async () => {
-                                                await mes.delete();
-                                            }, 5000);
-                                        });
-                                    })
-                                    .catch(async (err) => {
-                                        await client.database
-                                            .writeLog(interaction.guild, `${err}`)
-                                            .then((m) => client.database.writeDevLog(m))
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                        if (String(err).includes('Error 404')) {
-                                            await mes.edit({
-                                                content: '',
-                                                embeds: [
-                                                    new EmbedBuilder()
-                                                        .setColor('Red')
-                                                        .setTitle(`${err}`)
-                                                        .setDescription(
-                                                            'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
-                                                        )
-                                                        .setTimestamp(),
-                                                ],
-                                                components: [],
-                                                ephemeral: true,
-                                            });
-                                        } else {
-                                            await mes.edit({
-                                                content: '',
-                                                embeds: [
-                                                    new EmbedBuilder()
-                                                        .setColor('Red')
-                                                        .setTitle('An Error occurred...')
-                                                        .setDescription(`${err}`)
-                                                        .setTimestamp(),
-                                                ],
-                                                components: [],
-                                                ephemeral: true,
-                                            });
-                                        }
-                                    });
-                            } else if (i.customId == 'prev') {
-                                await i.deferUpdate();
-                                if (page > 0) {
-                                    page--;
-                                    if (page == 0) {
-                                        row2.components[0].setDisabled(true);
-                                        row2.components[1].setDisabled(false);
-                                    } else {
-                                        row2.components[0].setDisabled(false);
-                                        row2.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        content: 'Select a Note:',
-                                        components: [rows[page], row2],
-                                        ephemeral: true,
-                                    });
-                                }
-                            } else if (i.customId == 'next') {
-                                await i.deferUpdate();
-                                if (page < rows.length - 1) {
-                                    page++;
-                                    if (page == rows.length - 1) {
-                                        row2.components[0].setDisabled(false);
-                                        row2.components[1].setDisabled(true);
-                                    } else {
-                                        row2.components[0].setDisabled(false);
-                                        row2.components[1].setDisabled(false);
-                                    }
-                                    await msg.edit({
-                                        content: 'Select a Note:',
-                                        compoennts: [rows[page], row2],
-                                        ephemeral: true,
-                                    });
-                                }
-                            } else if (i.customId == 'cancel') {
-                                await i.deferUpdate();
-                                collector.stop();
-                            }
-                        });
-                        collector.on('end', async (collected) => {
-                            if (collected.size == 0) {
-                                await msg.edit({
-                                    content: 'Selection timed out...',
-                                    compoennts: [],
-                                    ephemeral: true,
-                                });
-                            } else {
-                                await client.database
-                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                    .then((m) => client.database.writeDevLog(m))
-                                    .catch((err) => client.database.writeDevLog(`${err}`));
-                            }
-                            setTimeout(async () => {
-                                await msg.delete();
-                            }, 5000);
-                        });
-                    })
-                    .catch(async (err) => {
-                        await client.database
-                            .writeLog(interaction.guild, `${err}`)
-                            .then((m) => client.database.writeDevLog(m))
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        if (String(err).includes('Error 404')) {
-                            await interaction.reply({
-                                embeds: [
-                                    new EmbedBuilder()
-                                        .setColor('Red')
-                                        .setTitle(`${err}`)
-                                        .setDescription('This Character does not have any Notes!')
-                                        .setTimestamp(),
-                                ],
-                                ephemeral: true,
-                            });
-                        } else {
-                            await interaction.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                ephemeral: true,
-                            });
-                        }
-                    });
-            }
-        } else {
-            let note;
-            if (type == 'server') {
-                note = await client.database.getServerNote(interaction.guild, member.user, { id: noteId }).catch(async (err) => {
-                    client.database.writeDevLog(
-                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
-                    );
-                    if (String(err).includes('Error 404')) {
-                        await interaction.reply({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor('Red')
-                                    .setTitle(`${err}`)
-                                    .setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!')
-                                    .setTimestamp(),
-                            ],
-                            ephemeral: true,
-                        });
-                    } else {
-                        await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                            ephemeral: true,
-                        });
-                    }
-                });
-                if (note) {
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
-                        new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
-                    );
-                    const embed = new EmbedBuilder()
-                        .setColor('Yellow')
-                        .setAuthor({ name: member.user.displayName, iconURL: member.user.avatarURL() })
-                        .setDescription(note.content)
-                        .setTimestamp();
-                    if (note.title) {
-                        embed.setTitle(`${note.title} (#${note.id})`);
-                    } else {
-                        embed.setTitle(`Note #${note.id}`);
-                    }
-                    const msg = await interaction.reply({
-                        content: 'Are you sure you want to delete the following Note?',
-                        embeds: [embed],
-                        components: [row],
-                        ephemeral: true,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                        max: 1,
-                    });
-                    collector.on('collect', async (i) => {
-                        const mes = await i.deferReply();
-                        if (i.customId == 'confirm') {
-                            client.database
-                                .remServerNote(interaction.guild, member.user, note)
-                                .then(async (m) => {
-                                    client.database.writeDevLog(
-                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
+                            switch (i.customId) {
+                                case 'title':
+                                    mes = await i.deferReply();
                                     await mes.edit({
-                                        content: `${m}`,
-                                        ephemeral: true,
-                                    });
-                                })
-                                .catch(async (err) => {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `${err}`)
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
-                                    );
-                                    if (String(err).includes('Error 404')) {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle(`${err}`)
-                                                    .setDescription(
-                                                        'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
-                                                    )
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    } else {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle('An Error occurred...')
-                                                    .setDescription(`${err}`)
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    }
-                                });
-                        } else if (i.customId == 'cancel') {
-                            await mes.edit({
-                                content: 'Removal of Note has been cancelled!',
-                                ephemeral: true,
-                            });
-                            collector.stop();
-                        }
-                    });
-                    collector.on('end', async (collected) => {
-                        if (collected.size == 0) {
-                            await msg.edit({
-                                content: 'Response selection timed out...',
-                                embeds: [],
-                                compoennts: [],
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database.writeDevLog(
-                                await client.database
-                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                    .catch((err) => client.database.writeDevLog(`${err}`))
-                            );
-                        }
-                        setTimeout(async () => {
-                            await msg.delete();
-                        }, 5000);
-                    });
-                }
-            } else if (type == 'global') {
-                note = await client.database.getGlobalNote(member.user, { id: noteId }).catch(async (err) => {
-                    client.database.writeDevLog(
-                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
-                    );
-                    if (String(err).includes('Error 404')) {
-                        await interaction.reply({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor('Red')
-                                    .setTitle(`${err}`)
-                                    .setDescription('Could not find that Note in the Database. Contact the Developer if this Issue persists!')
-                                    .setTimestamp(),
-                            ],
-                            ephemeral: true,
-                        });
-                    } else {
-                        await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                            ephemeral: true,
-                        });
-                    }
-                });
-                if (note) {
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
-                        new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
-                    );
-                    const embed = new EmbedBuilder()
-                        .setColor('Yellow')
-                        .setAuthor({ name: member.user.displayName, iconURL: member.user.avatarURL() })
-                        .setDescription(note.content)
-                        .setTimestamp();
-                    if (note.title) {
-                        embed.setTitle(`${note.title} (#${note.id})`);
-                    } else {
-                        embed.setTitle(`Note #${note.id}`);
-                    }
-                    const msg = await interaction.reply({
-                        content: 'Are you sure you want to delete the following Note?',
-                        embeds: [embed],
-                        components: [row],
-                        ephemeral: true,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                        max: 1,
-                    });
-                    collector.on('collect', async (i) => {
-                        const mes = await i.deferReply();
-                        if (i.customId == 'confirm') {
-                            client.database
-                                .remGlobalNote(member.user, note)
-                                .then(async (m) => {
-                                    client.database.writeDevLog(
-                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
-                                    await mes.edit({
-                                        content: `${m}`,
-                                        ephemeral: true,
-                                    });
-                                })
-                                .catch(async (err) => {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `${err}`)
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
-                                    );
-                                    if (String(err).includes('Error 404')) {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle(`${err}`)
-                                                    .setDescription(
-                                                        'Could not find that Note in the Database. Contact the Developer if this Issue persists!'
-                                                    )
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    } else {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle('An Error occurred...')
-                                                    .setDescription(`${err}`)
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    }
-                                });
-                        } else if (i.customId == 'cancel') {
-                            await mes.edit({
-                                content: 'Removal of Note has been cancelled!',
-                                ephemeral: true,
-                            });
-                            collector.stop();
-                        }
-                    });
-                    collector.on('end', async (collected) => {
-                        if (collected.size == 0) {
-                            await msg.edit({
-                                content: 'Response selection timed out...',
-                                embeds: [],
-                                compoennts: [],
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database.writeDevLog(
-                                await client.database
-                                    .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                    .catch((err) => client.database.writeDevLog(`${err}`))
-                            );
-                        }
-                        setTimeout(async () => {
-                            await msg.delete();
-                        }, 5000);
-                    });
-                }
-            }
-        }
-    }
+                                        content: 'Please reply with a new Title.',
+                                    });;
 
-    noteEditor(client, interaction, type, member, noteId) {
-        const filter = (m) => m.user.id == member.user.id;
-        const menu = new EmbedBuilder()
-            .setColor('Yellow')
-            .setAuthor({ name: member.user.displayName, iconURL: member.user.avatarURL() })
-            .setDescription(' ')
-            .setFields(
-                {
-                    name: 'Title',
-                    value: ' ',
-                    inline: true,
-                },
-                {
-                    name: 'Private?',
-                    value: ' ',
-                    inline: true,
-                },
-                {
-                    name: 'Content',
-                    value: ' ',
-                }
-            )
-            .setTimestamp();
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('title').setStyle(ButtonStyle.Primary).setEmoji('🔤').setLabel('Change Title'),
-            new ButtonBuilder().setCustomId('content').setStyle(ButtonStyle.Primary).setEmoji('📝').setLabel('Change Content'),
-            new ButtonBuilder().setCustomId('priv').setStyle(ButtonStyle.Primary).setEmoji('🎚️').setLabel('Change Visibility')
-        );
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('finish').setStyle(ButtonStyle.Success).setLabel('Finish'),
-            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
-        );
-        if (type == 'server') {
-            client.database
-                .getServerNote(interaction.guild, member.user, { id: noteId })
-                .then(async (note) => {
-                    if (note.title) {
-                        menu.data.fields[0].value = `${note.title} (#${note.id})`;
-                    } else {
-                        menu.data.fields[0].value = `Note #${note.id}`;
-                    }
-                    menu.data.fields[1].value = String(note.private);
-                    menu.data.fields[2].value = note.content;
-                    const msg = await interaction.reply({
-                        embeds: [menu],
-                        components: [row, row2],
-                        ephemeral: note.private,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                    });
-                    collector.on('collect', async (i) => {
-                        let filt;
-                        if (i.customId == 'title') {
-                            const mes = await i.deferReply();
-                            await mes.edit({
-                                content: 'Reply with a new Title!',
-                            });
-                            filt = (m) => m.reference.messageId == mes.id && m.author.id == member.user.id;
-                            const mescol = i.channel.createMessageCollector({
-                                filt,
-                                time: 35000,
-                                max: 1,
-                            });
-                            mescol.on('collect', (j) => {
-                                menu.data.fields[0] = j.content;
-                                mescol.stop();
-                            });
-                            mescol.on('end', async (collected) => {
-                                if (collected.size == 0) {
-                                    await mes.edit({
-                                        content: 'Reply collection timed out...',
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[0].value = j.content;
                                     });
-                                } else {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                            .catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'content':
+                                    mes = await i.deferReply();
+                                    await mes.edit({
+                                        content: 'Please reply with new Content.',
+                                    });;
+
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+
+                                    mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
+
+                                    mescol.on('collect', async j => {
+                                        menu.data.fields[2].value = j.content;
+                                    });
+
+                                    mescol.on('end', async collected => {
+                                        if (collected.size === 0) {
+                                            await mes.edit({
+                                                content: 'Reply collection timed out...'
+                                            });
+                                        } else {
+                                            client.writeServerLog(server, `Collected ${collected.size} reply`);
+
+                                            await msg.edit({
+                                                embeds: [menu],
+                                                components: [row, row2],
+                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                            });
+                                        }
+
+                                        setTimeout(async () => {
+                                            await mes.delete();
+                                        }, 5000);
+                                    });
+                                break;
+                                case 'private':
+                                    await i.deferUpdate();
+
+                                    menu.data.fields[1].value = !Boolean(menu.data.fields[1].value);
+
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value),
+                                        ephemeral: Boolean(menu.data.fields[1].value)
                                     });
-                                }
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            });
-                        } else if (i.customId == 'content') {
-                            const mes = await i.deferReply();
-                            await mes.edit({
-                                content: 'Reply with the new Content!',
-                            });
-                            filt = (m) => m.reference.messageId == mes.id && m.author.id == member.user.id;
-                            const mescol = i.channel.createMessageCollector({
-                                filt,
-                                time: 35000,
-                                max: 1,
-                            });
-                            mescol.on('collect', (j) => {
-                                menu.data.fields[2] = j.content;
-                                mescol.stop();
-                            });
-                            mescol.on('end', async (collected) => {
-                                if (collected.size == 0) {
+                                break;
+                                case 'finish':
+                                    const note = {
+                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        content: menu.data.fields[2].value,
+                                        private: Boolean(menu.data.fields[1].value)
+                                    }
+
+                                    embed = await this.editGlobalNote(user, note);
+
+                                    emph = embed.data.color === '#FF0000';
+
+                                    mes = await i.deferReply();
                                     await mes.edit({
-                                        content: 'Reply collection timed out...',
+                                        embeds: [embed],
+                                        ephemeral: emph
                                     });
-                                } else {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                            .catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
+                                break;
+                                case 'cancel':
+                                    await i.deferUpdate();
+
                                     await msg.edit({
-                                        embeds: [menu],
-                                        components: [row, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value),
-                                    });
-                                }
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            });
-                        } else if (i.customId == 'priv') {
-                            const privsel = new ActionRowBuilder().addComponents(
-                                new StringSelectMenuBuilder()
-                                    .setCustomId('privsel')
-                                    .setMinValues(1)
-                                    .setMaxValues(1)
-                                    .setPlaceholder('No Option selected...')
-                                    .addOptions(
-                                        {
-                                            label: 'True',
-                                            value: 'true',
-                                        },
-                                        {
-                                            label: 'False',
-                                            value: 'false',
-                                        }
-                                    )
-                            );
-                            const mes = await i.deferReply();
-                            await mes.edit({
-                                content: 'Select an Option:',
-                                components: [privsel],
-                                ephemeral: true,
-                            });
-                            const col = mes.createMessageComponentCollector({
-                                filter,
-                                time: 35000,
-                                max: 1,
-                            });
-                            col.on('collect', (j) => {
-                                if (j.customId == 'privsel') {
-                                    menu.data.fields[1].value = Boolean(j.values[0]);
-                                }
-                                col.stop();
-                            });
-                            col.on('end', async (collected) => {
-                                if (collected.size == 0) {
-                                    await mes.edit({
-                                        content: 'Selection timed out...',
+                                        content: 'Note editing has been cancelled.',
+                                        embeds: [],
                                         components: [],
-                                        ephemeral: true,
+                                        ephemeral: true
                                     });
-                                } else {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                            .catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
-                                    await msg.edit({
-                                        embeds: [menu],
-                                        components: [row, row2],
-                                        ephemeral: true,
-                                    });
-                                }
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            });
-                        } else if (i.customId == 'finish') {
-                            const mes = await i.deferReply();
-                            note.title = menu.data.fields[0].value;
-                            note.content = menu.data.fields[2].value;
-                            note.private = Boolean(menu.data.fields[1].value);
-                            client.database
-                                .updateServerNote(interaction.guild, member.user, note)
-                                .then(async (m) => {
-                                    client.database.writeDevLog(
-                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
-                                    await mes.edit({
-                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(m).setTimestamp()],
-                                        ephemeral: true,
-                                    });
-                                })
-                                .catch(async (err) => {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `${err}`)
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
-                                    );
-                                    if (String(err).includes('Error 404')) {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle(`${err}`)
-                                                    .setDescription(
-                                                        'Could not find that Note in the Database. Please contact the Developer if this Issue persists!'
-                                                    )
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    } else {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle('An Error occurred...')
-                                                    .setDescription(`${err}`)
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    }
-                                });
-                        } else if (i.customId == 'cancel') {
+
+                                    collector.stop();
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size > 0) {
+                                client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                            }
+
                             await msg.edit({
-                                content: 'Note Edition has been cancelled!',
+                                embeds: [menu],
                                 components: [],
-                                ephemeral: true,
+                                ephemeral: Boolean(menu.data.fields[1].value)
                             });
-                            collector.stop();
-                        }
-                    });
-                })
-                .catch(async (err) => {
-                    client.database.writeDevLog(
-                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
-                    );
-                    if (String(err).includes('Error 404')) {
-                        await interaction.reply({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor('Red')
-                                    .setTitle(`${err}`)
-                                    .setDescription('Could not find that Note in the Database. Please contact the Developer if the Issue persists!')
-                                    .setTimestamp(),
-                            ],
-                            ephemeral: true,
                         });
-                    } else {
-                        await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                            ephemeral: true,
-                        });
-                    }
-                });
-        } else if (type == 'global') {
-            client.database
-                .getGlobalNote(member.user, { id: noteId })
-                .then(async (note) => {
-                    if (note.title) {
-                        menu.data.fields[0].value = `${note.title} (#${note.id})`;
-                    } else {
-                        menu.data.fields[0].value = `Note #${note.id}`;
-                    }
-                    menu.data.fields[1].value = String(note.private);
-                    menu.data.fields[2].value = note.content;
-                    const msg = await interaction.reply({
-                        embeds: [menu],
-                        components: [row, row2],
-                        ephemeral: note.private,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                    });
-                    collector.on('collect', async (i) => {
-                        let filt;
-                        if (i.customId == 'title') {
-                            const mes = await i.deferReply();
-                            await mes.edit({
-                                content: 'Reply with a new Title!',
-                            });
-                            filt = (m) => m.reference.messageId == mes.id && m.author.id == member.user.id;
-                            const mescol = i.channel.createMessageCollector({
-                                filt,
-                                time: 35000,
-                                max: 1,
-                            });
-                            mescol.on('collect', (j) => {
-                                menu.data.fields[0] = j.content;
-                                mescol.stop();
-                            });
-                            mescol.on('end', async (collected) => {
-                                if (collected.size == 0) {
-                                    await mes.edit({
-                                        content: 'Reply collection timed out...',
-                                    });
-                                } else {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                            .catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
-                                    await msg.edit({
-                                        embeds: [menu],
-                                        components: [row, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value),
-                                    });
-                                }
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            });
-                        } else if (i.customId == 'content') {
-                            const mes = await i.deferReply();
-                            await mes.edit({
-                                content: 'Reply with the new Content!',
-                            });
-                            filt = (m) => m.reference.messageId == mes.id && m.author.id == member.user.id;
-                            const mescol = i.channel.createMessageCollector({
-                                filt,
-                                time: 35000,
-                                max: 1,
-                            });
-                            mescol.on('collect', (j) => {
-                                menu.data.fields[2] = j.content;
-                                mescol.stop();
-                            });
-                            mescol.on('end', async (collected) => {
-                                if (collected.size == 0) {
-                                    await mes.edit({
-                                        content: 'Reply collection timed out...',
-                                    });
-                                } else {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                            .catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
-                                    await msg.edit({
-                                        embeds: [menu],
-                                        components: [row, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value),
-                                    });
-                                }
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            });
-                        } else if (i.customId == 'priv') {
-                            const privsel = new ActionRowBuilder().addComponents(
-                                new StringSelectMenuBuilder()
-                                    .setCustomId('privsel')
-                                    .setMinValues(1)
-                                    .setMaxValues(1)
-                                    .setPlaceholder('No Option selected...')
-                                    .addOptions(
-                                        {
-                                            label: 'True',
-                                            value: 'true',
-                                        },
-                                        {
-                                            label: 'False',
-                                            value: 'false',
-                                        }
-                                    )
-                            );
-                            const mes = await i.deferReply();
-                            await mes.edit({
-                                content: 'Select an Option:',
-                                components: [privsel],
-                                ephemeral: true,
-                            });
-                            const col = mes.createMessageComponentCollector({
-                                filter,
-                                time: 35000,
-                                max: 1,
-                            });
-                            col.on('collect', (j) => {
-                                if (j.customId == 'privsel') {
-                                    menu.data.fields[1].value = Boolean(j.values[0]);
-                                }
-                                col.stop();
-                            });
-                            col.on('end', async (collected) => {
-                                if (collected.size == 0) {
-                                    await mes.edit({
-                                        content: 'Selection timed out...',
-                                        components: [],
-                                        ephemeral: true,
-                                    });
-                                } else {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `Collected ${collected.size} Interactions`)
-                                            .catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
-                                    await msg.edit({
-                                        embeds: [menu],
-                                        components: [row, row2],
-                                        ephemeral: true,
-                                    });
-                                }
-                                setTimeout(async () => {
-                                    await mes.delete();
-                                }, 5000);
-                            });
-                        } else if (i.customId == 'finish') {
-                            const mes = await i.deferReply();
-                            note.title = menu.data.fields[0].value;
-                            note.content = menu.data.fields[2].value;
-                            note.private = Boolean(menu.data.fields[1].value);
-                            client.database
-                                .updateGlobalNote(member.user, note)
-                                .then(async (m) => {
-                                    client.database.writeDevLog(
-                                        await client.database.writeLog(interaction.guild, m).catch((err) => client.database.writeDevLog(`${err}`))
-                                    );
-                                    await mes.edit({
-                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(m).setTimestamp()],
-                                        ephemeral: true,
-                                    });
-                                })
-                                .catch(async (err) => {
-                                    client.database.writeDevLog(
-                                        await client.database
-                                            .writeLog(interaction.guild, `${err}`)
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`))
-                                    );
-                                    if (String(err).includes('Error 404')) {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle(`${err}`)
-                                                    .setDescription(
-                                                        'Could not find that Note in the Database. Please contact the Developer if this Issue persists!'
-                                                    )
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    } else {
-                                        await mes.edit({
-                                            embeds: [
-                                                new EmbedBuilder()
-                                                    .setColor('Red')
-                                                    .setTitle('An Error occurred...')
-                                                    .setDescription(`${err}`)
-                                                    .setTimestamp(),
-                                            ],
-                                            ephemeral: true,
-                                        });
-                                    }
-                                });
-                        } else if (i.customId == 'cancel') {
-                            await msg.edit({
-                                content: 'Note Edition has been cancelled!',
-                                components: [],
-                                ephemeral: true,
-                            });
-                            collector.stop();
-                        }
-                    });
-                })
-                .catch(async (err) => {
-                    client.database.writeDevLog(
-                        await client.database.writeLog(interaction.guild, `${err}`).catch((err1) => client.database.writeDevLog(`${err1}`))
-                    );
-                    if (String(err).includes('Error 404')) {
-                        await interaction.reply({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor('Red')
-                                    .setTitle(`${err}`)
-                                    .setDescription('Could not find that Note in the Database. Please contact the Developer if the Issue persists!')
-                                    .setTimestamp(),
-                            ],
-                            ephemeral: true,
-                        });
-                    } else {
-                        await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                            ephemeral: true,
-                        });
-                    }
-                });
+                    break;
+                }
+            break;
+        }
+    };
+
+    async addServerNote(server, user, note) {
+        try {
+            const msg = await client.database.Server.notes.add(server, user, note);
+
+            return new SuccessEmbed(msg || 'Success', 'Successfully added Server Note');
+        } catch (err) {
+            client.logServerError(server, err);
+
+            if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+            
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async addGlobalNote(user, note) {
+        try {
+            const msg = await client.database.User.notes.add(user, note);
+
+            return new SuccessEmbed(msg || 'Success', 'Successfully added Global Note');
+        } catch (err) {
+            client.logServerError(server, err);
+
+            if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+            
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async removeServerNote(server, user, note) {
+        try {
+            const msg = await client.database.Server.notes.remove(server, user, note);
+
+            return new SuccessEmbed(msg || 'Success', 'Successfully removed Server Note');
+        } catch (err) {
+            client.logServerError(server, err);
+
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async removeGlobalNote(user, note) {
+        try {
+            const msg = await client.database.User.notes.remove(user, note);
+
+            return new SuccessEmbed(msg || 'Success', 'Successfully removed Global Note');
+        } catch (err) {
+            client.logServerError(server, err);
+
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async editServerNote(server, note) {
+        try {
+            const msg = await client.database.Server.notes.update(server, note);
+
+            return new SuccessEmbed(msg || 'Success', 'Successfully edited Server Note');
+        } catch (err) {
+            client.logServerError(server, err);
+
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async editGlobalNote(user, note) {
+        try {
+            const msg = await client.database.User.notes.update(user, note);
+
+            return new SuccessEmbed(msg || 'Success', 'Successfully edited Global Note');
+        } catch (err) {
+            client.logServerError(server, err);
+
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
         }
     }
 }
-export default new Command();
+
+const command = new Command({
+    name: 'notes',
+    description: 'Note related Commands',
+    defaultMemberPermissions: [PermissionFlagsBits.SendMessages],
+    options: [
+        {
+            name: 'view',
+            description: 'Shows a List of your Notes',
+            type: ApplicationCommandOptionType.SubcommandGroup,
+            options: [
+                {
+                    name: 'server',
+                    description: 'Shows a List of your Server Notes',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'private',
+                            description: 'When true, shows your private Notes',
+                            type: ApplicationCommandOptionType.Boolean,
+                            required: true
+                        },
+                        {
+                            name: 'id',
+                            description: 'The ID of the Note',
+                            type: ApplicationCommandOptionType.Number,
+                            required: false,
+                            minValue: 1,
+                        },
+                    ],
+                },
+                {
+                    name: 'global',
+                    description: 'Shows a List of your Global Notes',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'private',
+                            description: 'When true, shows your private Notes',
+                            type: ApplicationCommandOptionType.Boolean,
+                            required: true
+                        },
+                        {
+                            name: 'id',
+                            description: 'The ID of the Note',
+                            type: ApplicationCommandOptionType.Number,
+                            required: false,
+                            minValue: 1,
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            name: 'add',
+            description: 'Adds a Note',
+            type: ApplicationCommandOptionType.SubcommandGroup,
+            options: [
+                {
+                    name: 'server',
+                    description: 'Adds a Server Note',
+                    type: ApplicationCommandOptionType.Subcommand,
+                },
+                {
+                    name: 'global',
+                    description: 'Adds a Global Note',
+                    type: ApplicationCommandOptionType.Subcommand,
+                },
+            ],
+        },
+        {
+            name: 'remove',
+            description: 'Removes a Note',
+            type: ApplicationCommandOptionType.SubcommandGroup,
+            options: [
+                {
+                    name: 'server',
+                    description: 'Removes a Server Note',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'id',
+                            description: 'The ID of the Note',
+                            type: ApplicationCommandOptionType.Number,
+                            minValue: 1,
+                        },
+                    ],
+                },
+                {
+                    name: 'global',
+                    description: 'Removes a Global Note',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'id',
+                            description: 'The ID of the Note',
+                            type: ApplicationCommandOptionType.Number,
+                            minValue: 1,
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            name: 'edit',
+            description: 'Edits a Note',
+            type: ApplicationCommandOptionType.SubcommandGroup,
+            options: [
+                {
+                    name: 'server',
+                    description: 'Edits a Server Note',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'id',
+                            description: 'The ID of the Note',
+                            type: ApplicationCommandOptionType.Number,
+                            minValue: 1,
+                            required: true,
+                        },
+                        {
+                            name: 'title',
+                            description: 'The Title of the Note',
+                            type: ApplicationCommandOptionType.String,
+                        },
+                        {
+                            name: 'content',
+                            description: 'The Content of the Note',
+                            type: ApplicationCommandOptionType.String,
+                        },
+                    ],
+                },
+                {
+                    name: 'global',
+                    description: 'Edits a Global Note',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'id',
+                            description: 'The ID of the Note',
+                            type: ApplicationCommandOptionType.Number,
+                            minValue: 1,
+                            required: true,
+                        },
+                        {
+                            name: 'title',
+                            description: 'The Title of the Note',
+                            type: ApplicationCommandOptionType.String,
+                        },
+                        {
+                            name: 'content',
+                            description: 'The Content of the Note',
+                            type: ApplicationCommandOptionType.String,
+                        },
+                    ],
+                },
+            ],
+        },
+    ]
+});
+
+export { command };
