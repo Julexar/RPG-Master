@@ -33,6 +33,7 @@ class clas {
                 return {
                     id: dbClass.id,
                     name: dbClass.name,
+                    description: dbClass.description,
                     hitdice: dbClass.hitdice,
                     hitdice_size: dbClass.hitdice_size,
                     caster: dbClass.caster,
@@ -66,6 +67,7 @@ class clas {
             return {
                 id: dbClass.id,
                 name: dbClass.name,
+                description: dbClass.description,
                 hitdice: dbClass.hitdice,
                 hitdice_size: dbClass.hitdice_size,
                 caster: dbClass.caster,
@@ -95,6 +97,7 @@ class clas {
         return {
             id: dbClass.id,
             name: dbClass.name,
+            description: dbClass.description,
             hitdice: dbClass.hitdice,
             hitdice_size: dbClass.hitdice_size,
             caster: dbClass.caster,
