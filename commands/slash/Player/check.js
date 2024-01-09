@@ -8,6 +8,9 @@ class Command extends CommandBuilder{
         this.enabled = false;
     }
 
+    /**
+     * @param {import('discord.js').CommandInteraction} interaction 
+     */
     async run(interaction) {
         //TODO: Add Ability Checks
     }
