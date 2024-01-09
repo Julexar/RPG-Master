@@ -1,11 +1,22 @@
-class Command {
-    constructor() {
-        this.name = 'check';
-        this.nick = 'c';
-        this.description = 'Rolls a Skill or Ability Check';
+import { CommandBuilder } from "../../../custom/builders";
+import { client } from "../../..";
+
+class Command extends CommandBuilder{
+    constructor(data) {
+        super(data);
+
         this.enabled = false;
     }
 
-    async run(client, interaction) {}
+    async run(interaction) {
+        //TODO: Add Ability Checks
+    }
 }
-export default new Command();
+
+const command = new Command({
+    name: 'check',
+    nick: 'c',
+    description: 'Rolls a Skill or Ability Check',
+});
+
+export { command };
