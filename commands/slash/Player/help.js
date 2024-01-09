@@ -1,271 +1,428 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-class Command {
-    constructor() {
-        this.name = 'help';
-        this.description = 'Displays Info about Commands';
+import { 
+    ActionRowBuilder, 
+    ApplicationCommandOptionType, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    EmbedBuilder 
+} from 'discord.js';
+import { CommandBuilder } from '../../../custom/builders';
+import { client } from '../../..';
+import { ListEmbed, ErrorEmbed } from '../../../custom/embeds';
+import { ForbiddenError } from '../../../custom/errors';
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.enabled = true;
-        this.options = [
-            {
-                name: 'command',
-                description: 'Select a Command',
-                type: ApplicationCommandOptionType.String,
-                required: false,
-            },
-        ];
+        this.choices = null;
     }
 
-    async run(client, interaction) {
+    /**
+     * @param {import('discord.js').CommandInteraction} interaction
+     */
+    async run(interaction) {
         const option = interaction.options;
         const cmd = option.getString('command');
         const member = interaction.member;
+        const user = member.user;
         const server = interaction.guild;
+        const filter = m => m.user.id === user.id;
+
         if (cmd) {
-            const command = await server.commands.cache.find((c) => c.name == cmd);
-            const embed = new EmbedBuilder().setColor('Aqua').setTimestamp();
-            if (command.defaultMemberPermissions) {
-                if (member.permissions.has(command.defaultMemberPermissions)) {
-                    if (!command.options) {
-                        embed.setTitle(`</${command.name}:${command.id}>`);
-                        embed.setDescription(`${command.description}`);
-                        await interaction.reply({
-                            embeds: [embed],
-                        });
+            const slashCmd = await server.commands.fetch(cmd)
+            const embed = new ListEmbed()
+
+            if (slashCmd.defaultMemberPermissions) {
+                if (member.permissions.has(slashCmd.defaultMemberPermissions)) {
+                    if (!slashCmd.options) {
+                        embed
+                        .setTitle(`</${slashCmd.name}:${slashCmd.id}>`)
+                        .setDescription(slashCmd.description)
+
+                        await interaction.reply({ embeds: [embed] });
                     } else {
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('prev').setEmoji('⏪').setStyle(ButtonStyle.Secondary).setDisabled(true),
-                            new ButtonBuilder().setCustomId('next').setEmoji('⏩').setStyle(ButtonStyle.Secondary)
+                        const row = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('prev')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji('⏪')
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId('next')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji('⏩')
                         );
-                        embed.setTitle(`</${command.name}:${command.id}>`);
-                        embed.setDescription(`${command.description}`);
+
+                        embed
+                        .setTitle(`</${slashCmd.name}:${slashCmd.id}>`)
+                        .setDescription(slashCmd.description)
+
                         const menus = [];
-                        let num = 0;
-                        let count = 0;
+                        let num, count, page = 0;
+
                         menus.push(embed);
-                        for (const opt of command.options) {
-                            if (count == 10) {
+
+                        for (const option of slashCmd.options) {
+                            if (count === 9) {
                                 menus.push(embed);
-                                num++;
                                 count = 0;
+                                num++;
                             }
-                            if (opt.type == ApplicationCommandOptionType.SubcommandGroup) {
-                                for (const opt2 of opt.options) {
-                                    if (opt2.type == ApplicationCommandOptionType.Subcommand) {
+
+                            if (option.type === ApplicationCommandOptionType.SubcommandGroup) {
+                                for (const option2 of option.options) {
+                                    if (option2.type === ApplicationCommandOptionType.Subcommand) {
                                         menus[num].addFields({
-                                            name: `</${command.name} ${opt.name} ${opt2.name}:${command.id}>`,
-                                            value: `${opt2.description}`,
+                                            name: `</${slashCmd.name} ${option.name} ${option2.name}:${slashCmd.id}>`, 
+                                            value: option2.description
                                         });
                                         count++;
                                     }
                                 }
-                            } else if (opt.type == ApplicationCommandOptionType.Subcommand) {
+                            } else if (option.type === ApplicationCommandOptionType.Subcommand) {
                                 menus[num].addFields({
-                                    name: `</${command.name} ${opt.name}:${command.id}>`,
-                                    value: `${opt.description}`,
+                                    name: `</${slashCmd.name} ${option.name}:${slashCmd.id}>`, 
+                                    value: option.description
+                                });
+                                count++;
+                            } else {
+                                menus[num].addFields({
+                                    name: `</${slashCmd.name}:${slashCmd.id}>`, 
+                                    value: slashCmd.description
                                 });
                                 count++;
                             }
                         }
-                        let page = 0;
-                        const msg = await interaction.reply({
-                            embeds: [menus[page]],
-                            components: [row],
+
+                        const msg = await interaction.reply({ 
+                            embeds: [menus[page]], 
+                            components: [row] 
                         });
-                        const filter = (m) => m.user.id == user.id;
-                        const collector = msg.createMessageComponentCollector({
-                            filter,
-                            time: 90000,
-                        });
-                        collector.on('collect', async (i) => {
+
+                        const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async i => {
                             await i.deferUpdate();
-                            if (i.customId == 'prev') {
+
+                            switch (i.customId) {
+                                case 'prev':
+                                    if (page > 0) {
+                                        page--;
+
+                                        if (page === 0) {
+                                            row.components[0].setDisabled(true);
+                                            row.components[1].setDisabled(false);
+                                        } else {
+                                            row.components[0].setDisabled(false);
+                                            row.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            embeds: [menus[page]],
+                                            components: [row]
+                                        });
+                                    }
+                                break;
+                                case 'next':
+                                    if (page < menus.length - 1) {
+                                        page++;
+
+                                        if (page === menus.length - 1) {
+                                            row.components[0].setDisabled(false);
+                                            row.components[1].setDisabled(true);
+                                        } else {
+                                            row.components[0].setDisabled(false);
+                                            row.components[1].setDisabled(false);
+                                        }
+
+                                        await msg.edit({
+                                            embeds: [menus[page]],
+                                            components: [row]
+                                        });
+                                    }
+                                break;
+                            }
+                        });
+
+                        collector.on('end', async collected => {
+                            if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+
+                            row.components[0].setDisabled(true);
+                            row.components[1].setDisabled(true);
+
+                            await msg.edit({
+                                embeds: [menus[page]],
+                                components: [row]
+                            });
+                        });
+                    }
+                } else {
+                    const perms = member.permissions.missing(slashCmd.defaultMemberPermissions);
+
+                    const err = new ForbiddenError(`You are missing the following Permissions to view this Command:\n ${perms.join(', ')}`);
+
+                    client.logServerError(server, err);
+
+                    await interaction.reply({
+                        embeds: [new ErrorEmbed(err, false)],
+                        ephemeral: true
+                    });
+                }
+            } else {
+                embed
+                .setTitle(`</${slashCmd.name}:${slashCmd.id}>`)
+                .setDescription(slashCmd.description)
+
+                if (!slashCmd.options) {
+                    await interaction.reply({ embeds: [embed] });
+                } else {
+                    const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('prev')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('⏪')
+                            .setDisabled(true),
+                        new ButtonBuilder()
+                            .setCustomId('next')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('⏩')
+                    );
+
+                    const menus = [];
+                    let num, count, page = 0;
+
+                    menus.push(embed);
+
+                    for (const option of slashCmd.options) {
+                        if (count === 9) {
+                            menus.push(embed);
+                            count = 0;
+                            num++;
+                        }
+
+                        if (option.type === ApplicationCommandOptionType.SubcommandGroup) {
+                            for (const option2 of option.options) {
+                                if (option2.type === ApplicationCommandOptionType.Subcommand) {
+                                    menus[num].addFields({
+                                        name: `</${slashCmd.name} ${option.name} ${option2.name}:${slashCmd.id}>`, 
+                                        value: option2.description
+                                    });
+                                    count++;
+                                }
+                            }
+                        } else if (option.type === ApplicationCommandOptionType.Subcommand) {
+                            menus[num].addFields({
+                                name: `</${slashCmd.name} ${option.name}:${slashCmd.id}>`, 
+                                value: option.description
+                            });
+                            count++;
+                        } else {
+                            menus[num].addFields({
+                                name: `</${slashCmd.name}:${slashCmd.id}>`, 
+                                value: slashCmd.description
+                            });
+                            count++;
+                        }
+                    }
+
+                    const msg = await interaction.reply({ 
+                        embeds: [menus[page]], 
+                        components: [row] 
+                    });
+
+                    const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                    collector.on('collect', async i => {
+                        await i.deferUpdate();
+
+                        switch (i.customId) {
+                            case 'prev':
                                 if (page > 0) {
                                     page--;
-                                    if (page == 0) {
+
+                                    if (page === 0) {
                                         row.components[0].setDisabled(true);
                                         row.components[1].setDisabled(false);
                                     } else {
                                         row.components[0].setDisabled(false);
                                         row.components[1].setDisabled(false);
                                     }
+
                                     await msg.edit({
                                         embeds: [menus[page]],
-                                        components: [row],
+                                        components: [row]
                                     });
                                 }
-                            } else if (i.customId == 'next') {
+                            break;
+                            case 'next':
                                 if (page < menus.length - 1) {
                                     page++;
-                                    if (page == menus.length - 1) {
+
+                                    if (page === menus.length - 1) {
                                         row.components[0].setDisabled(false);
                                         row.components[1].setDisabled(true);
                                     } else {
                                         row.components[0].setDisabled(false);
                                         row.components[1].setDisabled(false);
                                     }
+
                                     await msg.edit({
                                         embeds: [menus[page]],
-                                        components: [row],
+                                        components: [row]
                                     });
                                 }
-                            }
-                        });
-                        collector.on('end', async (collected) => {
-                            if (collected.size >= 1) {
-                                console.log(`Collected ${collected.size} Interactions`);
-                            }
-                            row.components[0].setDisabled(true);
-                            row.components[1].setDisabled(true);
-                            await msg.edit({
-                                embeds: [menus[page]],
-                                components: [row],
-                            });
-                            setTimeout(async function () {
-                                await msg.delete();
-                            }, 5000);
-                        });
-                    }
-                } else {
-                    let perms = member.permissions.missing(command.defaultMemberPermissions);
-                    client.database
-                        .writeLog(server, 'Error 403: Missing Permission')
-                        .then(async () => {
-                            await interaction.reply({
-                                embeds: [
-                                    new EmbedBuilder()
-                                        .setColor('Red')
-                                        .setTitle('Error 403: Missing Permission')
-                                        .setDescription('You are missing the necessary Permissions to view this Command:\n' + perms.join(', '))
-                                        .setTimestamp(),
-                                ],
-                                ephemeral: true,
-                            });
-                        })
-                        .catch((err) => client.database.writeDevLog(`${err}`));
-                }
-            } else {
-                if (!command.options) {
-                    embed.setTitle(`</${command.name}:${command.id}>`);
-                    embed.setDescription(`${command.description}`);
-                } else {
-                    for (const opt in command.options) {
-                        if (opt.type == ApplicationCommandOptionType.SubcommandGroup) {
-                            for (const opt2 in opt.options) {
-                                if (opt2.type == ApplicationCommandOptionType.Subcommand) {
-                                    embed.setTitle(`</${command.name} ${opt.name} ${opt2.name}:${command.id}>`);
-                                    embed.setDescription(`${opt2.description}`);
-                                }
-                            }
-                        } else if (opt.type == ApplicationCommandOptionType.Subcommand) {
-                            embed.setTitle(`</${command.name} ${opt.name}:${command.id}>`);
-                            embed.setDescription(`${opt.description}`);
+                            break;
                         }
-                    }
+                    });
+
+                    collector.on('end', async collected => {
+                        if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+
+                        row.components[0].setDisabled(true);
+                        row.components[1].setDisabled(true);
+
+                        await msg.edit({
+                            embeds: [menus[page]],
+                            components: [row]
+                        });
+                    });
                 }
-                await interaction.reply({
-                    embeds: [embed],
-                    ephemeral: true,
-                });
             }
         } else {
             const embeds = [];
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
-                new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
+            const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('prev')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('⏪')
+                    .setDisabled(true),
+                new ButtonBuilder()
+                    .setCustomId('next')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('⏩')
             );
-            embeds.push(new EmbedBuilder().setColor('Aqua').setTitle('Slash Command List').setTimestamp());
-            let count = 0;
-            let num = 0;
-            server.commands.cache.forEach((command) => {
-                if (command.defaultMemberPermissions) {
-                    if (member.permissions.has(command.defaultMemberPermissions)) {
-                        if (count == 10) {
-                            embeds.push(new EmbedBuilder().setColor('Aqua').setTitle('Slash Command List').setTimestamp());
-                            count = 0;
-                            num++;
-                        }
-                        embeds[num].addFields({
-                            name: `</${command.name}:${command.id}>`,
-                            value: `${command.description}`,
-                        });
-                        count++;
-                    } else if (!member.permissions.has(command.defaultMemberPermissions)) {
-                        return;
-                    }
-                } else {
-                    if (count == 10) {
-                        embeds.push(new EmbedBuilder().setColor('Aqua').setTitle('Slash Command List').setTimestamp());
+
+            const menu = new ListEmbed("Slash Command List")
+
+            let count, num, page = 0;
+
+            embeds.push(menu);
+
+            server.commands.cache.forEach(cmd => {
+                if (cmd.defaultMemberPermissions && member.permissions.has(cmd.defaultMemberPermissions)) {
+                    if (count === 9) {
+                        embeds.push(menu);
                         count = 0;
                         num++;
                     }
+
                     embeds[num].addFields({
-                        name: `</${command.name}:${command.id}>`,
-                        value: `${command.description}`,
+                        name: `</${cmd.name}:${cmd.id}>`, 
+                        value: cmd.description
                     });
+
+                    count++;
+                } else if (!cmd.defaultMemberPermissions) {
+                    if (count === 9) {
+                        embeds.push(menu);
+                        count = 0;
+                        num++;
+                    }
+
+                    embeds[num].addFields({
+                        name: `</${cmd.name}:${cmd.id}>`, 
+                        value: cmd.description
+                    });
+
                     count++;
                 }
             });
-            let page = 0;
-            if (embeds.length === 1) {
-                row.components[1].setDisabled(true);
-                await interaction.reply({
-                    embeds: [embeds[page]],
-                    components: [row],
-                });
-            } else if (embeds.length > 1) {
-                const filter = (m) => m.user.id == interaction.user.id;
-                const msg = await interaction.reply({
-                    embeds: [embeds[page]],
-                    components: [row],
-                });
-                const collector = msg.createMessageComponentCollector({
-                    filter,
-                    time: 90000,
-                });
-                collector.on('collect', async (i) => {
-                    await i.deferUpdate();
-                    if (i.customId == 'prev') {
+
+            const msg = await interaction.reply({ 
+                embeds: [embeds[page]], 
+                components: [row] 
+            });
+
+            const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+            collector.on('collect', async i => {
+                await i.deferUpdate();
+
+                switch (i.customId) {
+                    case 'prev':
                         if (page > 0) {
                             page--;
-                            if (page == 0) {
+
+                            if (page === 0) {
                                 row.components[0].setDisabled(true);
                                 row.components[1].setDisabled(false);
                             } else {
                                 row.components[0].setDisabled(false);
                                 row.components[1].setDisabled(false);
                             }
+
                             await msg.edit({
                                 embeds: [embeds[page]],
-                                components: [row],
+                                components: [row]
                             });
                         }
-                    } else if (i.customId == 'next') {
+                    break;
+                    case 'next':
                         if (page < embeds.length - 1) {
                             page++;
-                            if (page == embeds.length - 1) {
+
+                            if (page === embeds.length - 1) {
                                 row.components[0].setDisabled(false);
                                 row.components[1].setDisabled(true);
                             } else {
                                 row.components[0].setDisabled(false);
                                 row.components[1].setDisabled(false);
                             }
+
                             await msg.edit({
                                 embeds: [embeds[page]],
-                                components: [row],
+                                components: [row]
                             });
                         }
-                    }
+                    break;
+                }
+            });
+
+            collector.on('end', async collected => {
+                if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+
+                row.components[0].setDisabled(true);
+                row.components[1].setDisabled(true);
+
+                await msg.edit({
+                    embeds: [embeds[page]],
+                    components: [row]
                 });
-                collector.on('end', async (collected) => {
-                    row.components[0].setDisabled(true);
-                    row.components[1].setDisabled(true);
-                    await msg.edit({
-                        embeds: [embeds[page]],
-                        components: [row],
-                    });
-                    console.log(`Collected ${collected.size} Interactions`);
-                });
-            }
+            });
         }
     }
+
+    setChoices() {
+        this.choices = client.slashCommands.map(cmd => ({ name: cmd.name, value: `${cmd.id}` }));
+    }
 }
-export default new Command();
+
+const command = new Command({
+    name: 'help',
+    description: 'Displays Info about Commands',
+    options: [
+        {
+            name: 'command',
+            description: 'Select a Command',
+            type: ApplicationCommandOptionType.String,
+            required: false,
+            choices: command.choices
+        }
+    ]
+});
+
+export { command };

@@ -4,18 +4,16 @@ import {
     ApplicationCommandPermissionType,
     ChannelSelectMenuBuilder,
     ChannelType,
-    EmbedBuilder,
     RoleSelectMenuBuilder,
     UserSelectMenuBuilder,
     PermissionFlagsBits,
-    StringSelectMenuBuilder,
     ButtonBuilder,
     ButtonStyle,
 } from 'discord.js';
 import { CommandBuilder } from "../../../custom/builders";
 import { client } from "../../..";
 import { SuccessEmbed, ErrorEmbed, ListEmbed } from "../../../custom/embeds";
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
+import { NotFoundError } from '../../../custom/errors';
 const cmds = [];
 
 class Command extends CommandBuilder {
@@ -23,7 +21,7 @@ class Command extends CommandBuilder {
         super(data);
 
         this.enabled = true;
-        this.server;
+        this.server = null;
     }
 
     /**

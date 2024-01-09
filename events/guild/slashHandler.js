@@ -5,6 +5,7 @@ class slashHandler {
         this.name = 'interactionCreate';
         this.nick = 'Slash';
     }
+
     /**
      *
      * @param {import("discord.js").CommandInteraction} interaction
@@ -41,16 +42,12 @@ class slashHandler {
                     });
                 }
             }
-            client.database
-                .writeLog(interaction.guild, `/${command.name} was triggered by ${interaction.user.username}`)
-                .then((msg) => {
-                    client.database.writeDevLog(`${msg}`);
-                    command.run(interaction);
-                })
-                .catch((err) => {
-                    client.database.writeDevLog(`${err}`);
-                    command.run(interaction);
-                });
+            client.writeServerLog(interaction.guild, `/${command.name} was triggered by ${interaction.user.username}`)
+            
+            if (command.server === null) command.setServer();
+            if (command.choices === null) command.setChoices();
+
+            command.run(interaction);
         }
     }
 }
