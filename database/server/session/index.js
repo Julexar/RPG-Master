@@ -4,7 +4,7 @@ import { SessionPlayer } from './player.js';
 import moment from 'moment';
 const query = psql.query;
 
-class Session {
+class session {
     constructor() {
         this.players = SessionPlayer;
     }
@@ -133,5 +133,7 @@ class Session {
         return 'Successfully updated Session in Database';
     }
 }
+
+const Session = new session();
 
 export { Session };
