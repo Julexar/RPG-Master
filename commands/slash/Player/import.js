@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, EmbedBuilder } from 'discord.js';
+import { ApplicationCommandOptionType } from 'discord.js';
 import fs from 'fs';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';

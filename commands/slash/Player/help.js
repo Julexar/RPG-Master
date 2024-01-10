@@ -2,8 +2,7 @@ import {
     ActionRowBuilder, 
     ApplicationCommandOptionType, 
     ButtonBuilder, 
-    ButtonStyle, 
-    EmbedBuilder 
+    ButtonStyle
 } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';

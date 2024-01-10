@@ -1,9 +1,15 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
+import { 
+    ActionRowBuilder, 
+    ApplicationCommandOptionType, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    StringSelectMenuBuilder, 
+    PermissionFlagsBits 
+} from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
 import { SuccessEmbed, ErrorEmbed, ListEmbed } from '../../../custom/embeds';
-import { s } from '@sapphire/shapeshift';
 
 class Command extends CommandBuilder {
     constructor(data) {

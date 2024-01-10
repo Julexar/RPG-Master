@@ -1,4 +1,11 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, PermissionFlagsBits, StringSelectMenuBuilder } from 'discord.js';
+import { 
+    ActionRowBuilder, 
+    ApplicationCommandOptionType, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    PermissionFlagsBits, 
+    StringSelectMenuBuilder 
+} from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { SuccessEmbed, ErrorEmbed, ListEmbed } from '../../../custom/embeds';
 import { client } from '../../..';

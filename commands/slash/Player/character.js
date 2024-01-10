@@ -3,7 +3,6 @@ import {
     ApplicationCommandOptionType, 
     ButtonBuilder, 
     ButtonStyle, 
-    EmbedBuilder, 
     StringSelectMenuBuilder 
 } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';

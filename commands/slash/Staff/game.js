@@ -1,8 +1,16 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits, StringSelectMenuBuilder } from 'discord.js';
+import { 
+    ActionRowBuilder, 
+    ApplicationCommandOptionType, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    EmbedBuilder, 
+    PermissionFlagsBits, 
+    StringSelectMenuBuilder 
+} from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { NotFoundError, DuplicateError, ForbiddenError } from '../../../custom/errors';
-import { SuccessEmbed, ErrorEmbed, ListEmbed } from '../../../custom/embeds';
+import { SuccessEmbed, ErrorEmbed } from '../../../custom/embeds';
 
 class Command extends CommandBuilder {
     constructor(data) {
