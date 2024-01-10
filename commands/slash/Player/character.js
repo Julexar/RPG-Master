@@ -201,6 +201,8 @@ class Command extends CommandBuilder {
 
             return new SuccessEmbed(msg || 'Success', `Successfully changed active Character to ${char.name}.`)
         } catch (err) {
+            client.logServerError(server, err);
+
             if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
 
             return new ErrorEmbed(err, true);
