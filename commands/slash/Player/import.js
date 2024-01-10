@@ -169,6 +169,8 @@ class Command extends CommandBuilder {
                 });
             }
         } catch (err) {
+            client.logServerError(server, err);
+
             if (err instanceof BadRequestError || err instanceof DuplicateError) return await interaction.reply({
                 embeds: [new ErrorEmbed(err, false)]
             })
