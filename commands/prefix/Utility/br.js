@@ -1,10 +1,25 @@
-class Command {
-    constructor() {
-        this.name = 'br';
-        this.description = 'Prints a line break';
+import { CommandBuilder } from "../../../custom/builders";
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.args = false;
+        this.enabled = true;
     }
 
-    async run(client, message, args) {}
+    /**
+     * @param {import("discord.js").Message} message
+     * @param {string[]} args
+     */
+    async run(message, args) {
+        await message.channel.send('\`\`\`\n \`\`\`');
+    }
 }
-export default new Command();
+
+const command = new Command({
+    name: 'br',
+    description: 'Prints a line break'
+});
+
+export { command };
