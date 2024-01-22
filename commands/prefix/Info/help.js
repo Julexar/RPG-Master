@@ -380,4 +380,4 @@ const command = new Command({
     description: 'Displays Info about Commands',
 });
 
-export default new Command();
+export { command };
