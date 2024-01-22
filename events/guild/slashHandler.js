@@ -44,8 +44,7 @@ class slashHandler {
             }
             client.writeServerLog(interaction.guild, `/${command.name} was triggered by ${interaction.user.username}`)
             
-            if (command.server === null) command.setServer();
-            if (command.choices === null) command.setChoices();
+            if (command.choices) command.setChoices(interaction.guild);
 
             command.run(interaction);
         }

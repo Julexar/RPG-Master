@@ -8,13 +8,14 @@ import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { ListEmbed, ErrorEmbed } from '../../../custom/embeds';
 import { ForbiddenError } from '../../../custom/errors';
+let cmds;
 
 class Command extends CommandBuilder {
     constructor(data) {
         super(data);
 
         this.enabled = true;
-        this.choices = null;
+        this.choices = true;
     }
 
     /**
@@ -405,8 +406,11 @@ class Command extends CommandBuilder {
         }
     }
 
-    setChoices() {
-        this.choices = client.slashCommands.map(cmd => ({ name: cmd.name, value: `${cmd.id}` }));
+    /**
+     * @param {import('discord.js').Guild} guild
+     */
+    setChoices(guild) {
+        cmds = guild.commands.cache.map(cmd => ({ name: cmd.name, value: `${cmd.id}` }));
     }
 }
 
@@ -419,7 +423,7 @@ const command = new Command({
             description: 'Select a Command',
             type: ApplicationCommandOptionType.String,
             required: false,
-            choices: command.choices
+            choices: cmds
         }
     ]
 });
