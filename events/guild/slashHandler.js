@@ -42,8 +42,8 @@ class slashHandler {
                     });
                 }
             }
-            client.writeServerLog(interaction.guild, `/${command.name} was triggered by ${interaction.user.username}`)
-            
+            client.writeServerLog(interaction.guild, `/${command.name} was triggered by ${interaction.user.username}`);
+
             if (command.choices) command.setChoices(interaction.guild);
 
             command.run(interaction);

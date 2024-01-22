@@ -1,10 +1,4 @@
-import { 
-    ActionRowBuilder, 
-    ApplicationCommandOptionType, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    StringSelectMenuBuilder 
-} from 'discord.js';
+import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { SuccessEmbed, ErrorEmbed, ListEmbed } from '../../../custom/embeds';
@@ -18,49 +12,34 @@ class Command extends CommandBuilder {
     }
 
     /**
-     * @param {import('discord.js').CommandInteraction} interaction 
+     * @param {import('discord.js').CommandInteraction} interaction
      */
     async run(interaction) {
         const option = interaction.options;
         const server = interaction.guild;
         const user = interaction.user;
-        const filter = m => m.user.id === user.id;
+        const filter = (m) => m.user.id === user.id;
         let msg, embed, rows, row1, row2, collector, emph, count, num, page;
-        
+
         if (!option.getSubcommandGroup()) {
             switch (option.getSubcommand()) {
                 case 'select':
                     rows = [];
-                    row1 = new ActionRowBuilder()
-                    .addComponents(
-                        new StringSelectMenuBuilder()
-                            .setCustomId('charsel')
-                            .setPlaceholder('No Character selected...')
-                            .setMaxValues(1)
+                    row1 = new ActionRowBuilder().addComponents(
+                        new StringSelectMenuBuilder().setCustomId('charsel').setPlaceholder('No Character selected...').setMaxValues(1)
                     );
 
-                    row2 = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('prev')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji('⏪')
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setCustomId('next')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji('⏩'),
-                        new ButtonBuilder()
-                            .setCustomId('cancel')
-                            .setStyle(ButtonStyle.Danger)
-                            .setLabel('Cancel')
+                    row2 = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                        new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
+                        new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                     );
 
                     rows.push(row1);
 
-                    count, num, page = 0;
+                    count, num, (page = 0);
 
-                    const characters = await client.database.Character.getAll(user)
+                    const characters = await client.database.Character.getAll(user);
 
                     for (const char of characters) {
                         if (count === 24) {
@@ -80,16 +59,16 @@ class Command extends CommandBuilder {
                     msg = await interaction.reply({
                         content: 'Select a Character:',
                         components: [rows[page], row2],
-                        ephemeral: true
+                        ephemeral: true,
                     });
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async i => {
+                    collector.on('collect', async (i) => {
                         if (i.customId === 'charsel') {
-                            const char = await client.database.Character.getOne(user, {id: Number(i.values[0])})
+                            const char = await client.database.Character.getOne(user, { id: Number(i.values[0]) });
 
-                            embed = await this.selectChar(user, char)
+                            embed = await this.selectChar(user, char);
 
                             emph = embed.data.color === '#FF0000';
 
@@ -101,7 +80,7 @@ class Command extends CommandBuilder {
                             await i.deferUpdate();
                             if (page > 0) {
                                 page--;
-                                
+
                                 if (page === 0) {
                                     row2.components[0].setDisabled(true);
                                     row2.components[1].setDisabled(false);
@@ -113,7 +92,7 @@ class Command extends CommandBuilder {
                                 await msg.edit({
                                     content: 'Select a Character:',
                                     components: [rows[page], row2],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             }
                         } else if (i.customId === 'next') {
@@ -131,7 +110,7 @@ class Command extends CommandBuilder {
                                 await msg.edit({
                                     content: 'Select a Character:',
                                     components: [rows[page], row2],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             }
                         } else if (i.customId === 'cancel') {
@@ -139,18 +118,18 @@ class Command extends CommandBuilder {
                             await msg.edit({
                                 content: 'Character Selection has been cancelled.',
                                 components: [],
-                                ephemeral: true
+                                ephemeral: true,
                             });
                             collector.stop();
                         }
                     });
 
-                    collector.on('end', async collected => {
+                    collector.on('end', async (collected) => {
                         if (collected.size === 0) {
                             await msg.edit({
                                 content: 'Character Selection has timed out.',
                                 components: [],
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         } else {
                             client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -160,19 +139,19 @@ class Command extends CommandBuilder {
                             await msg.delete();
                         }, 5000);
                     });
-                break;
+                    break;
                 case 'view':
                     //TODO: Add Character Sheet
-                break;
+                    break;
                 case 'create':
                     //TODO: Add Character Creation
-                break;
+                    break;
                 case 'delete':
                     //TODO: Add Character Deletion
-                break;
+                    break;
                 case 'edit':
                     //TODO: Add Character Editing
-                break;
+                    break;
             }
         } else {
             const noteId = option.getNumber('id');
@@ -180,25 +159,25 @@ class Command extends CommandBuilder {
             switch (option.getSubcommand()) {
                 case 'view':
                     //TODO: Add Note Viewing
-                break;
+                    break;
                 case 'create':
                     //TODO: Add Note Creation
-                break;
+                    break;
                 case 'delete':
                     //TODO: Add Note Deletion
-                break;
+                    break;
                 case 'edit':
                     //TODO: Add Note Editing
-                break;
+                    break;
             }
         }
     }
 
     async selectChar(user, char) {
         try {
-            const msg = await client.database.User.selectChar(user, char)
+            const msg = await client.database.User.selectChar(user, char);
 
-            return new SuccessEmbed(msg || 'Success', `Successfully changed active Character to ${char.name}.`)
+            return new SuccessEmbed(msg || 'Success', `Successfully changed active Character to ${char.name}.`);
         } catch (err) {
             client.logServerError(server, err);
 
@@ -296,7 +275,7 @@ const command = new Command({
                 },
             ],
         },
-    ]
+    ],
 });
 
 export { command };

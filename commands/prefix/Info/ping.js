@@ -1,6 +1,6 @@
-import { CommandBuilder } from "../../../custom/builders";
+import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
-import { ListEmbed } from "../../../custom/embeds";
+import { ListEmbed } from '../../../custom/embeds';
 
 class Command extends CommandBuilder {
     constructor(data) {
@@ -19,14 +19,14 @@ class Command extends CommandBuilder {
         const embed = new ListEmbed('Pong!', `Bot Latency: ${Date.now() - message.createdTimestamp}ms\nSocket Latency: ${client.ws.ping}ms`, null);
 
         await message.reply({
-            embeds: [embed]
+            embeds: [embed],
         });
     }
 }
 
 const command = new Command({
     name: 'ping',
-    description: 'Get a ping from the Bot'
+    description: 'Get a ping from the Bot',
 });
 
 export { command };

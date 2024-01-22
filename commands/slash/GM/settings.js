@@ -1,6 +1,4 @@
-import { 
-    ApplicationCommandOptionType
-} from 'discord.js';
+import { ApplicationCommandOptionType } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { SuccessEmbed, ErrorEmbed } from '../../../custom/embeds';
@@ -21,7 +19,7 @@ class Command extends CommandBuilder {
         const server = interaction.guild;
         const user = interaction.user;
         let embed, emph;
-        
+
         if (await client.database.Server.gms.getOne(server, user)) {
             switch (option.getSubcommandGroup()) {
                 case 'toggle':
@@ -31,25 +29,25 @@ class Command extends CommandBuilder {
 
                             emph = embed.data.color === '#FF0000';
 
-                            await interaction.reply({ 
-                                embeds: [embed], 
-                                ephemeral: emph 
+                            await interaction.reply({
+                                embeds: [embed],
+                                ephemeral: emph,
                             });
-                        break;
+                            break;
                     }
-                break;
+                    break;
             }
         }
     }
 
     async toggleSuggestion(server, user) {
         try {
-            const msg = await client.database.Server.gms.toggleSuggestion(server, user)
+            const msg = await client.database.Server.gms.toggleSuggestion(server, user);
 
             return new SuccessEmbed(msg || 'Success', 'Successfully toggled receiving suggestions');
         } catch (err) {
             client.logServerError(server, err);
-            
+
             if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
 
             return new ErrorEmbed(err, true);
@@ -73,7 +71,7 @@ const command = new Command({
                 },
             ],
         },
-    ]
+    ],
 });
 
 export { command };

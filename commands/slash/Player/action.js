@@ -1,7 +1,4 @@
-import { 
-    ApplicationCommandOptionType,
-    PermissionFlagsBits 
-} from 'discord.js';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 
@@ -19,24 +16,24 @@ class Command extends CommandBuilder {
         const option = interaction.options;
         const server = interaction.guild;
         const user = interaction.user;
-        const filter = m => m.user.id === user.id;
+        const filter = (m) => m.user.id === user.id;
 
         switch (option.getSubcommand()) {
             case 'execute':
                 //TODO: Execute a Character Action
-            break;
+                break;
             case 'add':
                 //TODO: Add a Character Action
-            break;
+                break;
             case 'remove':
                 //TODO: Remove a Character Action
-            break;
+                break;
             case 'edit':
                 //TODO: Edit a Character Action
-            break;
+                break;
             case 'list':
                 //TODO: List all Character Actions
-            break;
+                break;
         }
     }
 }
@@ -72,7 +69,7 @@ const command = new Command({
             description: 'Lists all Actions',
             type: ApplicationCommandOptionType.Subcommand,
         },
-    ]
+    ],
 });
 
 export { command };

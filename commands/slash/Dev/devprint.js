@@ -16,14 +16,14 @@ class Command extends CommandBuilder {
      */
     async run(interaction) {
         if (fs.existsSync('./logs/dev/devlog.log')) {
-            await interaction.reply({files: ['./logs/dev/devlog.log']});
+            await interaction.reply({ files: ['./logs/dev/devlog.log'] });
         } else {
-            const err = new NotFoundError('Devlog not found', 'Could not find the devlog in the Bot\'s files.');
+            const err = new NotFoundError('Devlog not found', "Could not find the devlog in the Bot's files.");
             const embed = new ErrorEmbed(err, false);
 
             await interaction.reply({
                 embeds: [embed],
-                ephemeral: true
+                ephemeral: true,
             });
         }
     }
@@ -32,7 +32,7 @@ class Command extends CommandBuilder {
 const command = new Command({
     name: 'devprint',
     description: 'Prints the Devlog',
-    defaultMemberPermissions: [PermissionFlagsBits.Administrator]
+    defaultMemberPermissions: [PermissionFlagsBits.Administrator],
 });
 
 export { command };

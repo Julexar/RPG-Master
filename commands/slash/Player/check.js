@@ -1,7 +1,7 @@
-import { CommandBuilder } from "../../../custom/builders";
-import { client } from "../../..";
+import { CommandBuilder } from '../../../custom/builders';
+import { client } from '../../..';
 
-class Command extends CommandBuilder{
+class Command extends CommandBuilder {
     constructor(data) {
         super(data);
 
@@ -9,7 +9,7 @@ class Command extends CommandBuilder{
     }
 
     /**
-     * @param {import('discord.js').CommandInteraction} interaction 
+     * @param {import('discord.js').CommandInteraction} interaction
      */
     async run(interaction) {
         //TODO: Add Ability Checks

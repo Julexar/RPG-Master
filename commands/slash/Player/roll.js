@@ -78,13 +78,13 @@ class Command extends CommandBuilder {
     }
 
     /**
-     * 
-     * @param {import('discord.js').CommandInteraction} interaction 
+     *
+     * @param {import('discord.js').CommandInteraction} interaction
      */
     async run(interaction) {
         const option = interaction.options;
         const user = interaction.user;
-        const filter = m => m.user.id === user.id;
+        const filter = (m) => m.user.id === user.id;
         let collector;
 
         switch (option.getSubcommand()) {
@@ -92,15 +92,15 @@ class Command extends CommandBuilder {
                 const forms = option.getString('formula');
                 if (!forms) {
                     const menu = new EmbedBuilder()
-                    .setColor('#00ffff')
-                    .setTitle('Formula Builder')
-                    .setDescription('This is the Formula Builder, your current formula will be shown below')
-                    .setFields({
-                        name: 'Formula',
-                        value: ' ',
-                    })
-                    .setTimestamp();
-                    
+                        .setColor('#00ffff')
+                        .setTitle('Formula Builder')
+                        .setDescription('This is the Formula Builder, your current formula will be shown below')
+                        .setFields({
+                            name: 'Formula',
+                            value: ' ',
+                        })
+                        .setTimestamp();
+
                     const row1 = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId('setform').setLabel('Set Formula').setStyle(ButtonStyle.Primary).setEmoji('📝')
                     );
@@ -118,11 +118,10 @@ class Command extends CommandBuilder {
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async i => {
+                    collector.on('collect', async (i) => {
                         switch (i.customId) {
                             case 'setform':
-                                const mr = new ActionRowBuilder()
-                                .addComponents(
+                                const mr = new ActionRowBuilder().addComponents(
                                     new TextInputBuilder()
                                         .setCustomId('formula')
                                         .setLabel('Provide your Formula:')
@@ -130,41 +129,38 @@ class Command extends CommandBuilder {
                                         .setRequired(true)
                                 );
 
-                                const modal = new ModalBuilder()
-                                .setCustomId('diceform')
-                                .setTitle('Dice Formula')
-                                .addComponents(mr);
+                                const modal = new ModalBuilder().setCustomId('diceform').setTitle('Dice Formula').addComponents(mr);
 
                                 await i.showModal(modal);
                                 const filt = (int) => int.customId == 'diceform';
-                                
+
                                 i.awaitModalSubmit({
                                     filt,
                                     time: 35000,
                                 })
-                                .then(async (inter) => {
-                                    await inter.deferUpdate();
+                                    .then(async (inter) => {
+                                        await inter.deferUpdate();
 
-                                    const form = inter.fields.getTextInputValue('formula');
-                                    menu.setFields({
-                                        name: 'Formula',
-                                        value: form,
-                                    });
+                                        const form = inter.fields.getTextInputValue('formula');
+                                        menu.setFields({
+                                            name: 'Formula',
+                                            value: form,
+                                        });
 
-                                    await msg.edit({
-                                        embeds: [menu],
-                                        components: [row1, row2],
-                                        ephemeral: true,
+                                        await msg.edit({
+                                            embeds: [menu],
+                                            components: [row1, row2],
+                                            ephemeral: true,
+                                        });
+                                    })
+                                    .catch(async (err) => {
+                                        await msg.edit({
+                                            embeds: [new ErrorEmbed(err, true)],
+                                            components: [],
+                                            ephemeral: true,
+                                        });
                                     });
-                                })
-                                .catch(async (err) => {
-                                    await msg.edit({
-                                        embeds: [new ErrorEmbed(err, true)],
-                                        components: [],
-                                        ephemeral: true,
-                                    });
-                                });
-                            break;
+                                break;
                             case 'finish':
                                 const formula = menu.data.fields[0].value;
                                 const result = this.diceRoller(formula);
@@ -172,15 +168,15 @@ class Command extends CommandBuilder {
                                 await mes.edit({
                                     content: `<@${user.id}> 🎲\n**Result:** ${result.output}\n**Total:** ${result.total}`,
                                 });
-                            break;
+                                break;
                             case 'cancel':
                                 await i.deferUpdate();
                                 collector.stop();
-                            break;
+                                break;
                         }
                     });
 
-                    collector.on('end', async collected => {
+                    collector.on('end', async (collected) => {
                         if (collected.size > 0) {
                             client.writeServerLog(interaction.guild, `Collected ${collected.size} Interactions`);
                         }
@@ -197,7 +193,7 @@ class Command extends CommandBuilder {
                         content: `<@${user.id}> 🎲\n**Result:** ${result.output}\n**Total:** ${result.total}`,
                     });
                 }
-            break;
+                break;
             case 'fixed':
                 const amount = String(option.getNumber('amount'));
                 const dice = option.getString('dice');
@@ -207,7 +203,7 @@ class Command extends CommandBuilder {
                 await interaction.reply({
                     content: `<@${user.id}> 🎲\n**Result:** ${result.output}\n**Total:** ${result.total}`,
                 });
-            break;
+                break;
         }
     }
 }
@@ -286,7 +282,7 @@ const command = new Command({
                 },
             ],
         },
-    ]
+    ],
 });
 
 export { command };

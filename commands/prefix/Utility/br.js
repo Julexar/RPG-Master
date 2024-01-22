@@ -1,4 +1,4 @@
-import { CommandBuilder } from "../../../custom/builders";
+import { CommandBuilder } from '../../../custom/builders';
 
 class Command extends CommandBuilder {
     constructor(data) {
@@ -13,13 +13,13 @@ class Command extends CommandBuilder {
      * @param {string[]} args
      */
     async run(message, args) {
-        await message.channel.send('\`\`\`\n \`\`\`');
+        await message.channel.send('```\n ```');
     }
 }
 
 const command = new Command({
     name: 'br',
-    description: 'Prints a line break'
+    description: 'Prints a line break',
 });
 
 export { command };

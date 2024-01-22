@@ -1,4 +1,4 @@
-import { CommandBuilder } from "../../../custom/builders";
+import { CommandBuilder } from '../../../custom/builders';
 
 class Command extends CommandBuilder {
     constructor(data) {
@@ -12,13 +12,13 @@ class Command extends CommandBuilder {
      */
     async run(interaction) {
         //TODO: Implement Saving Throws
-    };
-};
+    }
+}
 
 const command = new Command({
     name: 'save',
     nick: 's',
-    description: 'Rolls a Saving Throw'
+    description: 'Rolls a Saving Throw',
 });
 
 export { command };

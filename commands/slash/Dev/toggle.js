@@ -14,16 +14,14 @@ class Command extends CommandBuilder {
     /**
      * @param {import("discord.js").CommandInteraction} interaction
      */
-    async run(interaction) {
-
-    }
+    async run(interaction) {}
 
     /**
      * @param {import("discord.js").Guild} guild
      */
     setChoices(guild) {
-        cmds = guild.commands.cache.map(cmd => ({name: cmd.name, value: `${cmd.id}`}));
-    };
+        cmds = guild.commands.cache.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` }));
+    }
 }
 
 const command = new Command({
@@ -36,9 +34,9 @@ const command = new Command({
             description: 'Provide a Command',
             type: ApplicationCommandOptionType.String,
             required: true,
-            choices: cmds
-        }
-    ]
+            choices: cmds,
+        },
+    ],
 });
 
 export { command };

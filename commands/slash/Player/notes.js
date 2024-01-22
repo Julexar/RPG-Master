@@ -27,24 +27,16 @@ class Command extends CommandBuilder {
         const option = interaction.options;
         const member = interaction.member;
         const user = member.user;
-        const filter = m => m.user.id === user.id;
+        const filter = (m) => m.user.id === user.id;
         let msg, menu, menus, rows, row, row1, row2, collector, count, num, page, emph, notes, embed;
 
         const private = option.getBoolean('private');
 
         switch (option.getSubcommandGroup()) {
             case 'view':
-                row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('prev')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('⏪')
-                        .setDisabled(true),
-                    new ButtonBuilder()
-                        .setCustomId('next')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('⏩')
+                row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                    new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
                 );
 
                 switch (option.getSubcommand()) {
@@ -54,9 +46,9 @@ class Command extends CommandBuilder {
                             menus = [];
                             menus.push(menu);
 
-                            count, num, page = 0;
+                            count, num, (page = 0);
 
-                            notes = await client.database.Server.notes.getAll(server, user)
+                            notes = await client.database.Server.notes.getAll(server, user);
 
                             for (const note of notes) {
                                 if (count === 9) {
@@ -65,7 +57,7 @@ class Command extends CommandBuilder {
                                     num++;
                                 }
 
-                                const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;	
+                                const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
 
                                 menus[num].addFields({
                                     name: title,
@@ -78,12 +70,12 @@ class Command extends CommandBuilder {
                             msg = await interaction.reply({
                                 embeds: [menus[page]],
                                 components: [row],
-                                ephemeral: private
+                                ephemeral: private,
                             });
 
                             collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                            collector.on('collect', async i => {
+                            collector.on('collect', async (i) => {
                                 await i.deferUpdate();
 
                                 switch (i.customId) {
@@ -102,10 +94,10 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menus[page]],
                                                 components: [row],
-                                                ephemeral: private
+                                                ephemeral: private,
                                             });
                                         }
-                                    break;
+                                        break;
                                     case 'next':
                                         if (page < menus.length - 1) {
                                             page++;
@@ -121,14 +113,14 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menus[page]],
                                                 components: [row],
-                                                ephemeral: private
+                                                ephemeral: private,
                                             });
                                         }
-                                    break;
+                                        break;
                                 }
                             });
 
-                            collector.on('end', async collected => {
+                            collector.on('end', async (collected) => {
                                 if (collected.size > 0) {
                                     client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                 }
@@ -139,33 +131,33 @@ class Command extends CommandBuilder {
                                 await msg.edit({
                                     embeds: [menus[page]],
                                     components: [row],
-                                    ephemeral: private
+                                    ephemeral: private,
                                 });
                             });
                         } catch (err) {
                             client.logServerError(server, err);
 
-                            if (err instanceof NotFoundError) 
+                            if (err instanceof NotFoundError)
                                 await interaction.reply({
                                     embeds: [new ErrorEmbed(err, false)],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
-                            else 
+                            else
                                 await interaction.reply({
                                     embeds: [new ErrorEmbed(err, true)],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                         }
-                    break;
+                        break;
                     case 'global':
                         try {
                             menu = new NoteEmbed('Global Notes List', 'Here is a List of your Global Notes:');
                             menus = [];
                             menus.push(menu);
 
-                            count, num, page = 0;
+                            count, num, (page = 0);
 
-                            notes = await client.database.User.notes.getAll(user)
+                            notes = await client.database.User.notes.getAll(user);
 
                             for (const note of notes) {
                                 if (count === 9) {
@@ -174,7 +166,7 @@ class Command extends CommandBuilder {
                                     num++;
                                 }
 
-                                const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;	
+                                const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
 
                                 menus[num].addFields({
                                     name: title,
@@ -187,12 +179,12 @@ class Command extends CommandBuilder {
                             msg = await interaction.reply({
                                 embeds: [menus[page]],
                                 components: [row],
-                                ephemeral: private
+                                ephemeral: private,
                             });
 
                             collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                            collector.on('collect', async i => {
+                            collector.on('collect', async (i) => {
                                 await i.deferUpdate();
 
                                 switch (i.customId) {
@@ -211,10 +203,10 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menus[page]],
                                                 components: [row],
-                                                ephemeral: private
+                                                ephemeral: private,
                                             });
                                         }
-                                    break;
+                                        break;
                                     case 'next':
                                         if (page < menus.length - 1) {
                                             page++;
@@ -230,14 +222,14 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menus[page]],
                                                 components: [row],
-                                                ephemeral: private
+                                                ephemeral: private,
                                             });
                                         }
-                                    break;
+                                        break;
                                 }
                             });
 
-                            collector.on('end', async collected => {
+                            collector.on('end', async (collected) => {
                                 if (collected.size > 0) {
                                     client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                 }
@@ -248,58 +240,38 @@ class Command extends CommandBuilder {
                                 await msg.edit({
                                     embeds: [menus[page]],
                                     components: [row],
-                                    ephemeral: private
+                                    ephemeral: private,
                                 });
                             });
                         } catch (err) {
                             client.logServerError(server, err);
 
-                            if (err instanceof NotFoundError) 
+                            if (err instanceof NotFoundError)
                                 await interaction.reply({
                                     embeds: [new ErrorEmbed(err, false)],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
-                            else 
+                            else
                                 await interaction.reply({
                                     embeds: [new ErrorEmbed(err, true)],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                         }
-                    break;
+                        break;
                 }
-            break;
+                break;
             case 'add':
                 let mes, mescol, mesfil;
 
-                row1 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('title')
-                        .setStyle(ButtonStyle.Primary)
-                        .setLabel('Change Title')
-                        .setEmoji('🔤'),
-                    new ButtonBuilder()
-                        .setCustomId('content')
-                        .setStyle(ButtonStyle.Primary)
-                        .setLabel('Change Content')
-                        .setEmoji('📝'),
-                    new ButtonBuilder()
-                        .setCustomId('private')
-                        .setStyle(ButtonStyle.Primary)
-                        .setLabel('Toggle Privacy')
-                        .setEmoji('🔁')
+                row1 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('title').setStyle(ButtonStyle.Primary).setLabel('Change Title').setEmoji('🔤'),
+                    new ButtonBuilder().setCustomId('content').setStyle(ButtonStyle.Primary).setLabel('Change Content').setEmoji('📝'),
+                    new ButtonBuilder().setCustomId('private').setStyle(ButtonStyle.Primary).setLabel('Toggle Privacy').setEmoji('🔁')
                 );
 
-                row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('finish')
-                        .setStyle(ButtonStyle.Success)
-                        .setLabel('Finish'),
-                    new ButtonBuilder()
-                        .setCustomId('cancel')
-                        .setStyle(ButtonStyle.Danger)
-                        .setLabel('Cancel')
+                row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('finish').setStyle(ButtonStyle.Success).setLabel('Finish'),
+                    new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                 );
 
                 switch (option.getSubcommand()) {
@@ -307,48 +279,48 @@ class Command extends CommandBuilder {
                         menu = new NoteEmbed('Note Creator', null, [
                             {
                                 name: 'Title',
-                                value: '\ ',
-                                inline: true
+                                value: ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Private?',
                                 value: 'false',
-                                inline: true
+                                inline: true,
                             },
                             {
                                 name: 'Content',
-                                value: '\ ',
-                            }
+                                value: ' ',
+                            },
                         ]);
 
                         msg = await interaction.reply({
                             embeds: [menu],
                             components: [row1, row2],
-                            ephemeral: Boolean(menu.data.fields[1].value)
+                            ephemeral: Boolean(menu.data.fields[1].value),
                         });
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with a new Title.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -356,7 +328,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row1, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -364,25 +336,25 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'content':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with new Content.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -390,7 +362,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row1, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -398,7 +370,7 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'private':
                                     await i.deferUpdate();
 
@@ -407,15 +379,15 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row1, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value)
+                                        ephemeral: Boolean(menu.data.fields[1].value),
                                     });
-                                break;
+                                    break;
                                 case 'finish':
                                     const note = {
-                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        title: menu.data.fields[0].value === ' ' ? null : menu.data.fields[0].value,
                                         content: menu.data.fields[2].value,
-                                        private: Boolean(menu.data.fields[1].value)
-                                    }
+                                        private: Boolean(menu.data.fields[1].value),
+                                    };
 
                                     embed = await this.addServerNote(server, note);
 
@@ -424,9 +396,9 @@ class Command extends CommandBuilder {
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         embeds: [embed],
-                                        ephemeral: emph
+                                        ephemeral: emph,
                                     });
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
@@ -434,15 +406,15 @@ class Command extends CommandBuilder {
                                         content: 'Note creation has been cancelled.',
                                         embeds: [],
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
 
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
@@ -450,56 +422,56 @@ class Command extends CommandBuilder {
                             await msg.edit({
                                 embeds: [menu],
                                 components: [],
-                                ephemeral: Boolean(menu.data.fields[1].value)
+                                ephemeral: Boolean(menu.data.fields[1].value),
                             });
                         });
-                    break;
+                        break;
                     case 'global':
                         menu = new NoteEmbed('Note Creator', null, [
                             {
                                 name: 'Title',
-                                value: '\ ',
-                                inline: true
+                                value: ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Private?',
                                 value: 'false',
-                                inline: true
+                                inline: true,
                             },
                             {
                                 name: 'Content',
-                                value: '\ ',
-                            }
+                                value: ' ',
+                            },
                         ]);
 
                         msg = await interaction.reply({
                             embeds: [menu],
                             components: [row1, row2],
-                            ephemeral: Boolean(menu.data.fields[1].value)
+                            ephemeral: Boolean(menu.data.fields[1].value),
                         });
-                        
+
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with a new Title.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -507,7 +479,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row1, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -515,25 +487,25 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'content':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with new Content.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -541,7 +513,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row1, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -549,7 +521,7 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'private':
                                     await i.deferUpdate();
 
@@ -558,15 +530,15 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row1, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value)
+                                        ephemeral: Boolean(menu.data.fields[1].value),
                                     });
-                                break;
+                                    break;
                                 case 'finish':
                                     const note = {
-                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        title: menu.data.fields[0].value === ' ' ? null : menu.data.fields[0].value,
                                         content: menu.data.fields[2].value,
-                                        private: Boolean(menu.data.fields[1].value)
-                                    }
+                                        private: Boolean(menu.data.fields[1].value),
+                                    };
 
                                     embed = await this.addGlobalNote(user, note);
 
@@ -575,9 +547,9 @@ class Command extends CommandBuilder {
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         embeds: [embed],
-                                        ephemeral: emph
+                                        ephemeral: emph,
                                     });
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
@@ -585,15 +557,15 @@ class Command extends CommandBuilder {
                                         content: 'Note creation has been cancelled.',
                                         embeds: [],
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
 
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
@@ -601,42 +573,26 @@ class Command extends CommandBuilder {
                             await msg.edit({
                                 embeds: [menu],
                                 components: [],
-                                ephemeral: Boolean(menu.data.fields[1].value)
+                                ephemeral: Boolean(menu.data.fields[1].value),
                             });
                         });
-                    break;
+                        break;
                 }
-            break;
+                break;
             case 'remove':
-                row = new ActionRowBuilder()
-                .addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId('selnote')
-                        .setPlaceholder('No Note selected...')
-                        .setMinValues(1)
-                        .setMaxValues(1)
+                row = new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder().setCustomId('selnote').setPlaceholder('No Note selected...').setMinValues(1).setMaxValues(1)
                 );
 
-                row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('prev')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('⏪')
-                        .setDisabled(true),
-                    new ButtonBuilder()
-                        .setCustomId('next')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('⏩'),
-                    new ButtonBuilder()
-                        .setCustomId('cancel')
-                        .setStyle(ButtonStyle.Danger)
-                        .setLabel('Cancel')
+                row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                    new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
+                    new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                 );
 
                 rows.push(row);
 
-                count, num, page = 0;
+                count, num, (page = 0);
 
                 let notes;
 
@@ -655,7 +611,7 @@ class Command extends CommandBuilder {
 
                             rows[num].components[0].addOptions({
                                 label: title,
-                                value: `${note.id}`
+                                value: `${note.id}`,
                             });
 
                             count++;
@@ -664,49 +620,42 @@ class Command extends CommandBuilder {
                         msg = await interaction.reply({
                             content: 'Please select a Note to remove:',
                             components: [rows[page], row2],
-                            ephemeral: true
+                            ephemeral: true,
                         });
-                        
+
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             switch (i.customId) {
                                 case 'selnote':
                                     mes = await i.deferReply();
 
-                                    const note = await client.database.Server.notes.getOne(server, user, {id: Number(i.values[0])})
+                                    const note = await client.database.Server.notes.getOne(server, user, { id: Number(i.values[0]) });
 
                                     const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
 
                                     embed = new EmbedBuilder()
-                                    .setColor('#FFFF00')
-                                    .setTitle(title)
-                                    .setAuthor({ name: user.displayName, iconURL: user.avatarURL() })
-                                    .setDescription(note.content)
-                                    .setTimestamp()
+                                        .setColor('#FFFF00')
+                                        .setTitle(title)
+                                        .setAuthor({ name: user.displayName, iconURL: user.avatarURL() })
+                                        .setDescription(note.content)
+                                        .setTimestamp();
 
-                                    const row3 = new ActionRowBuilder()
-                                    .addComponents(
-                                        new ButtonBuilder()
-                                            .setCustomId('confirm')
-                                            .setStyle(ButtonStyle.Success)
-                                            .setLabel('Confirm'),
-                                        new ButtonBuilder()
-                                            .setCustomId('cancel')
-                                            .setStyle(ButtonStyle.Danger)
-                                            .setLabel('Cancel')
+                                    const row3 = new ActionRowBuilder().addComponents(
+                                        new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
+                                        new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                                     );
-                                    
+
                                     await mes.edit({
                                         content: 'Are you sure you want to remove this Note?',
                                         embeds: [embed],
                                         components: [row3],
-                                        ephemeral: note.private
+                                        ephemeral: note.private,
                                     });
 
                                     const col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async j => {
+                                    col.on('collect', async (j) => {
                                         const mes2 = await j.deferReply();
                                         switch (j.customId) {
                                             case 'confirm':
@@ -716,29 +665,29 @@ class Command extends CommandBuilder {
 
                                                 await mes2.edit({
                                                     embeds: [embed2],
-                                                    ephemeral: emph
+                                                    ephemeral: emph,
                                                 });
-                                            break;
+                                                break;
                                             case 'cancel':
                                                 await mes2.edit({
                                                     content: 'Note removal has been cancelled.',
                                                     embeds: [],
                                                     components: [],
-                                                    ephemeral: true
+                                                    ephemeral: true,
                                                 });
 
                                                 col.stop();
-                                            break;
+                                                break;
                                         }
                                     });
 
-                                    col.on('end', async collected => {
+                                    col.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Confirmation collection timed out...',
                                                 embeds: [],
                                                 components: [],
-                                                ephemeral: true
+                                                ephemeral: true,
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -748,7 +697,7 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'prev':
                                     await i.deferUpdate();
 
@@ -766,10 +715,10 @@ class Command extends CommandBuilder {
                                         await msg.edit({
                                             content: 'Please select a Note to remove:',
                                             components: [rows[page], row2],
-                                            ephemeral: true
+                                            ephemeral: true,
                                         });
                                     }
-                                break;
+                                    break;
                                 case 'next':
                                     await i.deferUpdate();
 
@@ -787,30 +736,30 @@ class Command extends CommandBuilder {
                                         await msg.edit({
                                             content: 'Please select a Note to remove:',
                                             components: [rows[page], row2],
-                                            ephemeral: true
+                                            ephemeral: true,
                                         });
                                     }
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
                                     await msg.edit({
                                         content: 'Note removal has been cancelled.',
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
 
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Note selection timed out...',
                                     components: [],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             } else {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -820,11 +769,11 @@ class Command extends CommandBuilder {
                                 await msg.delete();
                             }, 5000);
                         });
-                    break;
+                        break;
                     case 'global':
                         notes = await client.database.User.notes.getAll(user);
 
-                        count, num, page = 0;
+                        count, num, (page = 0);
 
                         for (const note of notes) {
                             if (count === 24) {
@@ -837,7 +786,7 @@ class Command extends CommandBuilder {
 
                             rows[num].components[0].addOptions({
                                 label: title,
-                                value: `${note.id}`
+                                value: `${note.id}`,
                             });
 
                             count++;
@@ -846,49 +795,42 @@ class Command extends CommandBuilder {
                         msg = await interaction.reply({
                             content: 'Please select a Note to remove:',
                             components: [rows[page], row2],
-                            ephemeral: true
+                            ephemeral: true,
                         });
-                        
+
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             switch (i.customId) {
                                 case 'selnote':
                                     mes = await i.deferReply();
 
-                                    const note = await client.database.User.notes.getOne(user, {id: Number(i.values[0])})
+                                    const note = await client.database.User.notes.getOne(user, { id: Number(i.values[0]) });
 
                                     const title = note.title ? `${note.title} (#${note.id})` : `Note #${note.id}`;
 
                                     embed = new EmbedBuilder()
-                                    .setColor('#FFFF00')
-                                    .setTitle(title)
-                                    .setAuthor({ name: user.displayName, iconURL: user.avatarURL() })
-                                    .setDescription(note.content)
-                                    .setTimestamp()
+                                        .setColor('#FFFF00')
+                                        .setTitle(title)
+                                        .setAuthor({ name: user.displayName, iconURL: user.avatarURL() })
+                                        .setDescription(note.content)
+                                        .setTimestamp();
 
-                                    const row3 = new ActionRowBuilder()
-                                    .addComponents(
-                                        new ButtonBuilder()
-                                            .setCustomId('confirm')
-                                            .setStyle(ButtonStyle.Success)
-                                            .setLabel('Confirm'),
-                                        new ButtonBuilder()
-                                            .setCustomId('cancel')
-                                            .setStyle(ButtonStyle.Danger)
-                                            .setLabel('Cancel')
+                                    const row3 = new ActionRowBuilder().addComponents(
+                                        new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
+                                        new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                                     );
-                                    
+
                                     await mes.edit({
                                         content: 'Are you sure you want to remove this Note?',
                                         embeds: [embed],
                                         components: [row3],
-                                        ephemeral: note.private
+                                        ephemeral: note.private,
                                     });
 
                                     const col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async j => {
+                                    col.on('collect', async (j) => {
                                         const mes2 = await j.deferReply();
                                         switch (j.customId) {
                                             case 'confirm':
@@ -898,29 +840,29 @@ class Command extends CommandBuilder {
 
                                                 await mes2.edit({
                                                     embeds: [embed2],
-                                                    ephemeral: emph
+                                                    ephemeral: emph,
                                                 });
-                                            break;
+                                                break;
                                             case 'cancel':
                                                 await mes2.edit({
                                                     content: 'Note removal has been cancelled.',
                                                     embeds: [],
                                                     components: [],
-                                                    ephemeral: true
+                                                    ephemeral: true,
                                                 });
 
                                                 col.stop();
-                                            break;
+                                                break;
                                         }
                                     });
 
-                                    col.on('end', async collected => {
+                                    col.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Confirmation collection timed out...',
                                                 embeds: [],
                                                 components: [],
-                                                ephemeral: true
+                                                ephemeral: true,
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -930,7 +872,7 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'prev':
                                     await i.deferUpdate();
 
@@ -948,10 +890,10 @@ class Command extends CommandBuilder {
                                         await msg.edit({
                                             content: 'Please select a Note to remove:',
                                             components: [rows[page], row2],
-                                            ephemeral: true
+                                            ephemeral: true,
                                         });
                                     }
-                                break;
+                                    break;
                                 case 'next':
                                     await i.deferUpdate();
 
@@ -969,30 +911,30 @@ class Command extends CommandBuilder {
                                         await msg.edit({
                                             content: 'Please select a Note to remove:',
                                             components: [rows[page], row2],
-                                            ephemeral: true
+                                            ephemeral: true,
                                         });
                                     }
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
                                     await msg.edit({
                                         content: 'Note removal has been cancelled.',
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
 
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Note selection timed out...',
                                     components: [],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             } else {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -1002,9 +944,9 @@ class Command extends CommandBuilder {
                                 await msg.delete();
                             }, 5000);
                         });
-                    break;
+                        break;
                 }
-            break;
+                break;
             case 'edit':
                 const noteID = option.getNumber('id');
 
@@ -1012,51 +954,31 @@ class Command extends CommandBuilder {
 
                 let note;
 
-                row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('title')
-                        .setStyle(ButtonStyle.Primary)
-                        .setLabel('Change Title')
-                        .setEmoji('🔤'),
-                    new ButtonBuilder()
-                        .setCustomId('content')
-                        .setStyle(ButtonStyle.Primary)
-                        .setLabel('Change Content')
-                        .setEmoji('📝'),
-                    new ButtonBuilder()
-                        .setCustomId('private')
-                        .setStyle(ButtonStyle.Primary)
-                        .setLabel('Toggle Privacy')
-                        .setEmoji('🔁')
+                row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('title').setStyle(ButtonStyle.Primary).setLabel('Change Title').setEmoji('🔤'),
+                    new ButtonBuilder().setCustomId('content').setStyle(ButtonStyle.Primary).setLabel('Change Content').setEmoji('📝'),
+                    new ButtonBuilder().setCustomId('private').setStyle(ButtonStyle.Primary).setLabel('Toggle Privacy').setEmoji('🔁')
                 );
 
-                row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('finish')
-                        .setStyle(ButtonStyle.Success)
-                        .setLabel('Finish'),
-                    new ButtonBuilder()
-                        .setCustomId('cancel')
-                        .setStyle(ButtonStyle.Danger)
-                        .setLabel('Cancel')
+                row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('finish').setStyle(ButtonStyle.Success).setLabel('Finish'),
+                    new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                 );
 
                 switch (option.getSubcommand()) {
                     case 'server':
-                        note = await client.database.Server.notes.getOne(server, user, {id: noteID});
+                        note = await client.database.Server.notes.getOne(server, user, { id: noteID });
 
                         menu.addFields(
                             {
                                 name: 'Title',
-                                value: note.title || '\ ',
-                                inline: true
+                                value: note.title || ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Private?',
                                 value: `${note.private}`,
-                                inline: true
+                                inline: true,
                             },
                             {
                                 name: 'Content',
@@ -1067,31 +989,31 @@ class Command extends CommandBuilder {
                         msg = await interaction.reply({
                             embeds: [menu],
                             components: [row, row2],
-                            ephemeral: Boolean(menu.data.fields[1].value)
+                            ephemeral: Boolean(menu.data.fields[1].value),
                         });
-                        
+
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with a new Title.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -1099,7 +1021,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -1107,25 +1029,25 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'content':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with new Content.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -1133,7 +1055,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -1141,7 +1063,7 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'private':
                                     await i.deferUpdate();
 
@@ -1150,15 +1072,15 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value)
+                                        ephemeral: Boolean(menu.data.fields[1].value),
                                     });
-                                break;
+                                    break;
                                 case 'finish':
                                     const note = {
-                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        title: menu.data.fields[0].value === ' ' ? null : menu.data.fields[0].value,
                                         content: menu.data.fields[2].value,
-                                        private: Boolean(menu.data.fields[1].value)
-                                    }
+                                        private: Boolean(menu.data.fields[1].value),
+                                    };
 
                                     embed = await this.editServerNote(server, note);
 
@@ -1167,9 +1089,9 @@ class Command extends CommandBuilder {
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         embeds: [embed],
-                                        ephemeral: emph
+                                        ephemeral: emph,
                                     });
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
@@ -1177,15 +1099,15 @@ class Command extends CommandBuilder {
                                         content: 'Note editing has been cancelled.',
                                         embeds: [],
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
 
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
@@ -1193,23 +1115,23 @@ class Command extends CommandBuilder {
                             await msg.edit({
                                 embeds: [menu],
                                 components: [],
-                                ephemeral: Boolean(menu.data.fields[1].value)
+                                ephemeral: Boolean(menu.data.fields[1].value),
                             });
                         });
-                    break;
+                        break;
                     case 'global':
-                        note = await client.database.User.notes.getOne(user, {id: noteID});
+                        note = await client.database.User.notes.getOne(user, { id: noteID });
 
                         menu.addFields(
                             {
                                 name: 'Title',
-                                value: note.title || '\ ',
-                                inline: true
+                                value: note.title || ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Private?',
                                 value: `${note.private}`,
-                                inline: true
+                                inline: true,
                             },
                             {
                                 name: 'Content',
@@ -1220,31 +1142,31 @@ class Command extends CommandBuilder {
                         msg = await interaction.reply({
                             embeds: [menu],
                             components: [row, row2],
-                            ephemeral: Boolean(menu.data.fields[1].value)
+                            ephemeral: Boolean(menu.data.fields[1].value),
                         });
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with a new Title.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -1252,7 +1174,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -1260,25 +1182,25 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'content':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with new Content.',
-                                    });;
+                                    });
 
-                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async j => {
+                                    mescol.on('collect', async (j) => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async collected => {
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
-                                                content: 'Reply collection timed out...'
+                                                content: 'Reply collection timed out...',
                                             });
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} reply`);
@@ -1286,7 +1208,7 @@ class Command extends CommandBuilder {
                                             await msg.edit({
                                                 embeds: [menu],
                                                 components: [row, row2],
-                                                ephemeral: Boolean(menu.data.fields[1].value)
+                                                ephemeral: Boolean(menu.data.fields[1].value),
                                             });
                                         }
 
@@ -1294,7 +1216,7 @@ class Command extends CommandBuilder {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'private':
                                     await i.deferUpdate();
 
@@ -1303,15 +1225,15 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         embeds: [menu],
                                         components: [row, row2],
-                                        ephemeral: Boolean(menu.data.fields[1].value)
+                                        ephemeral: Boolean(menu.data.fields[1].value),
                                     });
-                                break;
+                                    break;
                                 case 'finish':
                                     const note = {
-                                        title: menu.data.fields[0].value === '\ ' ? null : menu.data.fields[0].value,
+                                        title: menu.data.fields[0].value === ' ' ? null : menu.data.fields[0].value,
                                         content: menu.data.fields[2].value,
-                                        private: Boolean(menu.data.fields[1].value)
-                                    }
+                                        private: Boolean(menu.data.fields[1].value),
+                                    };
 
                                     embed = await this.editGlobalNote(user, note);
 
@@ -1320,9 +1242,9 @@ class Command extends CommandBuilder {
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         embeds: [embed],
-                                        ephemeral: emph
+                                        ephemeral: emph,
                                     });
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
@@ -1330,15 +1252,15 @@ class Command extends CommandBuilder {
                                         content: 'Note editing has been cancelled.',
                                         embeds: [],
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
 
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
@@ -1346,14 +1268,14 @@ class Command extends CommandBuilder {
                             await msg.edit({
                                 embeds: [menu],
                                 components: [],
-                                ephemeral: Boolean(menu.data.fields[1].value)
+                                ephemeral: Boolean(menu.data.fields[1].value),
                             });
                         });
-                    break;
+                        break;
                 }
-            break;
+                break;
         }
-    };
+    }
 
     async addServerNote(server, user, note) {
         try {
@@ -1364,7 +1286,7 @@ class Command extends CommandBuilder {
             client.logServerError(server, err);
 
             if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
-            
+
             return new ErrorEmbed(err, true);
         }
     }
@@ -1378,7 +1300,7 @@ class Command extends CommandBuilder {
             client.logServerError(server, err);
 
             if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
-            
+
             return new ErrorEmbed(err, true);
         }
     }
@@ -1459,7 +1381,7 @@ const command = new Command({
                             name: 'private',
                             description: 'When true, shows your private Notes',
                             type: ApplicationCommandOptionType.Boolean,
-                            required: true
+                            required: true,
                         },
                         {
                             name: 'id',
@@ -1479,7 +1401,7 @@ const command = new Command({
                             name: 'private',
                             description: 'When true, shows your private Notes',
                             type: ApplicationCommandOptionType.Boolean,
-                            required: true
+                            required: true,
                         },
                         {
                             name: 'id',
@@ -1597,7 +1519,7 @@ const command = new Command({
                 },
             ],
         },
-    ]
+    ],
 });
 
 export { command };

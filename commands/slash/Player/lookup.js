@@ -1,10 +1,4 @@
-import { 
-    ActionRowBuilder, 
-    ApplicationCommandOptionType, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    StringSelectMenuBuilder 
-} from 'discord.js';
+import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { ListEmbed, ErrorEmbed } from '../../../custom/embeds';
@@ -24,47 +18,33 @@ class Command extends CommandBuilder {
         const option = interaction.options;
         const user = interaction.user;
         const server = interaction.guild;
-        const filter = m => m.user.id === user.id;
+        const filter = (m) => m.user.id === user.id;
 
         let msg, collector, menu;
 
         const row1 = new ActionRowBuilder();
-        const row2 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder()
-                .setCustomId('prev')
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('⏪')
-                .setDisabled(true),
-            new ButtonBuilder()
-                .setCustomId('next')
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('⏩'),
-            new ButtonBuilder()
-                .setCustomId('cancel')
-                .setStyle(ButtonStyle.Danger)
-                .setLabel('Cancel')
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
+            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
         );
-        
+
         const rows = [];
 
-        let num, count, page = 0;
+        let num,
+            count,
+            page = 0;
 
         switch (option.getSubcommand()) {
             case 'armor':
-                row1.addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId('armorsel')
-                        .setPlaceholder('No Armor selected...')
-                        .setMaxValues(1)
-                );
+                row1.addComponents(new StringSelectMenuBuilder().setCustomId('armorsel').setPlaceholder('No Armor selected...').setMaxValues(1));
 
                 rows.push(row1);
 
                 try {
-                    const armors = await client.database.Server.armors.getAll(server)
+                    const armors = await client.database.Server.armors.getAll(server);
 
-                    const menu = new ListEmbed('Armor List')
+                    const menu = new ListEmbed('Armor List');
 
                     for (const armor of armors) {
                         if (count === 24) {
@@ -75,7 +55,7 @@ class Command extends CommandBuilder {
 
                         rows[num].components[0].addOptions({
                             label: armor.name,
-                            value: `${armor.id}`
+                            value: `${armor.id}`,
                         });
 
                         count++;
@@ -84,58 +64,62 @@ class Command extends CommandBuilder {
                     msg = await interaction.reply({
                         content: 'Select an Armor:',
                         embeds: [menu],
-                        components: [rows[page], row2]
+                        components: [rows[page], row2],
                     });
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async i => {
+                    collector.on('collect', async (i) => {
                         await i.deferUpdate();
 
                         switch (i.customId) {
                             case 'armorsel':
                                 const armorId = Number(i.values[0]);
 
-                                const armor = await client.database.Server.armors.getOne(server, {id: armorId});
+                                const armor = await client.database.Server.armors.getOne(server, { id: armorId });
 
                                 menu.data.title = armor.name;
-                                menu.data.description = armor.attune ? (armor.attune_req ? `_Requires Attunement by (a) ${armor.attune_req}_\n\n` + armor.description : `_Requires Attunement_\n\n` + armor.description) : armor.description;
+                                menu.data.description = armor.attune
+                                    ? armor.attune_req
+                                        ? `_Requires Attunement by (a) ${armor.attune_req}_\n\n` + armor.description
+                                        : `_Requires Attunement_\n\n` + armor.description
+                                    : armor.description;
                                 menu.addFields(
                                     {
                                         name: 'Rarity',
                                         value: armor.rarity,
-                                        inline: true
+                                        inline: true,
                                     },
                                     {
                                         name: 'Type',
                                         value: armor.type + ' Armor',
-                                        inline: true
+                                        inline: true,
                                     },
                                     {
                                         name: 'AC',
                                         value: `${armor.ac}`,
-                                        inline: true
+                                        inline: true,
                                     },
                                     {
                                         name: 'Strength Requirement',
                                         value: armor.str_req ? `${armor.str_req}` : 'None',
-                                        inline: true
+                                        inline: true,
                                     },
                                     {
                                         name: 'Dex Bonus',
                                         value: armor.dex_bonus ? `${armor.dex_bonus}` : 'None',
-                                        inline: true
+                                        inline: true,
                                     }
                                 );
 
                                 await msg.edit({
                                     content: '',
                                     embeds: [menu],
-                                    components: []
+                                    components: [],
                                 });
 
                                 collector.stop();
-                            break;
+                                break;
                             case 'prev':
                                 if (page > 0) {
                                     page--;
@@ -151,10 +135,10 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         content: 'Select an Armor:',
                                         embeds: [menu],
-                                        components: [rows[page], row2]
+                                        components: [rows[page], row2],
                                     });
                                 }
-                            break;
+                                break;
                             case 'next':
                                 if (page < rows.length - 1) {
                                     page++;
@@ -170,22 +154,22 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         content: 'Select an Armor:',
                                         embeds: [menu],
-                                        components: [rows[page], row2]
+                                        components: [rows[page], row2],
                                     });
                                 }
-                            break;
+                                break;
                             case 'cancel':
                                 collector.stop();
-                            break;
+                                break;
                         }
                     });
 
-                    collector.on('end', async collected => {
+                    collector.on('end', async (collected) => {
                         if (collected.size === 0) {
                             await msg.edit({
                                 content: 'Selection timed out...',
                                 components: [],
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         } else {
                             client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -198,29 +182,25 @@ class Command extends CommandBuilder {
                 } catch (err) {
                     client.logServerError(server, err);
 
-                    if (err instanceof NotFoundError) return interaction.reply({
-                        embeds: [new ErrorEmbed(err, false)]
-                    });
+                    if (err instanceof NotFoundError)
+                        return interaction.reply({
+                            embeds: [new ErrorEmbed(err, false)],
+                        });
 
                     return interaction.reply({
-                        embeds: [new ErrorEmbed(err, true)]
+                        embeds: [new ErrorEmbed(err, true)],
                     });
                 }
-            break;
+                break;
             case 'class':
-                row1.addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId('classsel')
-                        .setPlaceholder('No Class selected...')
-                        .setMaxValues(1)
-                );
+                row1.addComponents(new StringSelectMenuBuilder().setCustomId('classsel').setPlaceholder('No Class selected...').setMaxValues(1));
 
                 rows.push(row1);
 
                 try {
-                    const classes = await client.database.Server.classes.getAll(server)
+                    const classes = await client.database.Server.classes.getAll(server);
 
-                    const menu = new ListEmbed('Class List')
+                    const menu = new ListEmbed('Class List');
 
                     for (const servClas of classes) {
                         if (count === 24) {
@@ -231,7 +211,7 @@ class Command extends CommandBuilder {
 
                         rows[num].components[0].addOptions({
                             label: servClas.name,
-                            value: `${servClas.id}`
+                            value: `${servClas.id}`,
                         });
 
                         count++;
@@ -240,26 +220,26 @@ class Command extends CommandBuilder {
                     msg = await interaction.reply({
                         content: 'Select a Class:',
                         embeds: [new ListEmbed('Class List')],
-                        components: [rows[page], row2]
+                        components: [rows[page], row2],
                     });
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async i => {
+                    collector.on('collect', async (i) => {
                         await i.deferUpdate();
 
                         switch (i.customId) {
                             case 'classsel':
                                 const classId = Number(i.values[0]);
 
-                                const servClas = await client.database.Server.classes.getOne(server, {id: classId});
+                                const servClas = await client.database.Server.classes.getOne(server, { id: classId });
 
                                 menu.data.title = servClas.class.name;
-                                
+
                                 let traitList = '';
                                 let prevlvl;
 
-                                const traits = await client.database.Class.traits.getAll(servClas.class)
+                                const traits = await client.database.Class.traits.getAll(servClas.class);
 
                                 for (const trait of traits) {
                                     if (prevlvl === trait.level) traitList += `, ${trait.name}`;
@@ -276,31 +256,31 @@ class Command extends CommandBuilder {
                                     lang: [],
                                 };
 
-                                const clasProfs = await client.database.Class.profs.getAll(servClas.class)
+                                const clasProfs = await client.database.Class.profs.getAll(servClas.class);
 
                                 for (const prof of clasProfs) {
                                     switch (prof.type) {
                                         case 'armor':
                                             profs.armor.push(prof.name);
-                                        break;
+                                            break;
                                         case 'weapon':
                                             profs.weapon.push(prof.name);
-                                        break;
+                                            break;
                                         case 'tool':
                                             profs.tool.push(prof.name);
-                                        break;
+                                            break;
                                         case 'skill':
                                             profs.skill.push(prof.name);
-                                        break;
+                                            break;
                                         case 'language':
                                             profs.lang.push(prof.name);
-                                        break;
+                                            break;
                                     }
                                 }
 
                                 let saveList = [];
 
-                                const saves = await client.database.Class.saves.getAll(servClas.class)
+                                const saves = await client.database.Class.saves.getAll(servClas.class);
 
                                 for (const save of saves) {
                                     saveList.push(save.stat);
@@ -316,16 +296,16 @@ class Command extends CommandBuilder {
                                 **Tools:** ${profs.tool.length ? profs.tool.join(', ') : 'None'}\n
                                 **Saving Throws:** ${saveList.length ? saveList.join(', ') : 'None'}\n
                                 **Skills:** ${profs.skill.length ? profs.skill.join(', ') : 'None'}
-                                `
+                                `;
 
                                 await msg.edit({
                                     content: '',
                                     embeds: [menu],
-                                    components: []
+                                    components: [],
                                 });
 
                                 collector.stop();
-                            break;
+                                break;
                             case 'prev':
                                 if (page > 0) {
                                     page--;
@@ -341,10 +321,10 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         content: 'Select a Class:',
                                         embeds: [menu],
-                                        components: [rows[page], row2]
+                                        components: [rows[page], row2],
                                     });
                                 }
-                            break;
+                                break;
                             case 'next':
                                 if (page < rows.length - 1) {
                                     page++;
@@ -360,22 +340,22 @@ class Command extends CommandBuilder {
                                     await msg.edit({
                                         content: 'Select a Class:',
                                         embeds: [menu],
-                                        components: [rows[page], row2]
+                                        components: [rows[page], row2],
                                     });
                                 }
-                            break;
+                                break;
                             case 'cancel':
                                 collector.stop();
-                            break;
+                                break;
                         }
                     });
 
-                    collector.on('end', async collected => {
+                    collector.on('end', async (collected) => {
                         if (collected.size === 0) {
                             await msg.edit({
                                 content: 'Selection timed out...',
                                 components: [],
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         } else {
                             client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -388,33 +368,34 @@ class Command extends CommandBuilder {
                 } catch (err) {
                     client.logServerError(server, err);
 
-                    if (err instanceof NotFoundError) return interaction.reply({
-                        embeds: [new ErrorEmbed(err, false)]
-                    });
+                    if (err instanceof NotFoundError)
+                        return interaction.reply({
+                            embeds: [new ErrorEmbed(err, false)],
+                        });
 
                     return interaction.reply({
-                        embeds: [new ErrorEmbed(err, true)]
+                        embeds: [new ErrorEmbed(err, true)],
                     });
                 }
-            break;
+                break;
             case 'condition':
                 //TODO: Add Condition Lookup
-            break;
+                break;
             case 'dmgtype':
                 //TODO: Add Damagetype Lookup
-            break;
+                break;
             case 'feat':
                 //TODO: Add Feat Lookup
-            break;
+                break;
             case 'race':
                 //TODO: Add Race Lookup
-            break;
+                break;
             case 'subclass':
                 //TODO: Add Subclass Lookup
-            break;
+                break;
             case 'subrace':
                 //TODO: Add Subrace Lookup
-            break;
+                break;
         }
     }
 }
@@ -463,7 +444,7 @@ const command = new Command({
             description: 'Displays Information about Subraces',
             type: ApplicationCommandOptionType.Subcommand,
         },
-    ]
-})
+    ],
+});
 
 export { command };

@@ -1,11 +1,4 @@
-import {
-    ActionRowBuilder,
-    ApplicationCommandOptionType,
-    ButtonBuilder,
-    ButtonStyle,
-    StringSelectMenuBuilder,
-    PermissionFlagsBits,
-} from 'discord.js';
+import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { NotFoundError, DuplicateError, ForbiddenError } from '../../../custom/errors';
@@ -29,7 +22,7 @@ class Command extends CommandBuilder {
         const gm = await client.database.Server.gms.getOne(server, user);
         const member = interaction.member;
         const filter = (m) => m.user.id == user.id;
-        
+
         const dmRoleId = await client.database.Server.getOne(server).dm_role;
 
         if (!member.roles.cache.has(dmRoleId)) {
@@ -38,7 +31,7 @@ class Command extends CommandBuilder {
 
             await interaction.reply({
                 embeds: [new ErrorEmbed(err, false)],
-                ephemeral: true
+                ephemeral: true,
             });
         } else {
             let msg, rows, row1, row2, row3, collector, emph, count, num, page, embed;
@@ -47,37 +40,22 @@ class Command extends CommandBuilder {
             switch (option.getSubcommand()) {
                 case 'select':
                     try {
-                        row1 = new ActionRowBuilder()
-                        .addComponents(
-                            new StringSelectMenuBuilder()
-                                .setCustomId('session_select')
-                                .setPlaceholder('No Session selected...')
-                                .setMaxValues(1)
+                        row1 = new ActionRowBuilder().addComponents(
+                            new StringSelectMenuBuilder().setCustomId('session_select').setPlaceholder('No Session selected...').setMaxValues(1)
                         );
 
-                        row2 = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('prev')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setEmoji('⏪')
-                                .setDisabled(true),
-                            new ButtonBuilder()
-                                .setCustomId('next')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setEmoji('⏩'),
-                            new ButtonBuilder()
-                                .setCustomId('cancel')
-                                .setStyle(ButtonStyle.Danger)
-                                .setLabel('Cancel')
+                        row2 = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
+                            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                         );
 
                         rows = [];
                         rows.push(row1);
 
-                        const sessions = await client.database.Server.sessions.getAll(server, user)
+                        const sessions = await client.database.Server.sessions.getAll(server, user);
 
-                        count, num, page = 0;
+                        count, num, (page = 0);
 
                         for (const session of sessions) {
                             if (count === 24) {
@@ -88,7 +66,7 @@ class Command extends CommandBuilder {
 
                             rows[num].components[0].addOptions({
                                 label: session.name,
-                                value: `${session.id}`
+                                value: `${session.id}`,
                             });
 
                             count++;
@@ -97,23 +75,23 @@ class Command extends CommandBuilder {
                         msg = await interaction.reply({
                             content: 'Select a Session:',
                             components: [rows[page], row2],
-                            ephemeral: true
+                            ephemeral: true,
                         });
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             switch (i.customId) {
                                 case 'session_select':
-                                    embed = await this.selectSession(server, user, {id: Number(i.values[0])});
+                                    embed = await this.selectSession(server, user, { id: Number(i.values[0]) });
 
                                     emph = embed.data.color === '#FF0000';
 
                                     await i.followUp({
                                         embeds: [embed],
-                                        ephemeral: emph
+                                        ephemeral: emph,
                                     });
-                                break;
+                                    break;
                                 case 'prev':
                                     await i.deferUpdate();
 
@@ -133,7 +111,7 @@ class Command extends CommandBuilder {
                                             components: [rows[page], row2],
                                         });
                                     }
-                                break;
+                                    break;
                                 case 'next':
                                     await i.deferUpdate();
 
@@ -153,27 +131,27 @@ class Command extends CommandBuilder {
                                             components: [rows[page], row2],
                                         });
                                     }
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
                                     await msg.edit({
                                         content: 'Selection has been cancelled...',
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
 
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection has timed out...',
                                     components: [],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             } else {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
@@ -186,118 +164,87 @@ class Command extends CommandBuilder {
                     } catch (err) {
                         client.logServerError(server, err);
 
-                        if (err instanceof NotFoundError) await interaction.reply({
-                            embeds: [new ErrorEmbed(err, false)],
-                            ephemeral: true
-                        });
-                        else await interaction.reply({
-                            embeds: [new ErrorEmbed(err, true)],
-                            ephemeral: true
-                        });
+                        if (err instanceof NotFoundError)
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, false)],
+                                ephemeral: true,
+                            });
+                        else
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, true)],
+                                ephemeral: true,
+                            });
                     }
-                break;
+                    break;
                 case 'create':
                     try {
                         const menu = new ListEmbed('Session Creator', null, [
                             {
                                 name: 'Title',
-                                value: '\ ',
-                                inline: true
+                                value: ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Levels',
-                                value: '\ ',
-                                inline: true
+                                value: ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Players',
-                                value: '\ ',
-                                inline: true
+                                value: ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Length',
-                                value: '\ ',
-                                inline: true
+                                value: ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Difficulty',
-                                value: '\ ',
-                                inline: true
+                                value: ' ',
+                                inline: true,
                             },
                             {
                                 name: 'Description',
-                                value: '\ '
+                                value: ' ',
                             },
                             {
                                 name: 'Channel',
-                                value: '\ '
-                            }
+                                value: ' ',
+                            },
                         ]);
-    
-                        row1 = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('title')
-                                .setStyle(ButtonStyle.Primary)
-                                .setLabel('Change Title')
-                                .setEmoji('🔤'),
-                            new ButtonBuilder()
-                                .setCustomId('levels')
-                                .setStyle(ButtonStyle.Primary)
-                                .setLabel('Set Levels')
-                                .setEmoji('💠'),
-                            new ButtonBuilder()
-                                .setCustomId('players')
-                                .setStyle(ButtonStyle.Primary)
-                                .setLabel('Set Player Amount')
-                                .setEmoji('👥'),
-                            new ButtonBuilder()
-                                .setCustomId('length')
-                                .setStyle(ButtonStyle.Primary)
-                                .setLabel('Set Length')
-                                .setEmoji('⏳')
+
+                        row1 = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('title').setStyle(ButtonStyle.Primary).setLabel('Change Title').setEmoji('🔤'),
+                            new ButtonBuilder().setCustomId('levels').setStyle(ButtonStyle.Primary).setLabel('Set Levels').setEmoji('💠'),
+                            new ButtonBuilder().setCustomId('players').setStyle(ButtonStyle.Primary).setLabel('Set Player Amount').setEmoji('👥'),
+                            new ButtonBuilder().setCustomId('length').setStyle(ButtonStyle.Primary).setLabel('Set Length').setEmoji('⏳')
                         );
-    
-                        row2 = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('difficulty')
-                                .setStyle(ButtonStyle.Primary)
-                                .setLabel('Set Difficulty')
-                                .setEmoji('📊'),
+
+                        row2 = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('difficulty').setStyle(ButtonStyle.Primary).setLabel('Set Difficulty').setEmoji('📊'),
                             new ButtonBuilder()
                                 .setCustomId('description')
                                 .setStyle(ButtonStyle.Primary)
                                 .setLabel('Change Description')
                                 .setEmoji('📝'),
-                            new ButtonBuilder()
-                                .setCustomId('time')
-                                .setStyle(ButtonStyle.Primary)
-                                .setLabel('Set Starttime')
-                                .setEmoji('🕐')
+                            new ButtonBuilder().setCustomId('time').setStyle(ButtonStyle.Primary).setLabel('Set Starttime').setEmoji('🕐')
                         );
-    
-                        row3 = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('finish')
-                                .setStyle(ButtonStyle.Success)
-                                .setLabel('Finish'),
-                            new ButtonBuilder()
-                                .setCustomId('cancel')
-                                .setStyle(ButtonStyle.Danger)
-                                .setLabel('Cancel')
+
+                        row3 = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('finish').setStyle(ButtonStyle.Success).setLabel('Finish'),
+                            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                         );
-    
+
                         msg = await interaction.reply({
                             embeds: [menu],
                             components: [row1, row2, row3],
-                            ephemeral: true
+                            ephemeral: true,
                         });
-    
+
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
-    
-                        collector.on('collect', async i => {
+
+                        collector.on('collect', async (i) => {
                             let mes, mescol, mesfilt;
                             switch (i.customId) {
                                 case 'title':
@@ -305,17 +252,17 @@ class Command extends CommandBuilder {
                                     await mes.edit({
                                         content: 'Please reply with a Title for your Session.',
                                     });
-    
-                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
-    
+
+                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
-    
-                                    mescol.on('collect', m => {
+
+                                    mescol.on('collect', (m) => {
                                         menu.data.fields[0].value = m.content;
                                         mescol.stop();
                                     });
-    
-                                    mescol.on('end', async collected => {
+
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -323,15 +270,14 @@ class Command extends CommandBuilder {
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Messages`);
                                         }
-    
+
                                         setTimeout(async () => {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'levels':
-                                    const lvlsel = new ActionRowBuilder()
-                                    .addComponents(
+                                    const lvlsel = new ActionRowBuilder().addComponents(
                                         new StringSelectMenuBuilder()
                                             .setCustomId('lvl_select')
                                             .setPlaceholder('No Level range selected...')
@@ -339,50 +285,50 @@ class Command extends CommandBuilder {
                                             .setOptions([
                                                 {
                                                     label: 'Level 3-4',
-                                                    value: '3-4'
+                                                    value: '3-4',
                                                 },
                                                 {
                                                     label: 'Level 5-7',
-                                                    value: '5-7'
+                                                    value: '5-7',
                                                 },
                                                 {
                                                     label: 'Level 8-10',
-                                                    value: '8-10'
+                                                    value: '8-10',
                                                 },
                                                 {
                                                     label: 'Level 11-13',
-                                                    value: '11-13'
+                                                    value: '11-13',
                                                 },
                                                 {
                                                     label: 'Level 14-16',
-                                                    value: '14-16'
+                                                    value: '14-16',
                                                 },
                                                 {
                                                     label: 'Level 17-19',
-                                                    value: '17-19'
+                                                    value: '17-19',
                                                 },
                                                 {
                                                     label: 'Level 20+',
-                                                    value: '20+'
-                                                }
+                                                    value: '20+',
+                                                },
                                             ])
                                     );
-    
+
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please select a Level range for your Session:',
                                         components: [lvlsel],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
-    
+
                                     mescol = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
-    
-                                    mescol.on('collect', async j => {
+
+                                    mescol.on('collect', async (j) => {
                                         await j.deferUpdate();
                                         menu.data.fields[1].value = j.values[0];
                                     });
-    
-                                    mescol.on('end', async collected => {
+
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -390,28 +336,28 @@ class Command extends CommandBuilder {
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                         }
-    
+
                                         setTimeout(async () => {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'players':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with the amount of Players for your Session (x-y).',
                                     });
-    
-                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
-    
+
+                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
-    
-                                    mescol.on('collect', m => {
+
+                                    mescol.on('collect', (m) => {
                                         menu.data.fields[2].value = m.content;
                                         mescol.stop();
                                     });
-    
-                                    mescol.on('end', async collected => {
+
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -419,28 +365,28 @@ class Command extends CommandBuilder {
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Messages`);
                                         }
-    
+
                                         setTimeout(async () => {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'length':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with the Length of your Session (in Hours).',
                                     });
-    
-                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
-    
+
+                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
-    
-                                    mescol.on('collect', m => {
+
+                                    mescol.on('collect', (m) => {
                                         menu.data.fields[3].value = m.content + ' Hour(s)';
                                         mescol.stop();
                                     });
-    
-                                    mescol.on('end', async collected => {
+
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -448,15 +394,14 @@ class Command extends CommandBuilder {
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Messages`);
                                         }
-    
+
                                         setTimeout(async () => {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'difficulty':
-                                    const difsel = new ActionRowBuilder()
-                                    .addComponents(
+                                    const difsel = new ActionRowBuilder().addComponents(
                                         new StringSelectMenuBuilder()
                                             .setCustomId('dif_select')
                                             .setPlaceholder('No Difficulty selected...')
@@ -464,54 +409,54 @@ class Command extends CommandBuilder {
                                             .setOptions([
                                                 {
                                                     label: 'Easy',
-                                                    value: '1'
+                                                    value: '1',
                                                 },
                                                 {
                                                     label: 'Medium',
-                                                    value: '2'
+                                                    value: '2',
                                                 },
                                                 {
                                                     label: 'Hard',
-                                                    value: '3'
+                                                    value: '3',
                                                 },
                                                 {
                                                     label: 'Deadly',
-                                                    value: '4'
-                                                }
+                                                    value: '4',
+                                                },
                                             ])
                                     );
-    
+
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please select a Difficulty for your Session:',
                                         components: [difsel],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
-                                    
+
                                     mescol = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
-    
-                                    mescol.on('collect', async j => {
+
+                                    mescol.on('collect', async (j) => {
                                         await j.deferUpdate();
-    
+
                                         switch (Number(j.values[0])) {
                                             case 1:
                                                 menu.data.fields[4].value = '1 - Easy';
-                                            break;
+                                                break;
                                             case 2:
                                                 menu.data.fields[4].value = '2 - Medium';
-                                            break;
+                                                break;
                                             case 3:
                                                 menu.data.fields[4].value = '3 - Hard';
-                                            break;
+                                                break;
                                             case 4:
                                                 menu.data.fields[4].value = '4 - Deadly';
-                                            break;
+                                                break;
                                         }
-    
+
                                         mescol.stop();
                                     });
-    
-                                    mescol.on('end', async collected => {
+
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -519,28 +464,28 @@ class Command extends CommandBuilder {
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                         }
-    
+
                                         setTimeout(async () => {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'description':
                                     mes = await i.deferReply();
                                     await mes.edit({
                                         content: 'Please reply with a Description for your Session.',
                                     });
-    
-                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
-    
+
+                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
-    
-                                    mescol.on('collect', m => {
+
+                                    mescol.on('collect', (m) => {
                                         menu.data.fields[5].value = m.content;
                                         mescol.stop();
                                     });
-    
-                                    mescol.on('end', async collected => {
+
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -548,28 +493,29 @@ class Command extends CommandBuilder {
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Messages`);
                                         }
-    
+
                                         setTimeout(async () => {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'time':
                                     mes = await i.deferReply();
                                     await mes.edit({
-                                        content: 'Please reply with a timestamp for the Starttime of the Session.\n\nYou can get one here: https://hammertime.cyou/',
+                                        content:
+                                            'Please reply with a timestamp for the Starttime of the Session.\n\nYou can get one here: https://hammertime.cyou/',
                                     });
-    
-                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
-    
+
+                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
-    
-                                    mescol.on('collect', m => {
+
+                                    mescol.on('collect', (m) => {
                                         menu.data.timestamp = new Date(Number(m.content) * 1000).toISOString();
                                         mescol.stop();
                                     });
-    
-                                    mescol.on('end', async collected => {
+
+                                    mescol.on('end', async (collected) => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -577,12 +523,12 @@ class Command extends CommandBuilder {
                                         } else {
                                             client.writeServerLog(server, `Collected ${collected.size} Messages`);
                                         }
-    
+
                                         setTimeout(async () => {
                                             await mes.delete();
                                         }, 5000);
                                     });
-                                break;
+                                    break;
                                 case 'finish':
                                     const runtime = menu.data.fields[3].value.replace(' Hour(s)', '').split('-');
                                     const difficulty = menu.data.fields[4].value.split(' - ')[0];
@@ -595,45 +541,45 @@ class Command extends CommandBuilder {
                                         max_runtime: Number(runtime[1]),
                                         start_time: menu.data.timestamp,
                                         channel: channel.id,
-                                        difficulty: Number(difficulty)
-                                    }
-    
+                                        difficulty: Number(difficulty),
+                                    };
+
                                     embed = await this.createSession(server, user, session);
-    
+
                                     emph = embed.data.color === '#FF0000';
-    
+
                                     await i.followUp({
                                         embeds: [embed],
-                                        ephemeral: emph
+                                        ephemeral: emph,
                                     });
-                                break;
+                                    break;
                                 case 'cancel':
                                     await i.deferUpdate();
-    
+
                                     await msg.edit({
                                         content: 'Session Creation has been cancelled...',
                                         embeds: [],
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
-    
+
                                     collector.stop();
-                                break;
+                                    break;
                             }
                         });
-    
-                        collector.on('end', async collected => {
+
+                        collector.on('end', async (collected) => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
                                     embeds: [],
                                     components: [],
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             } else {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
-    
+
                             setTimeout(async () => {
                                 await msg.delete();
                             }, 5000);
@@ -641,81 +587,76 @@ class Command extends CommandBuilder {
                     } catch (err) {
                         client.logServerError(server, err);
 
-                        if (err instanceof DuplicateError) await interaction.reply({
-                            embeds: [new ErrorEmbed(err, false)],
-                            ephemeral: true
-                        });
-                        else await interaction.reply({
-                            embeds: [new ErrorEmbed(err, true)],
-                            ephemeral: true
-                        });
+                        if (err instanceof DuplicateError)
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, false)],
+                                ephemeral: true,
+                            });
+                        else
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, true)],
+                                ephemeral: true,
+                            });
                     }
-                break;
+                    break;
                 case 'delete':
                     try {
                         if (gm.session_id) {
-                            row1 = new ActionRowBuilder()
-                            .addComponents(
-                                new ButtonBuilder()
-                                    .setCustomId('confirm')
-                                    .setStyle(ButtonStyle.Success)
-                                    .setLabel('Confirm'),
-                                new ButtonBuilder()
-                                    .setCustomId('cancel')
-                                    .setStyle(ButtonStyle.Danger)
-                                    .setLabel('Cancel')
+                            row1 = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder().setCustomId('confirm').setStyle(ButtonStyle.Success).setLabel('Confirm'),
+                                new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
                             );
-    
-                            const session = await client.database.Server.sessions.getOne(server, user, {id: gm.session_id});
-    
+
+                            const session = await client.database.Server.sessions.getOne(server, user, { id: gm.session_id });
+
                             msg = await interaction.reply({
                                 content: 'Are you sure you want to delete your selected Session?',
                                 embeds: [new ListEmbed(session.name, session.description)],
                                 components: [row1],
-                                ephemeral: true
+                                ephemeral: true,
                             });
-    
+
                             collector = msg.createMessageComponentCollector({ filter, time: 90000 });
-    
-                            collector.on('collect', async i => {
+
+                            collector.on('collect', async (i) => {
                                 switch (i.customId) {
                                     case 'confirm':
-                                        embed = await client.database.Server.sessions.remove(server, user, {id: gm.session_id});
-    
+                                        embed = await client.database.Server.sessions.remove(server, user, { id: gm.session_id });
+
                                         emph = embed.data.color === '#FF0000';
-    
+
                                         await i.followUp({
                                             embeds: [embed],
-                                            ephemeral: emph
+                                            ephemeral: emph,
                                         });
-                                    break;
+                                        break;
                                     case 'cancel':
                                         await i.deferUpdate();
-    
+
                                         await msg.edit({
                                             content: 'Deletion has been cancelled...',
                                             embeds: [],
                                             components: [],
-                                            ephemeral: true
+                                            ephemeral: true,
                                         });
-    
+
                                         collector.stop();
-                                    break;
+                                        break;
                                 }
                             });
-    
-                            collector.on('end', async collected => {
+
+                            collector.on('end', async (collected) => {
                                 if (collected.size === 0) {
                                     await msg.edit({
                                         content: 'Confirmation timed out...',
                                         embeds: [],
                                         components: [],
-                                        ephemeral: true
+                                        ephemeral: true,
                                     });
                                 } else {
                                     client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                 }
-    
+
                                 setTimeout(async () => {
                                     await msg.delete();
                                 }, 5000);
@@ -723,295 +664,306 @@ class Command extends CommandBuilder {
                         } else {
                             await interaction.reply({
                                 content: 'You do not have a Session selected! Please select one first with `/session select`.',
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         }
                     } catch (err) {
                         client.logServerError(server, err);
 
-                        if (err instanceof NotFoundError) await interaction.reply({
-                            embeds: [new ErrorEmbed(err, false)],
-                            ephemeral: true
-                        });
-                        else await interaction.reply({
-                            embeds: [new ErrorEmbed(err, true)],
-                            ephemeral: true
-                        });
+                        if (err instanceof NotFoundError)
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, false)],
+                                ephemeral: true,
+                            });
+                        else
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, true)],
+                                ephemeral: true,
+                            });
                     }
-                break;
+                    break;
                 case 'poll':
                     const dbServer = await client.database.Server.getOne(server);
 
                     try {
                         if (gm.session_id) {
-                            const session = await client.database.Server.sessions.getOne(server, user, {id: gm.session_id});
-    
+                            const session = await client.database.Server.sessions.getOne(server, user, { id: gm.session_id });
+
                             if (!session.started && !session.end_time) {
                                 const poll = new ListEmbed(session.name, session.description, [
                                     {
                                         name: 'Levels',
                                         value: session.levels,
-                                        inline: true
+                                        inline: true,
                                     },
                                     {
                                         name: 'Players',
                                         value: `${session.players}`,
-                                        inline: true
+                                        inline: true,
                                     },
                                     {
                                         name: 'Length',
                                         value: `${session.min_runtime}-${session.max_runtime} Hour(s)`,
-                                        inline: true
+                                        inline: true,
                                     },
                                     {
                                         name: 'Difficulty',
-                                        value: session.difficulty === 1 ? '1 - Easy' : (session.difficulty === 2 ? '2 - Medium' : (session.difficulty === 3 ? '3 - Hard' : '4 - Deadly')),
+                                        value:
+                                            session.difficulty === 1
+                                                ? '1 - Easy'
+                                                : session.difficulty === 2
+                                                  ? '2 - Medium'
+                                                  : session.difficulty === 3
+                                                    ? '3 - Hard'
+                                                    : '4 - Deadly',
                                     },
                                     {
                                         name: 'Channel',
                                         value: `<#${session.channel}>`,
-                                    }
+                                    },
                                 ])
-                                .setAuthor({ name: user.username, iconURL: user.avatarURL() })
-                                .setTimestamp(session.date);
-    
+                                    .setAuthor({ name: user.username, iconURL: user.avatarURL() })
+                                    .setTimestamp(session.date);
+
                                 await channel.send({
                                     content: `<@&${dbServer.sesh_ping}>`,
-                                    embeds: [poll]
+                                    embeds: [poll],
                                 });
-    
+
                                 await interaction.reply({
                                     content: `Poll has been posted to <#${channel.id}>`,
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             }
                         } else {
                             await interaction.reply({
                                 content: 'You do not have a Session selected! Please select one first with `/session select`.',
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         }
                     } catch (err) {
                         client.logServerError(server, err);
 
-                        if (err instanceof NotFoundError) await interaction.reply({
-                            embeds: [new ErrorEmbed(err, false)],
-                            ephemeral: true
-                        });
-                        else await interaction.reply({
-                            embeds: [new ErrorEmbed(err, true)],
-                            ephemeral: true
-                        });
+                        if (err instanceof NotFoundError)
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, false)],
+                                ephemeral: true,
+                            });
+                        else
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, true)],
+                                ephemeral: true,
+                            });
                     }
-                break;
+                    break;
                 case 'post':
                     const customReq = option.getString('requirement');
 
                     try {
                         if (gm.session_id) {
-                            let session = await client.database.Server.sessions.getOne(server, user, {id: gm.session_id});
-    
+                            let session = await client.database.Server.sessions.getOne(server, user, { id: gm.session_id });
+
                             if (!session.started && !session.end_time) {
-                                row1 = new ActionRowBuilder()
-                                .addComponents(
-                                    new ButtonBuilder()
-                                        .setCustomId('join')
-                                        .setStyle(ButtonStyle.Success)
-                                        .setLabel('Join Game'),
-                                    new ButtonBuilder()
-                                        .setCustomId('leave')
-                                        .setStyle(ButtonStyle.Danger)
-                                        .setLabel('Leave Game')
+                                row1 = new ActionRowBuilder().addComponents(
+                                    new ButtonBuilder().setCustomId('join').setStyle(ButtonStyle.Success).setLabel('Join Game'),
+                                    new ButtonBuilder().setCustomId('leave').setStyle(ButtonStyle.Danger).setLabel('Leave Game')
                                 );
-                                
+
                                 const post = new ListEmbed(session.name, session.description)
-                                .setAuthor({ name: user.username, iconURL: user.avatarURL() })
-                                .setTimestamp(session.date);
-    
+                                    .setAuthor({ name: user.username, iconURL: user.avatarURL() })
+                                    .setTimestamp(session.date);
+
                                 if (customReq) post.addFields({ name: 'Additonal Requirement', value: customReq });
-    
+
                                 msg = await channel.send({
                                     embeds: [post],
-                                    components: [row1]
+                                    components: [row1],
                                 });
-    
-                                let filt = m => m.user.id != user.id;
-    
+
+                                let filt = (m) => m.user.id != user.id;
+
                                 const gamecol = msg.createMessageComponentCollector({ filt });
-    
-                                gamecol.on('collect', async i => {
+
+                                gamecol.on('collect', async (i) => {
                                     let player;
-                                    session = await client.database.Server.sessions.getOne(server, user, {id: session.id});
-    
+                                    session = await client.database.Server.sessions.getOne(server, user, { id: session.id });
+
                                     if (session.start_time) gamecol.stop();
-    
+
                                     switch (i.customId) {
                                         case 'join':
-                                            player = await client.database.User.getOne(i.user)
-    
+                                            player = await client.database.User.getOne(i.user);
+
                                             if (!player.char_id) {
                                                 await i.followUp({
-                                                    content: 'You do not have a Character selected! Please select one first with `/character select`.',
-                                                    ephemeral: true
+                                                    content:
+                                                        'You do not have a Character selected! Please select one first with `/character select`.',
+                                                    ephemeral: true,
                                                 });
                                             } else {
                                                 embed = await this.joinSession(session, player);
-    
+
                                                 emph = embed.data.color === '#FF0000';
-    
+
                                                 await i.followUp({
                                                     embeds: [embed],
-                                                    ephemeral: emph
+                                                    ephemeral: emph,
                                                 });
                                             }
-                                        break;
+                                            break;
                                         case 'leave':
                                             player = await client.database.User.getOne(i.user);
-    
+
                                             embed = await this.leaveSession(session, player);
-    
+
                                             emph = embed.data.color === '#FF0000';
-    
+
                                             await i.followUp({
                                                 embeds: [embed],
-                                                ephemeral: emph
+                                                ephemeral: emph,
                                             });
-                                        break;
+                                            break;
                                     }
                                 });
-    
-                                gamecol.on('end', async collected => {
+
+                                gamecol.on('end', async (collected) => {
                                     if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
-    
+
                                     row1.components[0].setDisabled(true);
                                     row1.components[1].setDisabled(true);
-    
+
                                     await msg.edit({
                                         content: `<@&${dbServer.sesh_ping}>`,
                                         embeds: [post],
-                                        components: [row1]
+                                        components: [row1],
                                     });
                                 });
                             }
                         } else {
                             await interaction.reply({
                                 content: 'You do not have a Session selected! Please select one first with `/session select`.',
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         }
                     } catch (err) {
                         client.logServerError(server, err);
 
-                        if (err instanceof NotFoundError) await interaction.reply({
-                            embeds: [new ErrorEmbed(err, false)],
-                            ephemeral: true
-                        });
-                        else await interaction.reply({
-                            embeds: [new ErrorEmbed(err, true)],
-                            ephemeral: true
-                        });
+                        if (err instanceof NotFoundError)
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, false)],
+                                ephemeral: true,
+                            });
+                        else
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, true)],
+                                ephemeral: true,
+                            });
                     }
-                break;
+                    break;
                 case 'begin':
                     try {
                         if (gm.session_id) {
-                            const session = await client.database.Server.sessions.getOne(server, user, {id: gm.session_id});
-    
+                            const session = await client.database.Server.sessions.getOne(server, user, { id: gm.session_id });
+
                             if (!session.start_time && !session.end_time) {
                                 await channel.send({
                                     content: 'The Session has started, please do not post any further applkications!',
                                 });
-    
+
                                 session.start_time = moment().format('YYYY-MM-DD HH:mm:ss');
-                                
+
                                 embed = await this.beginSession(server, user, session);
-    
+
                                 emph = embed.data.color === '#FF0000';
-    
+
                                 await interaction.reply({
                                     embeds: [embed],
-                                    ephemeral: emph
+                                    ephemeral: emph,
                                 });
                             } else if (session.start_time) {
                                 await interaction.reply({
                                     content: 'The Session has already started!',
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             } else if (session.end_time) {
                                 await interaction.reply({
                                     content: 'The Session has already ended!',
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             }
                         } else {
                             await interaction.reply({
                                 content: 'You do not have a Session selected! Please select one first with `/session select`.',
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         }
                     } catch (err) {
                         client.logServerError(server, err);
 
-                        if (err instanceof NotFoundError) await interaction.reply({
-                            embeds: [new ErrorEmbed(err, false)],
-                            ephemeral: true
-                        });
-                        else await interaction.reply({
-                            embeds: [new ErrorEmbed(err, true)],
-                            ephemeral: true
-                        });
+                        if (err instanceof NotFoundError)
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, false)],
+                                ephemeral: true,
+                            });
+                        else
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, true)],
+                                ephemeral: true,
+                            });
                     }
-                break;
+                    break;
                 case 'end':
                     try {
                         if (gm.session_id) {
-                            const session = await client.database.Server.sessions.getOne(server, user, {id: gm.session_id});
-    
+                            const session = await client.database.Server.sessions.getOne(server, user, { id: gm.session_id });
+
                             if (session.start_time && !session.end_time) {
                                 await channel.send({
                                     content: 'The Session has ended, thank you for playing!',
                                 });
-    
+
                                 session.end_time = moment().format('YYYY-MM-DD HH:mm:ss');
-                                
+
                                 embed = await this.endSession(server, user, session);
-    
+
                                 emph = embed.data.color === '#FF0000';
-    
+
                                 await interaction.reply({
                                     embeds: [embed],
-                                    ephemeral: emph
+                                    ephemeral: emph,
                                 });
                             } else if (!session.start_time) {
                                 await interaction.reply({
                                     content: 'The Session has not started yet!',
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             } else if (session.end_time) {
                                 await interaction.reply({
                                     content: 'The Session has already ended!',
-                                    ephemeral: true
+                                    ephemeral: true,
                                 });
                             }
                         } else {
                             await interaction.reply({
                                 content: 'You do not have a Session selected! Please select one first with `/session select`.',
-                                ephemeral: true
+                                ephemeral: true,
                             });
                         }
                     } catch (err) {
                         client.logServerError(server, err);
 
-                        if (err instanceof NotFoundError) await interaction.reply({
-                            embeds: [new ErrorEmbed(err, false)],
-                            ephemeral: true
-                        });
-                        else await interaction.reply({
-                            embeds: [new ErrorEmbed(err, true)],
-                            ephemeral: true
-                        });
+                        if (err instanceof NotFoundError)
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, false)],
+                                ephemeral: true,
+                            });
+                        else
+                            await interaction.reply({
+                                embeds: [new ErrorEmbed(err, true)],
+                                ephemeral: true,
+                            });
                     }
-                break;
+                    break;
             }
         }
     }
@@ -1032,7 +984,7 @@ class Command extends CommandBuilder {
 
     async createSession(server, user, session) {
         try {
-            const msg = await client.database.Server.sessions.add(server, user, session)
+            const msg = await client.database.Server.sessions.add(server, user, session);
 
             return new SuccessEmbed(msg || 'Success', 'Successfully created Session!');
         } catch (err) {
@@ -1046,7 +998,7 @@ class Command extends CommandBuilder {
 
     async joinSession(session, player) {
         try {
-            const msg = await client.database.Server.sessions.players.add(session, player, {id: player.char_id})
+            const msg = await client.database.Server.sessions.players.add(session, player, { id: player.char_id });
 
             return new SuccessEmbed(msg || 'Success', 'Successfully joined Session!');
         } catch (err) {
@@ -1060,7 +1012,7 @@ class Command extends CommandBuilder {
 
     async leaveSession(session, player) {
         try {
-            const msg = await client.database.Server.sessions.players.remove(session, player)
+            const msg = await client.database.Server.sessions.players.remove(session, player);
 
             return new SuccessEmbed(msg || 'Success', 'Successfully left Session!');
         } catch (err) {
@@ -1074,7 +1026,7 @@ class Command extends CommandBuilder {
 
     async beginSession(server, user, session) {
         try {
-            const msg = await client.database.Server.sessions.update(server, user, session)
+            const msg = await client.database.Server.sessions.update(server, user, session);
 
             return new SuccessEmbed(msg || 'Success', 'Successfully started Session!');
         } catch (err) {
@@ -1088,7 +1040,7 @@ class Command extends CommandBuilder {
 
     async endSession(server, user, session) {
         try {
-            const msg = await client.database.Server.sessions.update(server, user, session)
+            const msg = await client.database.Server.sessions.update(server, user, session);
 
             return new SuccessEmbed(msg || 'Success', 'Successfully ended Session!');
         } catch (err) {
@@ -1164,7 +1116,7 @@ const command = new Command({
             description: 'Ends a Session',
             type: ApplicationCommandOptionType.Subcommand,
         },
-    ]
+    ],
 });
 
 export { command };

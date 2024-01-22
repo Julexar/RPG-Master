@@ -1,4 +1,4 @@
-import { CommandBuilder } from "../../../custom/builders";
+import { CommandBuilder } from '../../../custom/builders';
 class Command extends CommandBuilder {
     constructor(data) {
         super(data);
@@ -13,12 +13,12 @@ class Command extends CommandBuilder {
         await interaction.reply({
             content: 'Test Command Reply',
         });
-    };
-};
+    }
+}
 
 const command = new Command({
     name: 'test',
-    description: 'Test Command'
+    description: 'Test Command',
 });
 
 export { command };

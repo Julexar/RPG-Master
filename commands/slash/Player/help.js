@@ -1,9 +1,4 @@
-import { 
-    ActionRowBuilder, 
-    ApplicationCommandOptionType, 
-    ButtonBuilder, 
-    ButtonStyle
-} from 'discord.js';
+import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
 import { ListEmbed, ErrorEmbed } from '../../../custom/embeds';
@@ -27,40 +22,30 @@ class Command extends CommandBuilder {
         const member = interaction.member;
         const user = member.user;
         const server = interaction.guild;
-        const filter = m => m.user.id === user.id;
+        const filter = (m) => m.user.id === user.id;
 
         if (cmd) {
-            const slashCmd = await server.commands.fetch(cmd)
-            const embed = new ListEmbed()
+            const slashCmd = await server.commands.fetch(cmd);
+            const embed = new ListEmbed();
 
             if (slashCmd.defaultMemberPermissions) {
                 if (member.permissions.has(slashCmd.defaultMemberPermissions)) {
                     if (!slashCmd.options) {
-                        embed
-                        .setTitle(`</${slashCmd.name}:${slashCmd.id}>`)
-                        .setDescription(slashCmd.description)
+                        embed.setTitle(`</${slashCmd.name}:${slashCmd.id}>`).setDescription(slashCmd.description);
 
                         await interaction.reply({ embeds: [embed] });
                     } else {
-                        const row = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('prev')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setEmoji('⏪')
-                                .setDisabled(true),
-                            new ButtonBuilder()
-                                .setCustomId('next')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setEmoji('⏩')
+                        const row = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
                         );
 
-                        embed
-                        .setTitle(`</${slashCmd.name}:${slashCmd.id}>`)
-                        .setDescription(slashCmd.description)
+                        embed.setTitle(`</${slashCmd.name}:${slashCmd.id}>`).setDescription(slashCmd.description);
 
                         const menus = [];
-                        let num, count, page = 0;
+                        let num,
+                            count,
+                            page = 0;
 
                         menus.push(embed);
 
@@ -75,35 +60,35 @@ class Command extends CommandBuilder {
                                 for (const option2 of option.options) {
                                     if (option2.type === ApplicationCommandOptionType.Subcommand) {
                                         menus[num].addFields({
-                                            name: `</${slashCmd.name} ${option.name} ${option2.name}:${slashCmd.id}>`, 
-                                            value: option2.description
+                                            name: `</${slashCmd.name} ${option.name} ${option2.name}:${slashCmd.id}>`,
+                                            value: option2.description,
                                         });
                                         count++;
                                     }
                                 }
                             } else if (option.type === ApplicationCommandOptionType.Subcommand) {
                                 menus[num].addFields({
-                                    name: `</${slashCmd.name} ${option.name}:${slashCmd.id}>`, 
-                                    value: option.description
+                                    name: `</${slashCmd.name} ${option.name}:${slashCmd.id}>`,
+                                    value: option.description,
                                 });
                                 count++;
                             } else {
                                 menus[num].addFields({
-                                    name: `</${slashCmd.name}:${slashCmd.id}>`, 
-                                    value: slashCmd.description
+                                    name: `</${slashCmd.name}:${slashCmd.id}>`,
+                                    value: slashCmd.description,
                                 });
                                 count++;
                             }
                         }
 
-                        const msg = await interaction.reply({ 
-                            embeds: [menus[page]], 
-                            components: [row] 
+                        const msg = await interaction.reply({
+                            embeds: [menus[page]],
+                            components: [row],
                         });
 
                         const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async i => {
+                        collector.on('collect', async (i) => {
                             await i.deferUpdate();
 
                             switch (i.customId) {
@@ -121,10 +106,10 @@ class Command extends CommandBuilder {
 
                                         await msg.edit({
                                             embeds: [menus[page]],
-                                            components: [row]
+                                            components: [row],
                                         });
                                     }
-                                break;
+                                    break;
                                 case 'next':
                                     if (page < menus.length - 1) {
                                         page++;
@@ -139,14 +124,14 @@ class Command extends CommandBuilder {
 
                                         await msg.edit({
                                             embeds: [menus[page]],
-                                            components: [row]
+                                            components: [row],
                                         });
                                     }
-                                break;
+                                    break;
                             }
                         });
 
-                        collector.on('end', async collected => {
+                        collector.on('end', async (collected) => {
                             if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
 
                             row.components[0].setDisabled(true);
@@ -154,7 +139,7 @@ class Command extends CommandBuilder {
 
                             await msg.edit({
                                 embeds: [menus[page]],
-                                components: [row]
+                                components: [row],
                             });
                         });
                     }
@@ -167,32 +152,24 @@ class Command extends CommandBuilder {
 
                     await interaction.reply({
                         embeds: [new ErrorEmbed(err, false)],
-                        ephemeral: true
+                        ephemeral: true,
                     });
                 }
             } else {
-                embed
-                .setTitle(`</${slashCmd.name}:${slashCmd.id}>`)
-                .setDescription(slashCmd.description)
+                embed.setTitle(`</${slashCmd.name}:${slashCmd.id}>`).setDescription(slashCmd.description);
 
                 if (!slashCmd.options) {
                     await interaction.reply({ embeds: [embed] });
                 } else {
-                    const row = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('prev')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji('⏪')
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setCustomId('next')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji('⏩')
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                        new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
                     );
 
                     const menus = [];
-                    let num, count, page = 0;
+                    let num,
+                        count,
+                        page = 0;
 
                     menus.push(embed);
 
@@ -207,35 +184,35 @@ class Command extends CommandBuilder {
                             for (const option2 of option.options) {
                                 if (option2.type === ApplicationCommandOptionType.Subcommand) {
                                     menus[num].addFields({
-                                        name: `</${slashCmd.name} ${option.name} ${option2.name}:${slashCmd.id}>`, 
-                                        value: option2.description
+                                        name: `</${slashCmd.name} ${option.name} ${option2.name}:${slashCmd.id}>`,
+                                        value: option2.description,
                                     });
                                     count++;
                                 }
                             }
                         } else if (option.type === ApplicationCommandOptionType.Subcommand) {
                             menus[num].addFields({
-                                name: `</${slashCmd.name} ${option.name}:${slashCmd.id}>`, 
-                                value: option.description
+                                name: `</${slashCmd.name} ${option.name}:${slashCmd.id}>`,
+                                value: option.description,
                             });
                             count++;
                         } else {
                             menus[num].addFields({
-                                name: `</${slashCmd.name}:${slashCmd.id}>`, 
-                                value: slashCmd.description
+                                name: `</${slashCmd.name}:${slashCmd.id}>`,
+                                value: slashCmd.description,
                             });
                             count++;
                         }
                     }
 
-                    const msg = await interaction.reply({ 
-                        embeds: [menus[page]], 
-                        components: [row] 
+                    const msg = await interaction.reply({
+                        embeds: [menus[page]],
+                        components: [row],
                     });
 
                     const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async i => {
+                    collector.on('collect', async (i) => {
                         await i.deferUpdate();
 
                         switch (i.customId) {
@@ -253,10 +230,10 @@ class Command extends CommandBuilder {
 
                                     await msg.edit({
                                         embeds: [menus[page]],
-                                        components: [row]
+                                        components: [row],
                                     });
                                 }
-                            break;
+                                break;
                             case 'next':
                                 if (page < menus.length - 1) {
                                     page++;
@@ -271,14 +248,14 @@ class Command extends CommandBuilder {
 
                                     await msg.edit({
                                         embeds: [menus[page]],
-                                        components: [row]
+                                        components: [row],
                                     });
                                 }
-                            break;
+                                break;
                         }
                     });
 
-                    collector.on('end', async collected => {
+                    collector.on('end', async (collected) => {
                         if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
 
                         row.components[0].setDisabled(true);
@@ -286,33 +263,27 @@ class Command extends CommandBuilder {
 
                         await msg.edit({
                             embeds: [menus[page]],
-                            components: [row]
+                            components: [row],
                         });
                     });
                 }
             }
         } else {
             const embeds = [];
-            const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('prev')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('⏪')
-                    .setDisabled(true),
-                new ButtonBuilder()
-                    .setCustomId('next')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('⏩')
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
             );
 
-            const menu = new ListEmbed("Slash Command List")
+            const menu = new ListEmbed('Slash Command List');
 
-            let count, num, page = 0;
+            let count,
+                num,
+                page = 0;
 
             embeds.push(menu);
 
-            server.commands.cache.forEach(cmd => {
+            server.commands.cache.forEach((cmd) => {
                 if (cmd.defaultMemberPermissions && member.permissions.has(cmd.defaultMemberPermissions)) {
                     if (count === 9) {
                         embeds.push(menu);
@@ -321,8 +292,8 @@ class Command extends CommandBuilder {
                     }
 
                     embeds[num].addFields({
-                        name: `</${cmd.name}:${cmd.id}>`, 
-                        value: cmd.description
+                        name: `</${cmd.name}:${cmd.id}>`,
+                        value: cmd.description,
                     });
 
                     count++;
@@ -334,22 +305,22 @@ class Command extends CommandBuilder {
                     }
 
                     embeds[num].addFields({
-                        name: `</${cmd.name}:${cmd.id}>`, 
-                        value: cmd.description
+                        name: `</${cmd.name}:${cmd.id}>`,
+                        value: cmd.description,
                     });
 
                     count++;
                 }
             });
 
-            const msg = await interaction.reply({ 
-                embeds: [embeds[page]], 
-                components: [row] 
+            const msg = await interaction.reply({
+                embeds: [embeds[page]],
+                components: [row],
             });
 
             const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-            collector.on('collect', async i => {
+            collector.on('collect', async (i) => {
                 await i.deferUpdate();
 
                 switch (i.customId) {
@@ -367,10 +338,10 @@ class Command extends CommandBuilder {
 
                             await msg.edit({
                                 embeds: [embeds[page]],
-                                components: [row]
+                                components: [row],
                             });
                         }
-                    break;
+                        break;
                     case 'next':
                         if (page < embeds.length - 1) {
                             page++;
@@ -385,14 +356,14 @@ class Command extends CommandBuilder {
 
                             await msg.edit({
                                 embeds: [embeds[page]],
-                                components: [row]
+                                components: [row],
                             });
                         }
-                    break;
+                        break;
                 }
             });
 
-            collector.on('end', async collected => {
+            collector.on('end', async (collected) => {
                 if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
 
                 row.components[0].setDisabled(true);
@@ -400,7 +371,7 @@ class Command extends CommandBuilder {
 
                 await msg.edit({
                     embeds: [embeds[page]],
-                    components: [row]
+                    components: [row],
                 });
             });
         }
@@ -410,7 +381,7 @@ class Command extends CommandBuilder {
      * @param {import('discord.js').Guild} guild
      */
     setChoices(guild) {
-        cmds = guild.commands.cache.map(cmd => ({ name: cmd.name, value: `${cmd.id}` }));
+        cmds = guild.commands.cache.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` }));
     }
 }
 
@@ -423,9 +394,9 @@ const command = new Command({
             description: 'Select a Command',
             type: ApplicationCommandOptionType.String,
             required: false,
-            choices: cmds
-        }
-    ]
+            choices: cmds,
+        },
+    ],
 });
 
 export { command };

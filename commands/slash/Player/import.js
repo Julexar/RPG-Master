@@ -19,7 +19,7 @@ class Command extends CommandBuilder {
         const text = await result.text();
         const char = JSON.parse(text).data;
         if (!char) {
-            throw new BadRequestError('Error 400: Invalid Link', 'The provided Link is invalid! Please provide a link to a D&D Beyond Character')
+            throw new BadRequestError('Error 400: Invalid Link', 'The provided Link is invalid! Please provide a link to a D&D Beyond Character');
         } else {
             fs.writeFileSync('./logs/char.json', JSON.stringify(char, null, '\t'));
             return char;
@@ -41,7 +41,10 @@ class Command extends CommandBuilder {
             const dbChar = await client.database.Character.getOne(user, { name: char.name });
 
             if (dbChar) {
-                throw new DuplicateError('Character already exists', 'You already have a Character with this name! Please delete it or choose a different name.');
+                throw new DuplicateError(
+                    'Character already exists',
+                    'You already have a Character with this name! Please delete it or choose a different name.'
+                );
             }
 
             const character = {
@@ -61,7 +64,7 @@ class Command extends CommandBuilder {
                     con: char.stats[2].value,
                     int: char.stats[3].value,
                     wis: char.stats[4].value,
-                    cha: char.stats[5].value
+                    cha: char.stats[5].value,
                 },
                 multi: char.classes.length > 1,
                 armor: {
@@ -81,27 +84,27 @@ class Command extends CommandBuilder {
                 },
                 mc1: {
                     name: null,
-                    level: 1
+                    level: 1,
                 },
                 mc1_sub: {
                     name: null,
-                    level: 1
+                    level: 1,
                 },
                 mc2: {
                     name: null,
-                    level: 1
+                    level: 1,
                 },
                 mc2_sub: {
                     name: null,
-                    level: 1
+                    level: 1,
                 },
                 mc3: {
                     name: null,
-                    level: 1
+                    level: 1,
                 },
                 mc3_sub: {
                     name: null,
-                    level: 1
+                    level: 1,
                 },
                 senses: char.customSenses,
                 feats: char.feats,
@@ -109,8 +112,8 @@ class Command extends CommandBuilder {
                 actions: char.actions + char.customActions,
                 spells: char.spells,
                 resistances: [],
-                immunities: []
-            }
+                immunities: [],
+            };
 
             let num = 0;
             for (const clas of char.classes) {
@@ -142,41 +145,41 @@ class Command extends CommandBuilder {
                 }
 
                 for (const mod of char.modifiers.race) {
-                    if (mod.type === 'immunity') character.immunities.push({name: mod.friendlySubtypeName});
-                    else if (mod.type === 'resistance') character.resistances.push({name: mod.friendlySubtypeName});
+                    if (mod.type === 'immunity') character.immunities.push({ name: mod.friendlySubtypeName });
+                    else if (mod.type === 'resistance') character.resistances.push({ name: mod.friendlySubtypeName });
                 }
 
                 for (const mod of char.modifiers.class) {
-                    if (mod.type === 'immunity') character.immunities.push({name: mod.friendlySubtypeName});
-                    else if (mod.type === 'resistance') character.resistances.push({name: mod.friendlySubtypeName});
+                    if (mod.type === 'immunity') character.immunities.push({ name: mod.friendlySubtypeName });
+                    else if (mod.type === 'resistance') character.resistances.push({ name: mod.friendlySubtypeName });
                 }
 
                 for (const item of char.inventory) {
                     if (item.type.includes('Armor')) {
                         character.armor.name = item.definition.name;
-                        character.ac = item.type.includes('Light') || item.type.includes('Medium') ? item.armorClass + char.stats[1].value : item.armorClass; 
+                        character.ac =
+                            item.type.includes('Light') || item.type.includes('Medium') ? item.armorClass + char.stats[1].value : item.armorClass;
                     } else if (item.type.includes('Shield')) {
                         character.ac += item.armorClass;
                     }
                 }
 
-                const msg = await client.database.Character.add(user, character)
+                const msg = await client.database.Character.add(user, character);
 
                 await interaction.reply({
-                    embeds: [
-                        new SuccessEmbed(msg || 'Success', `Your Character has been successfully imported!`)
-                    ]
+                    embeds: [new SuccessEmbed(msg || 'Success', `Your Character has been successfully imported!`)],
                 });
             }
         } catch (err) {
             client.logServerError(server, err);
 
-            if (err instanceof BadRequestError || err instanceof DuplicateError) return await interaction.reply({
-                embeds: [new ErrorEmbed(err, false)]
-            })
+            if (err instanceof BadRequestError || err instanceof DuplicateError)
+                return await interaction.reply({
+                    embeds: [new ErrorEmbed(err, false)],
+                });
 
             return await interaction.reply({
-                embeds: [new ErrorEmbed(err, true)]
+                embeds: [new ErrorEmbed(err, true)],
             });
         }
     }
@@ -190,9 +193,9 @@ const command = new Command({
             name: 'link',
             description: 'The link to the Character',
             type: ApplicationCommandOptionType.String,
-            required: true
-        }
-    ]
+            required: true,
+        },
+    ],
 });
 
 export { command };

@@ -100,10 +100,10 @@ class ServerCommandRestriction {
 
     static async toggle(command) {
         const sql = 'UPDATE server_command_restrictions SET enabled = NOT enabled WHERE cmd_id = $1';
-        await query(sql, [command])
+        await query(sql, [command]);
 
         return `Successfully toggled restrictions of Command \"${command.name}\" in Server \"${server.name}\"`;
-    };
+    }
 }
 
 export { ServerCommandRestriction };
