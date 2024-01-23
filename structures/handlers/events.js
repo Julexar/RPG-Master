@@ -1,11 +1,9 @@
 import Ascii from 'ascii-table';
 import fs from 'fs';
-import { client } from '../../index.js';
+import { client } from '../..';
 
 class eventHandler {
-    constructor() {}
-
-    async run() {
+    static async run() {
         const eventsTable = new Ascii('Events').setHeading('Name', 'Status', 'Reason');
         const dirs = fs.readdirSync('./events');
 
@@ -27,11 +25,8 @@ class eventHandler {
                     name += ` (${event.nick})`;
                 }
 
-                if (event.once) {
-                    client.once(event.name, (...args) => event.run(...args, client));
-                } else {
-                    client.on(event.name, (...args) => event.run(...args, client));
-                }
+                if (event.once) client.once(event.name, (...args) => event.run(...args, client));
+                else client.on(event.name, (...args) => event.run(...args, client));
 
                 eventsTable.addRow(name, 'Success');
             }
@@ -39,4 +34,5 @@ class eventHandler {
         console.log(eventsTable.toString());
     }
 }
-export default new eventHandler();
+
+export default eventHandler;

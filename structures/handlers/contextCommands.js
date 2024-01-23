@@ -1,10 +1,9 @@
 import Ascii from 'ascii-table';
 import fs from 'fs/promises';
-import { client } from '../../index.js';
-class contextHandler {
-    constructor() {}
+import { client } from '../..';
 
-    async run() {
+class contextHandler {
+    static async run() {
         const contextCommandsTable = new Ascii('Context Commands').setHeading('Name', 'Status', 'Reason');
         const dirs = fs.readdirSync('./commands/context');
 
@@ -33,4 +32,5 @@ class contextHandler {
         console.log(contextCommandsTable.toString());
     }
 }
-export default new contextHandler();
+
+export default contextHandler;

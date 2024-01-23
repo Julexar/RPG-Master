@@ -1,9 +1,9 @@
 import Ascii from 'ascii-table';
 import fs from 'fs';
-import { client } from '../../index.js';
+import { client } from '../..';
+
 class slashHandler {
-    constructor() {}
-    async run() {
+    static async run() {
         const slashCommandsTable = new Ascii('Slash Commands').setHeading('Name', 'Status', 'Reason');
         const dirs = fs.readdirSync('./commands/slash');
 
@@ -37,4 +37,5 @@ class slashHandler {
         console.log(slashCommandsTable.toString());
     }
 }
-export default new slashHandler();
+
+export default slashHandler;
