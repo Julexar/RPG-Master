@@ -1,6 +1,6 @@
 {
   "name": "rpg-master",
-  "version": "0.5",
+  "version": "",
   "type": "module",
   "dependencies": {
     "ascii-table": "^0.0.9",
@@ -19,6 +19,6 @@
     "stop": "killall node"
   },
   "devDependencies": {
-    "prettier": "^3.2.4"
+    "prettier": "^3.2.6"
   }
 }
