@@ -11,17 +11,19 @@ class ServerCondition {
             throw new NotFoundError('No Server Conditions found', 'Could not find any conditions for that Server in the Database!');
         }
 
-        return Promise.all(results.map(async (servCond) => {
-            const dbCond = await Condition.getOne({id: servCond.cond_id});
+        return Promise.all(
+            results.map(async (servCond) => {
+                const dbCond = await Condition.getOne({ id: servCond.cond_id });
 
-            return {
-                id: servCond.id,
-                server_id: server.id,
-                cond_id: dbCond.id,
-                name: dbCond.name,
-                description: dbCond.description
-            };
-        }));
+                return {
+                    id: servCond.id,
+                    server_id: server.id,
+                    cond_id: dbCond.id,
+                    name: dbCond.name,
+                    description: dbCond.description,
+                };
+            })
+        );
     }
 
     static async getOne(server, condition) {
@@ -32,18 +34,18 @@ class ServerCondition {
                 throw new NotFoundError('Server Condition not found', 'Could not find that condition for that Server in the Database!');
             }
 
-            const dbCond = await Condition.getOne({id: results[0].cond_id});
+            const dbCond = await Condition.getOne({ id: results[0].cond_id });
 
             return {
                 id: results[0].id,
                 server_id: server.id,
                 cond_id: dbCond.id,
                 name: dbCond.name,
-                description: dbCond.description
+                description: dbCond.description,
             };
         }
 
-        const dbCond = await Condition.getOne({name: condition.name});
+        const dbCond = await Condition.getOne({ name: condition.name });
         const results = await query('SELECT * FROM server_conditions WHERE server_id = $1 AND cond_id = $2', [server.id, dbCond.id]);
 
         if (results.length === 0) {
@@ -55,7 +57,7 @@ class ServerCondition {
             server_id: server.id,
             cond_id: dbCond.id,
             name: dbCond.name,
-            description: dbCond.description
+            description: dbCond.description,
         };
     }
 
@@ -66,7 +68,7 @@ class ServerCondition {
             return results.length > 0;
         }
 
-        const dbCond = await Condition.getOne({name: condition.name});
+        const dbCond = await Condition.getOne({ name: condition.name });
         const results = await query('SELECT * FROM server_conditions WHERE server_id = $1 AND cond_id = $2', [server.id, dbCond.id]);
 
         return results.length > 0;
@@ -77,20 +79,20 @@ class ServerCondition {
             throw new DuplicateError('Duplicate Server Condition', 'That condition already exists for that Server in the Database!');
         }
 
-        const dbCond = await Condition.getOne({name: condition.name});
+        const dbCond = await Condition.getOne({ name: condition.name });
         await query('INSERT INTO server_conditions (server_id, cond_id) VALUES ($1, $2)', [server.id, dbCond.id]);
 
-        return "Successfully added Server Condition to Database";
+        return 'Successfully added Server Condition to Database';
     }
 
     static async remove(server, condition) {
-        if (!await this.exists(server, condition)) {
+        if (!(await this.exists(server, condition))) {
             throw new NotFoundError('Server Condition not found', 'Could not find that condition for that Server in the Database!');
         }
 
         await query('DELETE FROM server_conditions WHERE server_id = $1 AND id = $2', [server.id, condition.id]);
 
-        return "Successfully removed Server Condition from Database";
+        return 'Successfully removed Server Condition from Database';
     }
 }
 

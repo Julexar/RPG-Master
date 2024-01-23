@@ -8,7 +8,10 @@ class CharacterRaceProficiency {
         const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2', [char.id, race.id]);
 
         if (results.length === 0) {
-            throw new NotFoundError('No Character Race Proficiencies found', 'Could not find any racial Proficiencies for that Character in the Database!');
+            throw new NotFoundError(
+                'No Character Race Proficiencies found',
+                'Could not find any racial Proficiencies for that Character in the Database!'
+            );
         }
 
         return Promise.all(
@@ -29,10 +32,17 @@ class CharacterRaceProficiency {
 
     static async getOne(char, race, prof) {
         if (prof.id) {
-            const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3', [char.id, race.id, prof.id]);
+            const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3', [
+                char.id,
+                race.id,
+                prof.id,
+            ]);
 
             if (results.length === 0) {
-                throw new NotFoundError('Character Race Proficiency not found', 'Could not find that racial Proficiency of that Character in the Database!');
+                throw new NotFoundError(
+                    'Character Race Proficiency not found',
+                    'Could not find that racial Proficiency of that Character in the Database!'
+                );
             }
 
             const charRaceProf = results[0];
@@ -48,10 +58,17 @@ class CharacterRaceProficiency {
             };
         }
 
-        const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3', [char.id, race.id, prof.name]);
+        const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3', [
+            char.id,
+            race.id,
+            prof.name,
+        ]);
 
         if (results.length === 0) {
-            throw new NotFoundError('Character Race Proficiency not found', 'Could not find a racial Proficiency of that Character with that name in the Database!');
+            throw new NotFoundError(
+                'Character Race Proficiency not found',
+                'Could not find a racial Proficiency of that Character with that name in the Database!'
+            );
         }
 
         const charRaceProf = results[0];
@@ -69,12 +86,20 @@ class CharacterRaceProficiency {
 
     static async exists(char, race, prof) {
         if (prof.id) {
-            const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3', [char.id, race.id, prof.id]);
+            const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3', [
+                char.id,
+                race.id,
+                prof.id,
+            ]);
 
             return results.length === 1;
         }
 
-        const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3', [char.id, race.id, prof.name]);
+        const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3', [
+            char.id,
+            race.id,
+            prof.name,
+        ]);
 
         return results.length === 1;
     }
@@ -84,7 +109,10 @@ class CharacterRaceProficiency {
             const charRaceProf = await this.getOne(char, race, prof);
 
             if (prof.expert === charRaceProf.expert) {
-                throw new DuplicateError('Duplicate Character Race Proficiency', 'That Character already has that racial Proficiency in the Database!');
+                throw new DuplicateError(
+                    'Duplicate Character Race Proficiency',
+                    'That Character already has that racial Proficiency in the Database!'
+                );
             }
 
             const sql = 'UPDATE character_race_profs SET expert = $1 WHERE char_id = $2 AND race_id = $3 AND id = $4';
@@ -105,7 +133,10 @@ class CharacterRaceProficiency {
 
     static async remove(char, race, prof) {
         if (!(await this.exists(char, race, prof))) {
-            throw new NotFoundError('Character Race Proficiency not found', 'Could not find that Race Proficiency for that Character in the Database!');
+            throw new NotFoundError(
+                'Character Race Proficiency not found',
+                'Could not find that Race Proficiency for that Character in the Database!'
+            );
         }
 
         await query('DELETE FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3', [char.id, race.id, prof.id]);
@@ -115,7 +146,10 @@ class CharacterRaceProficiency {
 
     static async update(char, race, prof) {
         if (!(await this.exists(char, race, prof))) {
-            throw new NotFoundError('Character Race Proficiency not found', 'Could not find that Race Proficiency for that Character in the Database!');
+            throw new NotFoundError(
+                'Character Race Proficiency not found',
+                'Could not find that Race Proficiency for that Character in the Database!'
+            );
         }
 
         const sql = 'UPDATE character_race_profs SET expert = $1 WHERE char_id = $2 AND race_id = $3 AND id = $4';

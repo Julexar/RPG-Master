@@ -26,7 +26,11 @@ class subrace {
 
         return Promise.all(
             results.map(async (dbSub) => {
-                const [subProfs, subSenses, subTraits] = await Promise.all([this.profs.getAll(dbSub), this.senses.getAll(dbSub), this.traits.getAll(dbSub)]);
+                const [subProfs, subSenses, subTraits] = await Promise.all([
+                    this.profs.getAll(dbSub),
+                    this.senses.getAll(dbSub),
+                    this.traits.getAll(dbSub),
+                ]);
 
                 return {
                     id: dbSub.id,
@@ -54,7 +58,11 @@ class subrace {
             }
 
             const dbSub = results[0];
-            const [subProfs, subSenses, subTraits] = await Promise.all([this.profs.getAll(dbSub), this.senses.getAll(dbSub), this.traits.getAll(dbSub)]);
+            const [subProfs, subSenses, subTraits] = await Promise.all([
+                this.profs.getAll(dbSub),
+                this.senses.getAll(dbSub),
+                this.traits.getAll(dbSub),
+            ]);
 
             return {
                 id: dbSub.id,

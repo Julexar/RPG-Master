@@ -21,7 +21,8 @@ class prefixHandler {
                             c_prefix = prefix;
                             let args = message.content.slice(c_prefix.length).trim().split(/\s+--/);
                             const command = args.shift().toLowerCase();
-                            const cmd = client.prefixCommands.get(command) || client.prefixCommands.find((c) => c.aliases && c.aliases.includes(command));
+                            const cmd =
+                                client.prefixCommands.get(command) || client.prefixCommands.find((c) => c.aliases && c.aliases.includes(command));
                             if (!cmd) {
                                 return;
                             }
@@ -34,7 +35,9 @@ class prefixHandler {
                                                 new EmbedBuilder()
                                                     .setColor('Red')
                                                     .setTitle('Error 403: Missing Permission')
-                                                    .setDescription('You are missing the needed Permissions to run the current Command:\n' + perms.join(', '))
+                                                    .setDescription(
+                                                        'You are missing the needed Permissions to run the current Command:\n' + perms.join(', ')
+                                                    )
                                                     .setTimestamp(),
                                             ],
                                         });
@@ -47,7 +50,9 @@ class prefixHandler {
                                                 new EmbedBuilder()
                                                     .setColor('Red')
                                                     .setTitle('Error 403: Bot missing Permission')
-                                                    .setDescription('The Bot is missing the needed Permissions to run the current Command:\n' + perms.join(', '))
+                                                    .setDescription(
+                                                        'The Bot is missing the needed Permissions to run the current Command:\n' + perms.join(', ')
+                                                    )
                                                     .setTimestamp(),
                                             ],
                                         });
@@ -63,12 +68,20 @@ class prefixHandler {
                                         }
                                         return message.reply({
                                             embeds: [
-                                                new EmbedBuilder().setColor('Red').setTitle('Error 400: Invalid Command').setDescription(`The Command requires you to use it\'s arguments. The correct usage is:\n\`${prefix}${cmd.name} ${usage}\``),
+                                                new EmbedBuilder()
+                                                    .setColor('Red')
+                                                    .setTitle('Error 400: Invalid Command')
+                                                    .setDescription(
+                                                        `The Command requires you to use it\'s arguments. The correct usage is:\n\`${prefix}${cmd.name} ${usage}\``
+                                                    ),
                                             ],
                                         });
                                     } else {
                                         client.database
-                                            .writeLog(message.guild, `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`)
+                                            .writeLog(
+                                                message.guild,
+                                                `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`
+                                            )
                                             .then(cmd.run(client, message, args))
                                             .catch((err) => {
                                                 console.error(err);
@@ -78,7 +91,10 @@ class prefixHandler {
                                     }
                                 } else {
                                     client.database
-                                        .writeLog(message.guild, `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`)
+                                        .writeLog(
+                                            message.guild,
+                                            `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`
+                                        )
                                         .then(cmd.run(client, message, args))
                                         .catch((err) => {
                                             console.error(err);
@@ -89,11 +105,22 @@ class prefixHandler {
                             } else if (!cmd.args) {
                                 if (args.length > 0) {
                                     return message.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('Error 400: Invalid Command').setDescription(`This Command does not have any arguments. The correct usage is:\n\`${prefix}${cmd.name}\``).setTimestamp()],
+                                        embeds: [
+                                            new EmbedBuilder()
+                                                .setColor('Red')
+                                                .setTitle('Error 400: Invalid Command')
+                                                .setDescription(
+                                                    `This Command does not have any arguments. The correct usage is:\n\`${prefix}${cmd.name}\``
+                                                )
+                                                .setTimestamp(),
+                                        ],
                                     });
                                 } else {
                                     client.database
-                                        .writeLog(message.guild, `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`)
+                                        .writeLog(
+                                            message.guild,
+                                            `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`
+                                        )
                                         .then(cmd.run(client, message, args))
                                         .catch((err) => {
                                             console.error(err);
@@ -109,7 +136,13 @@ class prefixHandler {
                         .writeLog(message.guild, 'Error 404: No Prefixes found')
                         .then(
                             message.reply({
-                                embeds: [new EmbedBuilder().setColor('Red').setTitle('Error 404: No Prefixes found').setDescription('Could not find any Prefixes on this Server. Contact a Server Admin to fix this Issue.').setTimestamp()],
+                                embeds: [
+                                    new EmbedBuilder()
+                                        .setColor('Red')
+                                        .setTitle('Error 404: No Prefixes found')
+                                        .setDescription('Could not find any Prefixes on this Server. Contact a Server Admin to fix this Issue.')
+                                        .setTimestamp(),
+                                ],
                             })
                         )
                         .catch(console.error);

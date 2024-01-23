@@ -50,7 +50,10 @@ class ServerSubrace {
         const results = await query('SELECT * FROM server_subraces WHERE server_id = $1 AND sub_id = $2', [server.id, dbSub.id]);
 
         if (results.length === 0) {
-            throw new NotFoundError('Server Subrace not found', 'Could not find a Subrace with that name registered for that Server in the Database!');
+            throw new NotFoundError(
+                'Server Subrace not found',
+                'Could not find a Subrace with that name registered for that Server in the Database!'
+            );
         }
 
         const serverSub = results[0];
