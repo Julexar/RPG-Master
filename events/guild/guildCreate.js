@@ -1,8 +1,11 @@
-import { client } from '../../index.js';
+import { client } from '../..';
+import { NotFoundError } from '../../custom/errors';
+
 class Event {
     constructor() {
         this.name = 'guildCreate';
     }
+
     /**
      *
      * @param {import("discord.js").Guild} guild
@@ -13,696 +16,120 @@ class Event {
             id: guild.id,
             name: guild.name,
             dm_role: null,
+            admin_role: null,
+            mod_role: null,
             prefix: client.config.default_prefix,
         };
-        await client.database
-            .addServer(server)
-            .then(async (msg) => {
-                client.database.writeDevLog(msg);
-                await client.database
-                    .addLog(server)
-                    .then(async (msg1) => {
-                        //Member Registration
-                        await client.database
-                            .writeLog(server, msg1)
-                            .then((msg2) => client.database.writeDevLog(msg2))
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        await client.database
-                            .writeLog(server, 'Beginning Member registration - Searching Database for Members...')
-                            .then((msg2) => client.database.writeDevLog(msg2))
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        await client.database
-                            .getMember(server)
-                            .then(async (users) => {
-                                await client.database
-                                    .writeLog(server, 'Found Members in Database, checking if they exist on the Server...')
-                                    .then((msg2) => client.database.writeDevLog(msg2))
-                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                await users.forEach(async (user) => {
-                                    if (!server.members.cache.get(user.id)) {
-                                        await client.database
-                                            .writeLog(server, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
-                                            .then((msg2) => client.database.writeDevLog(msg2))
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                        await client.database
-                                            .remMember(server, user)
-                                            .then(async (msg2) => {
-                                                await client.database
-                                                    .writeLog(server, msg2)
-                                                    .then((msg3) => client.database.writeDevLog(msg3))
-                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                            })
-                                            .catch(async (err1) => {
-                                                await client.database
-                                                    .writeLog(server, `${err1}`)
-                                                    .then((msg2) => client.database.writeDevLog(msg2))
-                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                            });
-                                    } else {
-                                        await client.database
-                                            .writeLog(server, `Found Member \"${user.name}\" in Server - Skipping...`)
-                                            .then((msg2) => client.database.writeDevLog(msg2))
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                    }
-                                });
-                            })
-                            .catch(async (err1) => {
-                                await client.database
-                                    .writeLog(server, `${err1} in Database - attempting to add...`)
-                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                server.members.cache.forEach(async (member) => {
-                                    if (!member.user.bot) {
-                                        await client.database
-                                            .getMember(server, member.user)
-                                            .then(async () => {
-                                                await client.database
-                                                    .writeLog(server, 'Error 409: Duplicate Server Member')
-                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                            })
-                                            .catch(async (err2) => {
-                                                if (String(err2).includes('Error 404')) {
-                                                    await client.database
-                                                        .addMember(server, member.user)
-                                                        .then(async (msg1) => {
-                                                            await client.database
-                                                                .writeLog(server, msg1)
-                                                                .then((msg2) => client.database.writeDevLog(msg2))
-                                                                .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                        })
-                                                        .catch(async (err3) => {
-                                                            await client.database
-                                                                .writeLog(server, `${err3}`)
-                                                                .then((msg1) => client.database.writeDevLog(msg1))
-                                                                .catch((err4) => client.database.writeDevLog(err4));
-                                                        });
-                                                } else {
-                                                    await client.database
-                                                        .writeLog(server, `${err2}`)
-                                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                                        .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                }
-                                            });
-                                    }
-                                });
-                            });
-                    })
-                    .catch(async (err1) => {
-                        //Member Registration
-                        await client.database
-                            .writeLog(server, `${err1}`)
-                            .then((msg1) => client.database.writeDevLog(msg1))
-                            .catch((err2) => client.database.writeDevLog(`${err2}`));
-                        if (String(err1).includes('Error 409')) {
-                            await client.database
-                                .writeLog(server, 'Beginning Member registration - Searching Database for Members...')
-                                .then((msg1) => client.database.writeDevLog(msg1))
-                                .catch((err2) => client.database.writeDevLog(`${err2}`));
-                            await client.database
-                                .getMember(server)
-                                .then(async (users) => {
-                                    await client.database
-                                        .writeLog(server, 'Found Members in Database, checking if they exist on the Server...')
-                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                    await users.forEach(async (user) => {
-                                        if (!server.members.cache.get(user.id)) {
-                                            await client.database
-                                                .writeLog(server, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
-                                                .then((msg1) => client.database.writeDevLog(msg1))
-                                                .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                            await client.database
-                                                .remMember(server, user)
-                                                .then(async (msg1) => {
-                                                    await client.database
-                                                        .writeLog(server, msg1)
-                                                        .then((msg2) => client.database.writeDevLog(msg2))
-                                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                })
-                                                .catch(async (err2) => {
-                                                    await client.database
-                                                        .writeLog(server, `${err2}`)
-                                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                                        .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                });
-                                        } else {
-                                            await client.database
-                                                .writeLog(server, `Found Member \"${user.name}\" in Server - Skipping...`)
-                                                .then((msg1) => client.database.writeDevLog(msg1))
-                                                .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                        }
-                                    });
-                                })
-                                .catch(async (err2) => {
-                                    await client.database
-                                        .writeLog(server, `${err2} in Database - attempting to add...`)
-                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                        .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                    server.members.cache.forEach(async (member) => {
-                                        if (!member.user.bot) {
-                                            await client.database
-                                                .getMember(server, member.user)
-                                                .then(async () => {
-                                                    await client.database
-                                                        .writeLog(server, 'Error 409: Duplicate Server Member')
-                                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                                        .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                })
-                                                .catch(async (err3) => {
-                                                    if (String(err3).includes('Error 404')) {
-                                                        await client.database
-                                                            .addMember(server, member.user)
-                                                            .then(async (msg1) => {
-                                                                await client.database
-                                                                    .writeLog(server, msg1)
-                                                                    .then((msg2) => client.database.writeDevLog(msg2))
-                                                                    .catch((err4) => client.database.writeDevLog(`${err4}`));
-                                                            })
-                                                            .catch(async (err4) => {
-                                                                await client.database
-                                                                    .writeLog(server, `${err4}`)
-                                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                                    .catch((err5) => client.database.writeDevLog(err5));
-                                                            });
-                                                    } else {
-                                                        await client.database
-                                                            .writeLog(server, `${err3}`)
-                                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                                            .catch((err4) => client.database.writeDevLog(`${err4}`));
-                                                    }
-                                                });
-                                        }
-                                    });
-                                });
-                        }
-                    });
-                setInterval(
-                    async () => {
-                        await client.database
-                            .getServer(server)
-                            .then(async (server) => {
-                                if (server.print_logs) {
-                                    if (server.log_chan) {
-                                        const channel = server.channels.cache.get(server.log_chan);
-                                        await client.database
-                                            .writeLog(server, 'Printing Logfile...')
-                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                            .catch((err1) => client.database.writeDevLog(err1));
-                                        await client.database
-                                            .getLog(server)
-                                            .then(async (log) => {
-                                                await channel.send({
-                                                    files: [`./logs/server/${server.id}/${log.id}.log`],
-                                                });
-                                            })
-                                            .catch(
-                                                async (err1) =>
-                                                    await channel.send({
-                                                        content: `An Error occurred whilst trying to print Logfile:\n${err1}`,
-                                                    })
-                                            );
-                                    } else {
-                                        await client.database
-                                            .writeLog(server, 'Error 404: No Log Channel defined')
-                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                    }
-                                }
-                                await client.database
-                                    .addLog(server)
-                                    .then(async () => {
-                                        await client.database
-                                            .remLog(server)
-                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                    })
-                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    },
-                    1000 * 60 * 60 * 24
-                );
-                //Command Registration
-                await client.database
-                    .writeLog(server, 'Attempting to register Server Commands...')
-                    .then((msg1) => client.database.writeDevLog(msg1))
-                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                await guild.commands
-                    .set(commandArray)
-                    .then(async (commands) => {
-                        await client.database
-                            .writeLog(server, 'Successfully registered Server Commands, attempting to write Server Commands to Database...')
-                            .then((msg1) => client.database.writeDevLog(msg1))
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        commands.forEach(async (command) => {
-                            await client.database
-                                .writeLog(server, `Attempting to register Server Command /${command.name} in Database...`)
-                                .then((msg1) => client.database.writeDevLog(msg1))
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                            await client.database
-                                .getCommand({ name: command.name }, 'slash')
-                                .then(async (cmd) => {
-                                    await client.database
-                                        .addServCmd(server, {
-                                            id: command.id,
-                                            cmd_id: cmd.id,
-                                            name: cmd.name,
-                                            type: 'slash',
-                                        })
-                                        .then(async (msg1) => {
-                                            await client.database
-                                                .writeLog(server, `${msg1} - Searching Database for restrictions...`)
-                                                .then((msg2) => client.database.writeDevLog(msg2))
-                                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                            await client.database
-                                                .getRestriction(command)
-                                                .then(async (rests) => {
-                                                    await server.commands.permissions
-                                                        .set({
-                                                            token: client.config.token,
-                                                            permissions: [
-                                                                {
-                                                                    id: command.id,
-                                                                    permissions: rests,
-                                                                },
-                                                            ],
-                                                        })
-                                                        .then(async () => {
-                                                            await client.database
-                                                                .writeLog(server, `Successfully added restrictions to Command /${command.name}`)
-                                                                .then((msg2) => client.database.writeDevLog(msg2))
-                                                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                        })
-                                                        .catch(async (err1) => {
-                                                            await client.database
-                                                                .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
-                                                                .then((msg2) => client.database.writeDevLog(msg2))
-                                                                .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                        });
-                                                })
-                                                .catch(async (err1) => {
-                                                    await client.database
-                                                        .writeLog(server, `${err1}`)
-                                                        .then((msg2) => client.database.writeDevLog(msg2))
-                                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                });
-                                        })
-                                        .catch(async (err1) => {
-                                            if (String(err1).includes('Error 409')) {
-                                                await client.database
-                                                    .writeLog(server, `${err1} - Searching Database for restrictions...`)
-                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                await client.database
-                                                    .getRestriction(command)
-                                                    .then(async (rests) => {
-                                                        await server.commands.permissions
-                                                            .set({
-                                                                token: client.config.token,
-                                                                permissions: [
-                                                                    {
-                                                                        id: command.id,
-                                                                        permissions: rests,
-                                                                    },
-                                                                ],
-                                                            })
-                                                            .then(async () => {
-                                                                await client.database
-                                                                    .writeLog(server, `Successfully added restrictions to Command /${command.name}`)
-                                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                            })
-                                                            .catch(async (err2) => {
-                                                                await client.database
-                                                                    .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
-                                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                                    .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                            });
-                                                    })
-                                                    .catch(async (err2) => {
-                                                        await client.database
-                                                            .writeLog(server, `${err2}`)
-                                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                                            .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                    });
-                                            } else {
-                                                await client.database
-                                                    .writeLog(server, `Failed to register Server Command /${command.name}\nReason:\n${err1}`)
-                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                            }
-                                        });
-                                })
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        });
-                    })
-                    .catch((err1) => client.database.writeDevLog(`${err1}`));
+
+        client.database.Server.add(server)
+        .then(client.writeDevLog)
+        .catch(client.logDevError)
+        
+        client.database.Server.logs.add(server)
+        .then(msg => client.writeServerLog(server, msg))
+        .catch(err => client.logServerError(server, err))
+
+        client.writeServerLog(server, 'Beginning Member registration - Searching Database for Members...')
+
+        client.database.Server.members.getAll(server)
+        .then (async (members) => {
+            client.writeServerLog(server, `Found ${members.length} members in Database, checking if they exist on the Server...`)
+        
+            for (const member of members) {
+                if (!guild.members.cache.has(member.id)) {
+                    client.writeServerLog(server, `Could not find \"${member.display_name}\" in the Server - Removing from Database...`)
+
+                    let msg = await client.database.Server.members.remove(server, member)
+
+                    client.writeServerLog(server, msg)
+                } else {
+                    client.writeServerLog(server, `Found Member \"${member.display_name}\" in Server - Skipping...`)
+                    continue;
+                }
+            }
+        })
+        .catch(async (err) => {
+            client.logServerError(server, err)
+
+            guild.members.cache.forEach(async (member) => {
+                if (!member.user.bot) {
+                    client.database.Server.members.add(server, member)
+                    .then(msg => client.writeServerLog(server, msg))
+                    .catch(err => client.logServerError(server, err))
+                }
             })
-            .catch(async (err) => {
-                client.database.writeDevLog(`${err}`);
-                if (String(err).includes('Error 409')) {
-                    await client.database
-                        .addLog(server)
-                        .then(async (msg1) => {
-                            //Member Registration
-                            await client.database
-                                .writeLog(server, msg1)
-                                .then((msg2) => client.database.writeDevLog(msg2))
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                            await client.database
-                                .writeLog(server, 'Beginning Member registration - Searching Database for Members...')
-                                .then((msg2) => client.database.writeDevLog(msg2))
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                            await client.database
-                                .getMember(server)
-                                .then(async (users) => {
-                                    await client.database
-                                        .writeLog(server, 'Found Members in Database, checking if they exist on the Server...')
-                                        .then((msg2) => client.database.writeDevLog(msg2))
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                    await users.forEach(async (user) => {
-                                        if (!server.members.cache.get(user.id)) {
-                                            await client.database
-                                                .writeLog(server, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
-                                                .then((msg2) => client.database.writeDevLog(msg2))
-                                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                            await client.database
-                                                .remMember(server, user)
-                                                .then(async (msg2) => {
-                                                    await client.database
-                                                        .writeLog(server, msg2)
-                                                        .then((msg3) => client.database.writeDevLog(msg3))
-                                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                })
-                                                .catch(async (err1) => {
-                                                    await client.database
-                                                        .writeLog(server, `${err1}`)
-                                                        .then((msg2) => client.database.writeDevLog(msg2))
-                                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                });
-                                        } else {
-                                            await client.database
-                                                .writeLog(server, `Found Member \"${user.name}\" in Server - Skipping...`)
-                                                .then((msg2) => client.database.writeDevLog(msg2))
-                                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                        }
-                                    });
-                                })
-                                .catch(async (err1) => {
-                                    await client.database
-                                        .writeLog(server, `${err1} in Database - attempting to add...`)
-                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                    server.members.cache.forEach(async (member) => {
-                                        if (!member.user.bot) {
-                                            await client.database
-                                                .getMember(server, member.user)
-                                                .then(async () => {
-                                                    await client.database
-                                                        .writeLog(server, 'Error 409: Duplicate Server Member')
-                                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                })
-                                                .catch(async (err2) => {
-                                                    if (String(err2).includes('Error 404')) {
-                                                        await client.database
-                                                            .addMember(server, member.user)
-                                                            .then(async (msg1) => {
-                                                                await client.database
-                                                                    .writeLog(server, msg1)
-                                                                    .then((msg2) => client.database.writeDevLog(msg2))
-                                                                    .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                            })
-                                                            .catch(async (err3) => {
-                                                                await client.database
-                                                                    .writeLog(server, `${err3}`)
-                                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                                    .catch((err4) => client.database.writeDevLog(err4));
-                                                            });
-                                                    } else {
-                                                        await client.database
-                                                            .writeLog(server, `${err2}`)
-                                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                                            .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                    }
-                                                });
-                                        }
-                                    });
-                                });
-                        })
-                        .catch(async (err1) => {
-                            //Member Registration
-                            await client.database
-                                .writeLog(server, `${err1}`)
-                                .then((msg1) => client.database.writeDevLog(msg1))
-                                .catch((err2) => client.database.writeDevLog(`${err2}`));
-                            if (String(err1).includes('Error 409')) {
-                                await client.database
-                                    .writeLog(server, 'Beginning Member registration - Searching Database for Members...')
-                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                await client.database
-                                    .getMember(server)
-                                    .then(async (users) => {
-                                        await client.database
-                                            .writeLog(server, 'Found Members in Database, checking if they exist on the Server...')
-                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                            .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                        await users.forEach(async (user) => {
-                                            if (!server.members.cache.get(user.id)) {
-                                                await client.database
-                                                    .writeLog(server, `Could not find \"${user.name}\" in the Server - Removing from Database...`)
-                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                await client.database
-                                                    .remMember(server, user)
-                                                    .then(async (msg1) => {
-                                                        await client.database
-                                                            .writeLog(server, msg1)
-                                                            .then((msg2) => client.database.writeDevLog(msg2))
-                                                            .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                    })
-                                                    .catch(async (err2) => {
-                                                        await client.database
-                                                            .writeLog(server, `${err2}`)
-                                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                                            .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                    });
-                                            } else {
-                                                await client.database
-                                                    .writeLog(server, `Found Member \"${user.name}\" in Server - Skipping...`)
-                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                            }
-                                        });
-                                    })
-                                    .catch(async (err2) => {
-                                        await client.database
-                                            .writeLog(server, `${err2} in Database - attempting to add...`)
-                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                            .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                        server.members.cache.forEach(async (member) => {
-                                            if (!member.user.bot) {
-                                                await client.database
-                                                    .getMember(server, member.user)
-                                                    .then(async () => {
-                                                        await client.database
-                                                            .writeLog(server, 'Error 409: Duplicate Server Member')
-                                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                                            .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                    })
-                                                    .catch(async (err3) => {
-                                                        if (String(err3).includes('Error 404')) {
-                                                            await client.database
-                                                                .addMember(server, member.user)
-                                                                .then(async (msg1) => {
-                                                                    await client.database
-                                                                        .writeLog(server, msg1)
-                                                                        .then((msg2) => client.database.writeDevLog(msg2))
-                                                                        .catch((err4) => client.database.writeDevLog(`${err4}`));
-                                                                })
-                                                                .catch(async (err4) => {
-                                                                    await client.database
-                                                                        .writeLog(server, `${err4}`)
-                                                                        .then((msg1) => client.database.writeDevLog(msg1))
-                                                                        .catch((err5) => client.database.writeDevLog(err5));
-                                                                });
-                                                        } else {
-                                                            await client.database
-                                                                .writeLog(server, `${err3}`)
-                                                                .then((msg1) => client.database.writeDevLog(msg1))
-                                                                .catch((err4) => client.database.writeDevLog(`${err4}`));
-                                                        }
-                                                    });
-                                            }
-                                        });
-                                    });
-                            }
+        });
+
+        client.writeServerLog(server, 'Member registration complete - Creating Interval for Logging...')
+
+        setInterval(async () => {
+            try {
+                const dbServer = await client.database.Server.getOne(server)
+
+                if (dbServer.print_logs) {
+                    if (dbServer.log_channelId) {
+                        const channel = guild.channels.cache.get(dbServer.log_channelId)
+
+                        client.writeServerLog(server, 'Logging Interval triggered, logging enabled - Printing Logfile...')
+
+                        const logfile = await client.database.Server.logs.getLatest(server)
+
+                        await channel.send({
+                            files: [`./logs/${server.id}/${logfile.created_at}.log`]
                         });
-                    setInterval(
-                        async () => {
-                            await client.database
-                                .getServer(server)
-                                .then(async (server) => {
-                                    if (server.print_logs) {
-                                        if (server.log_chan) {
-                                            const channel = server.channels.cache.get(server.log_chan);
-                                            await client.database
-                                                .writeLog(server, 'Printing Logfile...')
-                                                .then((msg1) => client.database.writeDevLog(msg1))
-                                                .catch((err1) => client.database.writeDevLog(err1));
-                                            await client.database
-                                                .getLog(server)
-                                                .then(async (log) => {
-                                                    await channel.send({
-                                                        files: [`./logs/server/${server.id}/${log.id}.log`],
-                                                    });
-                                                })
-                                                .catch(
-                                                    async (err1) =>
-                                                        await channel.send({
-                                                            content: `An Error occurred whilst trying to print Logfile:\n${err1}`,
-                                                        })
-                                                );
-                                        } else {
-                                            await client.database
-                                                .writeLog(server, 'Error 404: No Log Channel defined')
-                                                .then((msg1) => client.database.writeDevLog(msg1))
-                                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                        }
-                                    }
-                                    await client.database
-                                        .addLog(server)
-                                        .then(async () => {
-                                            await client.database
-                                                .remLog(server)
-                                                .then((msg1) => client.database.writeDevLog(msg1))
-                                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                        })
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                })
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        },
-                        1000 * 60 * 60 * 24
-                    );
-                    //Command Registration
-                    await client.database
-                        .writeLog(server, 'Attempting to register Server Commands...')
-                        .then((msg) => client.database.writeDevLog(msg))
-                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    await server.commands
-                        .set(commandArray)
-                        .then(async (commands) => {
-                            await client.database
-                                .writeLog(server, 'Successfully registered Server Commands, attempting to write Server Commands to Database...')
-                                .then((msg) => client.database.writeDevLog(msg))
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                            commands.forEach(async (command) => {
-                                await client.database
-                                    .writeLog(server, `Attempting to register Server Command /${command.name} in Database...`)
-                                    .then((msg) => client.database.writeDevLog(msg))
-                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                await client.database
-                                    .getCommand({ name: command.name }, 'slash')
-                                    .then(async (cmd) => {
-                                        await client.database
-                                            .addServCmd(server, {
-                                                id: command.id,
-                                                cmd_id: cmd.id,
-                                                name: cmd.name,
-                                                type: 'slash',
-                                            })
-                                            .then(async (msg) => {
-                                                await client.database
-                                                    .writeLog(server, `${msg} - Searching Database for restrictions...`)
-                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                await client.database
-                                                    .getRestriction(command)
-                                                    .then(async (rests) => {
-                                                        await server.commands.permissions
-                                                            .set({
-                                                                token: client.config.token,
-                                                                permissions: [
-                                                                    {
-                                                                        id: command.id,
-                                                                        permissions: rests,
-                                                                    },
-                                                                ],
-                                                            })
-                                                            .then(async () => {
-                                                                await client.database
-                                                                    .writeLog(server, `Successfully added restrictions to Command /${command.name}`)
-                                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                            })
-                                                            .catch(async (err1) => {
-                                                                await client.database
-                                                                    .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err1}`)
-                                                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                                                    .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                            });
-                                                    })
-                                                    .catch(async (err1) => {
-                                                        await client.database
-                                                            .writeLog(server, `${err1}`)
-                                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                                            .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                    });
-                                            })
-                                            .catch(async (err1) => {
-                                                if (String(err1).includes('Error 409')) {
-                                                    await client.database
-                                                        .writeLog(server, `${err1} - Searching Database for restrictions...`)
-                                                        .then((msg) => client.database.writeDevLog(msg))
-                                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                    await client.database
-                                                        .getRestriction(command)
-                                                        .then(async (rests) => {
-                                                            await server.commands.permissions
-                                                                .set({
-                                                                    token: client.config.token,
-                                                                    permissions: [
-                                                                        {
-                                                                            id: command.id,
-                                                                            permissions: rests,
-                                                                        },
-                                                                    ],
-                                                                })
-                                                                .then(async () => {
-                                                                    await client.database
-                                                                        .writeLog(server, `Successfully added restrictions to Command /${command.name}`)
-                                                                        .then((msg) => client.database.writeDevLog(msg))
-                                                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                                })
-                                                                .catch(async (err2) => {
-                                                                    await client.database
-                                                                        .writeLog(server, `Failed to add restrictions to Command /${command.name}\nReason:\n${err2}`)
-                                                                        .then((msg) => client.database.writeDevLog(msg))
-                                                                        .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                                });
-                                                        })
-                                                        .catch(async (err2) => {
-                                                            await client.database
-                                                                .writeLog(server, `${err2}`)
-                                                                .then((msg) => client.database.writeDevLog(msg))
-                                                                .catch((err3) => client.database.writeDevLog(`${err3}`));
-                                                        });
-                                                } else {
-                                                    await client.database
-                                                        .writeLog(server, `Failed to register Server Command /${command.name}\nReason:\n${err1}`)
-                                                        .then((msg) => client.database.writeDevLog(msg))
-                                                        .catch((err2) => client.database.writeDevLog(`${err2}`));
-                                                }
-                                            });
-                                    })
-                                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                            });
-                        })
-                        .catch((err1) => client.database.writeDevLog(`${err1}`));
+                    } else throw new NotFoundError('No Logchannel found', `This Server has no Logchannel defined, please set one with \`/server setchannel log\``)
+                }
+            } catch (err) {
+                client.logServerError(server, err)
+            }
+        }, 1000 * 60 * 60 * 24);
+
+        client.writeServerLog(server, 'Interval created - Attempting to register Server Commands...')
+
+        await guild.commands.set(commandArray)
+        .then(commands => {
+            client.writeServerLog(server, `Successfully registered ${commands.size} Commands in Server - Attempting to write Server Commands to Database...`)
+
+            commands.forEach(async (command) => {
+                client.writeServerLog(server, `Attempting to write Command /${command.name} to Database...`)
+
+                try {
+                    const cmd = client.database.Command.getOne({name: command.name}, 1)
+                    
+                    await client.database.Server.commands.add(server, {
+                        id: command.id,
+                        command_id: cmd.id,
+                        name: command.name,
+                        type: 1
+                    });
+
+                    client.writeServerLog(server, `Successfully wrote Command /${command.name} to Database`)
+                } catch (err) {
+                    client.logServerError(server, err)
+                }
+
+                try {
+                    client.writeServerLog(server, `Searching Database for Restrictions for Command /${command.name}...`)
+                    
+                    const restrictions = await client.database.Server.commands.restrictions.getAll(command)
+                    client.writeServerLog(server, `Found ${restrictions.length} Restrictions for Command /${command.name} - Attempting to add them to the Command...`)
+
+                    await guild.commands.permissions.add({
+                        command: command.id,
+                        token: client.config.token,
+                        permissions: restrictions
+                    });
+
+                    client.writeServerLog(server, `Successfully added restrictions to Command /${command.name}`)
+                } catch (err) {
+                    client.logServerError(server, err)
                 }
             });
+        })
+        .catch(err => client.logServerError(server, err))
+
+        client.writeServerLog(server, 'Finished registering Server Commands - Bot is now ready!')
     }
 }
+
 export default new Event();

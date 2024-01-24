@@ -25,7 +25,7 @@ class servercommand {
                     cmd_id: dbCmd.id,
                     name: dbCmd.name,
                     type: dbCmd.type,
-                    enabled: (dbCmd && servCmd.enabled && !dbCmd.enabled) ? false : servCmd.enabled,
+                    enabled: dbCmd && servCmd.enabled && !dbCmd.enabled ? false : servCmd.enabled,
                     restricted: servCmd.restricted,
                 };
             })

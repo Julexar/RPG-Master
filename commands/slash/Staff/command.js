@@ -1,139 +1,481 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ApplicationCommandPermissionType, ChannelSelectMenuBuilder, ChannelType, EmbedBuilder, RoleSelectMenuBuilder, UserSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
+import {
+    ActionRowBuilder,
+    ApplicationCommandOptionType,
+    ApplicationCommandPermissionType,
+    ChannelSelectMenuBuilder,
+    ChannelType,
+    RoleSelectMenuBuilder,
+    UserSelectMenuBuilder,
+    PermissionFlagsBits,
+    ButtonBuilder,
+    ButtonStyle,
+} from 'discord.js';
+import { CommandBuilder } from '../../../custom/builders';
+import { client } from '../../..';
+import { SuccessEmbed, ErrorEmbed, ListEmbed } from '../../../custom/embeds';
+import { NotFoundError } from '../../../custom/errors';
 const cmds = [];
-import config from '../../../config.js';
-class Command {
-    constructor() {
-        this.server;
-        this.name = 'command';
-        this.description = 'Command Settings';
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.enabled = true;
-        this.defaultMemberPermissions = [PermissionFlagsBits.Administrator];
-        this.options = [
-            {
-                name: 'toggle',
-                description: 'Toggles a Command',
-                type: ApplicationCommandOptionType.Subcommand,
-                options: [
-                    {
-                        name: 'command',
-                        description: 'Choose a Command',
-                        type: ApplicationCommandOptionType.String,
-                        required: true,
-                        choices: cmds,
-                    },
-                ],
-            },
-            {
-                name: 'restriction',
-                description: 'Edits Restrictions of a Command',
-                type: ApplicationCommandOptionType.SubcommandGroup,
-                options: [
-                    {
-                        name: 'toggle',
-                        description: 'Toggles the Restrictions of a Command',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'command',
-                                description: 'Choose a Command',
-                                type: ApplicationCommandOptionType.String,
-                                required: true,
-                                choices: cmds,
-                            },
-                        ],
-                    },
-                    {
-                        name: 'add',
-                        description: 'Adds a Restriction to a Command',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'command',
-                                description: 'Choose a Command',
-                                type: ApplicationCommandOptionType.String,
-                                required: true,
-                                choices: cmds,
-                            },
-                            {
-                                name: 'type',
-                                description: 'Choose a restriction type',
-                                type: ApplicationCommandOptionType.String,
-                                required: true,
-                                choices: [
-                                    {
-                                        name: 'User',
-                                        value: 'user',
-                                    },
-                                    {
-                                        name: 'Role',
-                                        value: 'role',
-                                    },
-                                    {
-                                        name: 'Channel',
-                                        value: 'chan',
-                                    },
-                                ],
-                            },
-                            {
-                                name: 'permitted',
-                                description: 'Provide a boolean',
-                                type: ApplicationCommandOptionType.Boolean,
-                                required: true,
-                            },
-                        ],
-                    },
-                    {
-                        name: 'rem',
-                        description: 'Removes a Restriction from a Command',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'command',
-                                description: 'Choose a Command',
-                                type: ApplicationCommandOptionType.String,
-                                required: true,
-                                choices: cmds,
-                            },
-                            {
-                                name: 'type',
-                                description: 'Choose a restriction type',
-                                type: ApplicationCommandOptionType.String,
-                                required: true,
-                                choices: [
-                                    {
-                                        name: 'User',
-                                        value: 'user',
-                                    },
-                                    {
-                                        name: 'Role',
-                                        value: 'role',
-                                    },
-                                    {
-                                        name: 'Channel',
-                                        value: 'chan',
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        name: 'view',
-                        description: 'Shows the Restrictions of a Command',
-                        type: ApplicationCommandOptionType.Subcommand,
-                        options: [
-                            {
-                                name: 'command',
-                                description: 'Choose a Command',
-                                type: ApplicationCommandOptionType.String,
-                                required: true,
-                                choices: cmds,
-                            },
-                        ],
-                    },
-                ],
-            },
-        ];
+        this.server = null;
     }
+
+    /**
+     *
+     * @param {import('discord.js').CommandInteraction} interaction
+     */
+    async run(interaction) {
+        const option = interaction.options;
+        const user = interaction.user;
+        const filter = (m) => m.user.id === user.id;
+        let embed, emph, row, msg, collector;
+
+        const cmd = {
+            id: Number(option.getString('command')),
+        };
+
+        switch (option.getSubcommand()) {
+            case 'toggle':
+                if (option.getSubcommandGroup() === 'restriction') {
+                    embed = await this.toggleRestriction(this.server, cmd);
+
+                    emph = embed.data.color === '#FF0000';
+
+                    await interaction.reply({
+                        embeds: [embed],
+                        ephemeral: emph,
+                    });
+                } else {
+                    embed = await this.toggleCommand(this.server, cmd);
+
+                    emph = embed.data.color === '#FF0000';
+
+                    await interaction.reply({
+                        embeds: [embed],
+                        ephemeral: emph,
+                    });
+                }
+                break;
+            case 'add':
+                switch (option.getString('type')) {
+                    case 'user':
+                        row = new ActionRowBuilder().addComponents(
+                            new UserSelectMenuBuilder().setCustomId('usersel').setPlaceholder('No User selected...').setMinValues(1).setMaxValues(1)
+                        );
+
+                        msg = await interaction.reply({
+                            content: 'Please select a User:',
+                            components: [row],
+                            ephemeral: true,
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async (i) => {
+                            if (i.customId === 'usersel') {
+                                const rest = {
+                                    id: Number(i.values[0]),
+                                    type: ApplicationCommandPermissionType.User,
+                                    permission: option.getBoolean('permitted'),
+                                };
+
+                                embed = await this.addRestriction(this.server, cmd, rest);
+
+                                emph = embed.data.color === '#FF0000';
+
+                                let mes = await i.deferReply();
+                                await mes.edit({
+                                    embeds: [embed],
+                                    ephemeral: emph,
+                                });
+                            }
+                        });
+
+                        collector.on('end', async (collected) => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true,
+                                });
+                            } else {
+                                client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                        break;
+                    case 'role':
+                        row = new ActionRowBuilder().addComponents(
+                            new RoleSelectMenuBuilder().setCustomId('rolesel').setPlaceholder('No Role selected...').setMinValues(1).setMaxValues(1)
+                        );
+
+                        msg = await interaction.reply({
+                            content: 'Please select a Role:',
+                            components: [row],
+                            ephemeral: true,
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async (i) => {
+                            if (i.customId === 'rolesel') {
+                                const rest = {
+                                    id: Number(i.values[0]),
+                                    type: ApplicationCommandPermissionType.Role,
+                                    permission: option.getBoolean('permitted'),
+                                };
+
+                                embed = await this.addRestriction(this.server, cmd, rest);
+
+                                emph = embed.data.color === '#FF0000';
+
+                                let mes = await i.deferReply();
+                                await mes.edit({
+                                    embeds: [embed],
+                                    ephemeral: emph,
+                                });
+                            }
+                        });
+
+                        collector.on('end', async (collected) => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true,
+                                });
+                            } else {
+                                client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                        break;
+                    case 'channel':
+                        row = new ActionRowBuilder().addComponents(
+                            new ChannelSelectMenuBuilder()
+                                .setCustomId('channelsel')
+                                .setPlaceholder('No Channel selected...')
+                                .setMinValues(1)
+                                .setMaxValues(1)
+                                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildDirectory)
+                        );
+
+                        msg = await interaction.reply({
+                            content: 'Please select a Channel:',
+                            components: [row],
+                            ephemeral: true,
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async (i) => {
+                            if (i.customId === 'channelsel') {
+                                const rest = {
+                                    id: Number(i.values[0]),
+                                    type: ApplicationCommandPermissionType.Role,
+                                    permission: option.getBoolean('permitted'),
+                                };
+
+                                embed = await this.addRestriction(this.server, cmd, rest);
+
+                                emph = embed.data.color === '#FF0000';
+
+                                let mes = await i.deferReply();
+                                await mes.edit({
+                                    embeds: [embed],
+                                    ephemeral: emph,
+                                });
+                            }
+                        });
+
+                        collector.on('end', async (collected) => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true,
+                                });
+                            } else {
+                                client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                        break;
+                }
+                break;
+            case 'remove':
+                switch (option.getString('type')) {
+                    case 'user':
+                        row = new ActionRowBuilder().addComponents(
+                            new UserSelectMenuBuilder().setCustomId('usersel').setPlaceholder('No User selected...').setMinValues(1).setMaxValues(1)
+                        );
+
+                        msg = await interaction.reply({
+                            content: 'Please select a User:',
+                            components: [row],
+                            ephemeral: true,
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async (i) => {
+                            if (i.customId === 'usersel') {
+                                const rest = {
+                                    id: Number(i.values[0]),
+                                    type: ApplicationCommandPermissionType.User,
+                                };
+
+                                embed = await this.removeRestriction(this.server, cmd, rest);
+
+                                emph = embed.data.color === '#FF0000';
+
+                                let mes = await i.deferReply();
+                                await mes.edit({
+                                    embeds: [embed],
+                                    ephemeral: emph,
+                                });
+                            }
+                        });
+
+                        collector.on('end', async (collected) => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true,
+                                });
+                            } else {
+                                client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                        break;
+                    case 'role':
+                        row = new ActionRowBuilder().addComponents(
+                            new RoleSelectMenuBuilder().setCustomId('rolesel').setPlaceholder('No Role selected...').setMinValues(1).setMaxValues(1)
+                        );
+
+                        msg = await interaction.reply({
+                            content: 'Please select a Role:',
+                            components: [row],
+                            ephemeral: true,
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async (i) => {
+                            if (i.customId === 'rolesel') {
+                                const rest = {
+                                    id: Number(i.values[0]),
+                                    type: ApplicationCommandPermissionType.Role,
+                                };
+
+                                embed = await this.removeRestriction(this.server, cmd, rest);
+
+                                emph = embed.data.color === '#FF0000';
+
+                                let mes = await i.deferReply();
+                                await mes.edit({
+                                    embeds: [embed],
+                                    ephemeral: emph,
+                                });
+                            }
+                        });
+
+                        collector.on('end', async (collected) => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true,
+                                });
+                            } else {
+                                client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                        break;
+                    case 'channel':
+                        row = new ActionRowBuilder().addComponents(
+                            new ChannelSelectMenuBuilder()
+                                .setCustomId('channelsel')
+                                .setPlaceholder('No Channel selected...')
+                                .setMinValues(1)
+                                .setMaxValues(1)
+                                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildDirectory)
+                        );
+
+                        msg = await interaction.reply({
+                            content: 'Please select a Channel:',
+                            components: [row],
+                            ephemeral: true,
+                        });
+
+                        collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                        collector.on('collect', async (i) => {
+                            if (i.customId === 'channelsel') {
+                                const rest = {
+                                    id: Number(i.values[0]),
+                                    type: ApplicationCommandPermissionType.Channel,
+                                };
+
+                                embed = await this.removeRestriction(this.server, cmd, rest);
+
+                                emph = embed.data.color === '#FF0000';
+
+                                let mes = await i.deferReply();
+                                await mes.edit({
+                                    embeds: [embed],
+                                    ephemeral: emph,
+                                });
+                            }
+                        });
+
+                        collector.on('end', async (collected) => {
+                            if (collected.size === 0) {
+                                await msg.edit({
+                                    content: 'Selection timed out...',
+                                    components: [],
+                                    ephemeral: true,
+                                });
+                            } else {
+                                client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
+                            }
+
+                            setTimeout(async () => {
+                                await msg.delete();
+                            }, 5000);
+                        });
+                        break;
+                }
+                break;
+            case 'list':
+                embed = new ListEmbed('Command Restrictions', 'Here is a list of all Restrictions of the Command:', []);
+                const embeds = [];
+                embeds.push(row);
+
+                const restrictions = await client.database.Server.commands.restrictions.getAll(cmd);
+
+                let count,
+                    num,
+                    page = 0;
+
+                for (const restriction of restrictions) {
+                    if (count === 24) {
+                        embeds.push(row);
+                        count = 0;
+                        num++;
+                    }
+
+                    let perm = restriction.permission ? 'permitted' : 'denied';
+                    let rest =
+                        restriction.type === ApplicationCommandPermissionType.User
+                            ? `<@${restriction.id}>`
+                            : restriction.type === ApplicationCommandPermissionType.Role
+                              ? `<@&${restriction.id}>`
+                              : `<#${restriction.id}>`;
+
+                    embeds[num].components[0].addFields({
+                        name: `${rest}`,
+                        value: `${perm}`,
+                    });
+
+                    count++;
+                }
+
+                const row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+                    new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
+                );
+
+                msg = await interaction.reply({
+                    embeds: [embeds[page]],
+                    components: [row2],
+                });
+
+                collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                collector.on('collect', async (i) => {
+                    if (i.customId === 'next') {
+                        await i.deferUpdate();
+                        if (page < embeds.length - 1) {
+                            page++;
+
+                            if (page === embeds.length - 1) {
+                                row2.components[1].setDisabled(true);
+                                row2.components[0].setDisabled(false);
+                            } else {
+                                row2.components[0].setDisabled(false);
+                                row2.components[1].setDisabled(false);
+                            }
+
+                            await msg.edit({
+                                embeds: [embeds[page]],
+                                components: [row2],
+                            });
+                        }
+                    } else if (i.customId === 'prev') {
+                        await i.deferUpdate();
+                        if (page > 0) {
+                            page--;
+
+                            if (page === 0) {
+                                row2.components[0].setDisabled(true);
+                                row2.components[1].setDisabled(false);
+                            } else {
+                                row2.components[0].setDisabled(false);
+                                row2.components[1].setDisabled(false);
+                            }
+
+                            await msg.edit({
+                                embeds: [embeds[page]],
+                                components: [row2],
+                            });
+                        }
+                    }
+                });
+
+                collector.on('end', async (collected) => {
+                    if (collected.size > 0) {
+                        client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
+                    }
+
+                    row2.components[0].setDisabled(true);
+                    row2.components[1].setDisabled(true);
+
+                    await msg.edit({
+                        embeds: [embeds[page]],
+                        components: [row2],
+                    });
+                });
+                break;
+        }
+    }
+
+    /**
+     *
+     * @param {import('discord.js').Guild} guild
+     */
     setServer(guild) {
         this.server = guild;
         this.setChoices();
@@ -141,565 +483,208 @@ class Command {
 
     setChoices() {
         this.server.commands.cache.forEach((cmd) => {
-            cmds.push({
-                name: cmd.name,
-                value: `${cmd.id}`,
-            });
+            cmds.push(cmd);
         });
     }
 
-    async run(client, interaction) {
-        const option = interaction.options;
-        const user = interaction.user;
-        const filter = (m) => m.user.id == user.id;
-        const cmd = {
-            id: Number(option.getString('command')),
-        };
-        switch (option.getSubcommand()) {
-            case 'toggle':
-                if (option.getSubcommandGroup() == 'restriction') {
-                    client.database.restrictServCmd(this.server, cmd);
-                } else {
-                    client.database
-                        .toggleServCmd(this.server, cmd)
-                        .then((msg) => {
-                            client.database
-                                .writeLog(this.server, `${msg}`)
-                                .then(async (mes) => {
-                                    client.database.writeDevLog(`${mes}`);
-                                    await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(`${mes}`).setTimestamp()],
-                                        ephemeral: true,
-                                    });
-                                })
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        })
-                        .catch((err) => {
-                            client.database
-                                .writeLog(this.server, `${err}`)
-                                .then(async (mes) => {
-                                    client.database.writeDevLog(`${mes}`);
-                                    if (String(err).includes('Command')) {
-                                        await interaction.reply({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find that Server Command in the Database!').setTimestamp()],
-                                            ephemeral: true,
-                                        });
-                                    } else if (String(err).includes('Server')) {
-                                        await interaction.reply({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Server in the Database!').setTimestamp()],
-                                            ephemeral: true,
-                                        });
-                                    } else {
-                                        await interaction.reply({
-                                            embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                            ephemeral: true,
-                                        });
-                                    }
-                                })
-                                .catch((err1) => client.database.writeDevLog(`${err1}`));
-                        });
-                }
-                return;
-            case 'add':
-                if (option.getString('type') == 'user') {
-                    const row = new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId('usel').setMinValues(1).setMaxValues(1).setPlaceholder('No User selected...'));
-                    const msg = await interaction.reply({
-                        content: 'Select a User:',
-                        components: [row],
-                        ephemeral: true,
+    async toggleCommand(server, command) {
+        try {
+            const msg = await client.database.Server.commands.toggle(server, command);
+            client.writeServerLog(server, msg);
+
+            const action = command.enabled ? 'disabled' : 'enabled';
+
+            return new SuccessEmbed(msg || 'Success', `Successfully ${action} the Command \`/${command.name}\``);
+        } catch (err) {
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async toggleRestriction(server, command) {
+        try {
+            const msg = await client.database.Server.commands.restrictions.toggle(command);
+            client.writeServerLog(server, msg);
+
+            const action = command.enabled ? 'disabled' : 'enabled';
+
+            return new SuccessEmbed(msg || 'Success', `Successfully ${action} the Restrictions of the Command \`/${command.name}\``);
+        } catch (err) {
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async addRestriction(server, command, restriction) {
+        try {
+            const msg = await client.database.Server.commands.restrictions.add(command, restriction);
+            client.writeServerLog(server, msg);
+
+            await this.server.commands.permissions.add({
+                command: command.id,
+                token: client.config.token,
+                permissions: [restriction],
+            });
+
+            return new SuccessEmbed(msg || 'Success', `Successfully added the Restriction to the Command \`/${command.name}\``);
+        } catch (err) {
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
+        }
+    }
+
+    async removeRestriction(server, command, restriction) {
+        try {
+            const msg = await client.database.Server.commands.restrictions.remove(command, restriction);
+            client.writeServerLog(server, msg);
+
+            switch (restriction.type) {
+                case ApplicationCommandPermissionType.User:
+                    await this.server.commands.permissions.remove({
+                        command: command.id,
+                        token: client.config.token,
+                        users: restriction.id,
                     });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
+                    break;
+                case ApplicationCommandPermissionType.Role:
+                    await this.server.commands.permissions.remove({
+                        command: command.id,
+                        token: client.config.token,
+                        roles: restriction.id,
                     });
-                    collector.on('collect', async (i) => {
-                        if (i.customId == 'usel') {
-                            const rest = {
-                                id: Number(i.values[0]),
-                                type: ApplicationCommandPermissionType.User,
-                                permission: option.getBoolean('permitted'),
-                            };
-                            client.database
-                                .addRestriction(cmd, rest)
-                                .then((mes) => {
-                                    client.database
-                                        .writeLog(this.server, `${mes}`)
-                                        .then(async (mesag) => {
-                                            this.server.commands.permissions
-                                                .add({
-                                                    command: `${cmd.id}`,
-                                                    token: `${config.token}`,
-                                                    permissions: [rest],
-                                                })
-                                                .then(async () => {
-                                                    client.database.writeDevLog(`${mesag}`);
-                                                    const m = await i.deferReply();
-                                                    await m.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(`${mes}`).setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                })
-                                                .catch((err) => {
-                                                    client.database
-                                                        .writeLog(this.server, `${err}`)
-                                                        .then((m) => client.database.writeDevLog(`${m}`))
-                                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                });
-                                        })
-                                        .catch((err) => client.database.writeDevLog(`${err}`));
-                                })
-                                .catch((err) => {
-                                    client.database
-                                        .writeLog(this.server, `${err}`)
-                                        .then(async (mes) => {
-                                            client.database.writeDevLog(`${mes}`);
-                                            const m = await i.deferReply();
-                                            if (String(err).includes('Error 409')) {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('The Restriction already exists for the given Command!').setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                        })
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                });
-                        }
+                    break;
+                case ApplicationCommandPermissionType.Channel:
+                    await this.server.commands.permissions.remove({
+                        command: command.id,
+                        token: client.config.token,
+                        channels: restriction.id,
                     });
-                    collector.on('end', async (collected) => {
-                        if (collected.size === 0) {
-                            await msg.edit({
-                                content: 'Selection timed out...',
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database
-                                .writeLog(this.server, `Collected ${collected.size} Interactions`)
-                                .then((mes) => client.database.writeDevLog(`${mes}`))
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        }
-                    });
-                } else if (option.getString('type') == 'role') {
-                    const row = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('rsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Role selected...'));
-                    const msg = await interaction.reply({
-                        content: 'Select a Role:',
-                        components: [row],
-                        ephemeral: true,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                    });
-                    collector.on('collect', async (i) => {
-                        if (i.customId == 'rsel') {
-                            const rest = {
-                                id: Number(i.values[0]),
-                                type: ApplicationCommandPermissionType.Role,
-                                permission: option.getBoolean('permitted'),
-                            };
-                            client.database
-                                .addRestriction(cmd, rest)
-                                .then((mes) => {
-                                    client.database
-                                        .writeLog(this.server, `${mes}`)
-                                        .then(async (mesag) => {
-                                            client.database.writeDevLog(`${mesag}`);
-                                            this.server.commands.permissions
-                                                .add({
-                                                    command: `${cmd.id}`,
-                                                    token: `${config.token}`,
-                                                    permissions: [rest],
-                                                })
-                                                .then(async () => {
-                                                    const m = await i.deferReply();
-                                                    await m.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(`${mes}`).setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                })
-                                                .catch((err) => {
-                                                    client.database
-                                                        .writeLog(this.server, `${err}`)
-                                                        .then((m) => client.database.writeDevLog(`${m}`))
-                                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                });
-                                        })
-                                        .catch((err) => client.database.writeDevLog(`${err}`));
-                                })
-                                .catch((err) => {
-                                    client.database
-                                        .writeLog(this.server, `${err}`)
-                                        .then(async (mes) => {
-                                            client.database.writeDevLog(`${mes}`);
-                                            const m = await i.deferReply();
-                                            if (String(err).includes('Error 409')) {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('The Restriction already exists for the given Command!').setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                        })
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                });
-                        }
-                    });
-                    collector.on('end', async (collected) => {
-                        if (collected.size === 0) {
-                            await msg.edit({
-                                content: 'Selection timed out...',
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database
-                                .writeLog(this.server, `Collected ${collected.size} Interactions`)
-                                .then((mes) => client.database.writeDevLog(`${mes}`))
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        }
-                    });
-                } else if (option.getString('type') == 'chan') {
-                    const row = new ActionRowBuilder().addComponents(
-                        new ChannelSelectMenuBuilder().setCustomId('csel').setChannelTypes([ChannelType.GuildText, ChannelType.GuildDirectory]).setMinValues(1).setMaxValues(1).setPlaceholder('No Channel selected...')
-                    );
-                    const msg = await interaction.reply({
-                        content: 'Select a Channel:',
-                        components: [row],
-                        ephemeral: true,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                    });
-                    collector.on('collect', async (i) => {
-                        if (i.customId == 'csel') {
-                            const rest = {
-                                id: Number(i.values[0]),
-                                type: ApplicationCommandPermissionType.Channel,
-                                permission: option.getBoolean('permitted'),
-                            };
-                            client.database
-                                .addRestriction(cmd, rest)
-                                .then((mes) => {
-                                    client.database
-                                        .writeLog(this.server, `${mes}`)
-                                        .then(async (mesag) => {
-                                            client.database.writeDevLog(`${mesag}`);
-                                            this.server.commands.permissions
-                                                .add({
-                                                    command: `${cmd.id}`,
-                                                    token: `${config.token}`,
-                                                    permissions: [rest],
-                                                })
-                                                .then(async () => {
-                                                    const m = await i.deferReply();
-                                                    await m.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(`${mes}`).setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                })
-                                                .catch((err) => {
-                                                    client.database
-                                                        .writeLog(this.server, `${err}`)
-                                                        .then((m) => client.database.writeDevLog(`${m}`))
-                                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                });
-                                        })
-                                        .catch((err) => client.database.writeDevLog(`${err}`));
-                                })
-                                .catch((err) => {
-                                    client.database
-                                        .writeLog(this.server, `${err}`)
-                                        .then(async (mes) => {
-                                            client.database.writeDevLog(`${mes}`);
-                                            const m = await i.deferReply();
-                                            if (String(err).includes('Error 409')) {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('The Restriction already exists for the given Command!').setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                        })
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                });
-                        }
-                    });
-                    collector.on('end', async (collected) => {
-                        if (collected.size === 0) {
-                            await msg.edit({
-                                content: 'Selection timed out...',
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database
-                                .writeLog(this.server, `Collected ${collected.size} Interactions`)
-                                .then((mes) => client.database.writeDevLog(`${mes}`))
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        }
-                    });
-                }
-                return;
-            case 'rem':
-                if (option.getString('type') == 'user') {
-                    const row = new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId('usel').setMinValues(1).setMaxValues(1).setPlaceholder('No User selected...'));
-                    const msg = await interaction.reply({
-                        content: 'Select a User:',
-                        components: [row],
-                        ephemeral: true,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                    });
-                    collector.on('collect', async (i) => {
-                        if (i.customId == 'usel') {
-                            const rest = {
-                                id: Number(i.values[0]),
-                                type: ApplicationCommandPermissionType.User,
-                            };
-                            client.database
-                                .addRestriction(cmd, rest)
-                                .then((mes) => {
-                                    client.database
-                                        .writeLog(this.server, `${mes}`)
-                                        .then(async (mesag) => {
-                                            client.database.writeDevLog(`${mesag}`);
-                                            this.server.commands.permissions
-                                                .remove({
-                                                    command: `${cmd.id}`,
-                                                    token: `${config.token}`,
-                                                    users: `${rest.id}`,
-                                                })
-                                                .then(async () => {
-                                                    const m = await i.deferReply();
-                                                    await m.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(`${mes}`).setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                })
-                                                .catch((err) => {
-                                                    client.database
-                                                        .writeLog(this.server, `${err}`)
-                                                        .then((m) => client.database.writeDevLog(`${m}`))
-                                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                });
-                                        })
-                                        .catch((err) => client.database.writeDevLog(`${err}`));
-                                })
-                                .catch((err) => {
-                                    client.database
-                                        .writeLog(this.server, `${err}`)
-                                        .then(async (mes) => {
-                                            client.database.writeDevLog(`${mes}`);
-                                            const m = await i.deferReply();
-                                            if (String(err).includes('Error 409')) {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Restriction for the given Command!').setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                        })
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                });
-                        }
-                    });
-                    collector.on('end', async (collected) => {
-                        if (collected.size === 0) {
-                            await msg.edit({
-                                content: 'Selection timed out...',
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database
-                                .writeLog(this.server, `Collected ${collected.size} Interactions`)
-                                .then((mes) => client.database.writeDevLog(`${mes}`))
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        }
-                    });
-                } else if (option.getString('type') == 'role') {
-                    const row = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('rsel').setMinValues(1).setMaxValues(1).setPlaceholder('No Role selected...'));
-                    const msg = await interaction.reply({
-                        content: 'Select a Role:',
-                        components: [row],
-                        ephemeral: true,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                    });
-                    collector.on('collect', async (i) => {
-                        if (i.customId == 'rsel') {
-                            const rest = {
-                                id: Number(i.values[0]),
-                                type: ApplicationCommandPermissionType.Role,
-                            };
-                            client.database
-                                .addRestriction(cmd, rest)
-                                .then((mes) => {
-                                    client.database
-                                        .writeLog(this.server, `${mes}`)
-                                        .then(async (mesag) => {
-                                            client.database.writeDevLog(`${mesag}`);
-                                            this.server.commands.permissions
-                                                .remove({
-                                                    command: `${cmd.id}`,
-                                                    token: `${config.token}`,
-                                                    roles: `${rest.id}`,
-                                                })
-                                                .then(async () => {
-                                                    const m = await i.deferReply();
-                                                    await m.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(`${mes}`).setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                })
-                                                .catch((err) => {
-                                                    client.database
-                                                        .writeLog(this.server, `${err}`)
-                                                        .then((m) => client.database.writeDevLog(`${m}`))
-                                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                });
-                                        })
-                                        .catch((err) => client.database.writeDevLog(`${err}`));
-                                })
-                                .catch((err) => {
-                                    client.database
-                                        .writeLog(this.server, `${err}`)
-                                        .then(async (mes) => {
-                                            client.database.writeDevLog(`${mes}`);
-                                            const m = await i.deferReply();
-                                            if (String(err).includes('Error 409')) {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Restriction for the given Command!').setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                        })
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                });
-                        }
-                    });
-                    collector.on('end', async (collected) => {
-                        if (collected.size === 0) {
-                            await msg.edit({
-                                content: 'Selection timed out...',
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database
-                                .writeLog(this.server, `Collected ${collected.size} Interactions`)
-                                .then((mes) => client.database.writeDevLog(`${mes}`))
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        }
-                    });
-                } else if (option.getString('type') == 'chan') {
-                    const row = new ActionRowBuilder().addComponents(
-                        new ChannelSelectMenuBuilder().setCustomId('csel').setChannelTypes([ChannelType.GuildText, ChannelType.GuildDirectory]).setMinValues(1).setMaxValues(1).setPlaceholder('No Channel selected...')
-                    );
-                    const msg = await interaction.reply({
-                        content: 'Select a Channel:',
-                        components: [row],
-                        ephemeral: true,
-                    });
-                    const collector = msg.createMessageComponentCollector({
-                        filter,
-                        time: 90000,
-                    });
-                    collector.on('collect', async (i) => {
-                        if (i.customId == 'csel') {
-                            const rest = {
-                                id: Number(i.values[0]),
-                                type: ApplicationCommandPermissionType.Channel,
-                            };
-                            client.database
-                                .remRestriction(cmd, rest)
-                                .then((mes) => {
-                                    client.database
-                                        .writeLog(this.server, `${mes}`)
-                                        .then(async (mesag) => {
-                                            client.database.writeDevLog(`${mesag}`);
-                                            this.server.commands.permissions
-                                                .remove({
-                                                    command: `${cmd.id}`,
-                                                    token: `${config.token}`,
-                                                    channels: `${rest.id}`,
-                                                })
-                                                .then(async () => {
-                                                    const m = await i.deferReply();
-                                                    await m.edit({
-                                                        embeds: [new EmbedBuilder().setColor('Green').setDescription(`${mes}`).setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                })
-                                                .catch((err) => {
-                                                    client.database
-                                                        .writeLog(this.server, `${err}`)
-                                                        .then((m) => client.database.writeDevLog(`${m}`))
-                                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                                });
-                                        })
-                                        .catch((err) => client.database.writeDevLog(`${err}`));
-                                })
-                                .catch((err) => {
-                                    client.database
-                                        .writeLog(this.server, `${err}`)
-                                        .then(async (mes) => {
-                                            client.database.writeDevLog(`${mes}`);
-                                            const m = await i.deferReply();
-                                            if (String(err).includes('Error 404')) {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find the Restriction for the given Command!').setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            } else {
-                                                await m.edit({
-                                                    embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                    ephemeral: true,
-                                                });
-                                            }
-                                        })
-                                        .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                });
-                        }
-                    });
-                    collector.on('end', async (collected) => {
-                        if (collected.size === 0) {
-                            await msg.edit({
-                                content: 'Selection timed out...',
-                                ephemeral: true,
-                            });
-                        } else {
-                            client.database
-                                .writeLog(this.server, `Collected ${collected.size} Interactions`)
-                                .then((mes) => client.database.writeDevLog(`${mes}`))
-                                .catch((err) => client.database.writeDevLog(`${err}`));
-                        }
-                    });
-                }
-                return;
+                    break;
+            }
+
+            return new SuccessEmbed(msg || 'Success', `Successfully removed the Restriction from the Command \`/${command.name}\``);
+        } catch (err) {
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
         }
     }
 }
-export default new Command();
+
+const command = new Command({
+    name: 'command',
+    description: 'Command Settings',
+    defaultMemberPermissions: [PermissionFlagsBits.Administrator],
+    options: [
+        {
+            name: 'toggle',
+            description: 'Toggles a Command',
+            type: ApplicationCommandOptionType.Subcommand,
+            options: [
+                {
+                    name: 'command',
+                    description: 'Choose a Command',
+                    type: ApplicationCommandOptionType.String,
+                    required: true,
+                    choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                },
+            ],
+        },
+        {
+            name: 'restriction',
+            descriuption: 'Restriction Settings',
+            type: ApplicationCommandOptionType.SubcommandGroup,
+            options: [
+                {
+                    name: 'toggle',
+                    description: 'Toggles the Restriction of a Command',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'command',
+                            description: 'Choose a Command',
+                            type: ApplicationCommandOptionType.String,
+                            required: true,
+                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                        },
+                    ],
+                },
+                {
+                    name: 'add',
+                    description: 'Adds a Restriction to a Command',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'command',
+                            description: 'Choose a Command',
+                            type: ApplicationCommandOptionType.String,
+                            required: true,
+                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                        },
+                        {
+                            name: 'type',
+                            description: 'Choose a Type',
+                            type: ApplicationCommandOptionType.String,
+                            required: true,
+                            choices: [
+                                { name: 'Role', value: 'role' },
+                                { name: 'User', value: 'user' },
+                                { name: 'Channel', value: 'channel' },
+                            ],
+                        },
+                        {
+                            name: 'permitted',
+                            description: 'Provide a Boolean',
+                            type: ApplicationCommandOptionType.Boolean,
+                            required: true,
+                        },
+                    ],
+                },
+                {
+                    name: 'remove',
+                    description: 'Removes a Restriction from a Command',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'command',
+                            description: 'Choose a Command',
+                            type: ApplicationCommandOptionType.String,
+                            required: true,
+                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                        },
+                        {
+                            name: 'type',
+                            description: 'Choose a Type',
+                            type: ApplicationCommandOptionType.String,
+                            required: true,
+                            choices: [
+                                { name: 'Role', value: 'role' },
+                                { name: 'User', value: 'user' },
+                                { name: 'Channel', value: 'channel' },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    name: 'list',
+                    description: 'Lists all Restrictions of a Command',
+                    type: ApplicationCommandOptionType.Subcommand,
+                    options: [
+                        {
+                            name: 'command',
+                            description: 'Choose a Command',
+                            type: ApplicationCommandOptionType.String,
+                            required: true,
+                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
+});
+
+export { command };

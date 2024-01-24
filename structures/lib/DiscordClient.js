@@ -27,7 +27,7 @@ class DiscordClient extends Client {
             const handlers = ['events', 'slashCommands', 'prefixCommands', 'contextCommands'];
             handlers.forEach(async (handler) => {
                 const module = await import(`../handlers/${handler}.js`);
-                module.default.run();
+                await module.handler.run();
             });
 
             this.login(this.config.token);

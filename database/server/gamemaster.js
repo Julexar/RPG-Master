@@ -51,7 +51,7 @@ class GameMaster {
     }
 
     static async editXP(server, user, xp) {
-        const gm = await this.getGM(server, user);
+        const gm = await this.getOne(server, user);
 
         if (gm.xp - xp < 0) {
             throw new ForbiddenError('Not enough XP', 'You do not have enough GMXP!');
@@ -65,11 +65,21 @@ class GameMaster {
     }
 
     static async toggleSuggestion(server, user) {
-        const gm = await this.getGM(server, user);
+        const gm = await this.getOne(server, user);
 
         await query('UPDATE gms SET suggestions = $1 WHERE server_id = $2 AND user_id = $3', [!gm.suggestions, server.id, user.id]);
 
         return `Successfully set receiving of suggestions to ${!gm.suggestions}`;
+    }
+
+    static async setSession(server, user, session) {
+        if (!(await this.exists(server, user))) {
+            throw new NotFoundError('GM not found', 'Could not find that GM in the Database!');
+        }
+
+        await query('UPDATE gms SET session_id = $1 WHERE server_id = $1 AND user_id = $2', [session.id, server.id, user.id]);
+
+        return `Successfully changed active Session to ${session.name}`;
     }
 }
 

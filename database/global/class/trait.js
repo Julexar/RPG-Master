@@ -59,8 +59,22 @@ class ClassTrait {
             throw new DuplicateError('Duplicate Class Trait', 'That Class already has that trait!');
         }
 
-        const sql = 'INSERT INTO class_traits (class_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)';
-        await query(sql, [clas.id, trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat]);
+        const sql =
+            'INSERT INTO class_traits (class_id, level, name, description, type, visible, val, replace, abil_replace, dmg_dice, dmg_dice_size, dmg_stat) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)';
+        await query(sql, [
+            clas.id,
+            trait.level,
+            trait.name,
+            trait.description,
+            trait.type,
+            trait.visible,
+            trait.val,
+            trait.replace,
+            trait.abil_replace,
+            trait.dmg_dice,
+            trait.dmg_dice_size,
+            trait.dmg_stat,
+        ]);
 
         return 'Successfully added Class Trait to Database';
     }
@@ -80,8 +94,23 @@ class ClassTrait {
             throw new NotFoundError('Class Trait not found', 'Could not find that Trait for that Class in the Database!');
         }
 
-        const sql = 'UPDATE class_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE class_id = $12 AND id = $13';
-        await query(sql, [trait.level, trait.name, trait.description, trait.type, trait.visible, trait.val, trait.replace, trait.abil_replace, trait.dmg_dice, trait.dmg_dice_size, trait.dmg_stat, clas.id, trait.id]);
+        const sql =
+            'UPDATE class_traits SET level = $1, name = $2, description = $3, type = $4, visible = $5, val = $6, replace = $7, abil_replace = $8, dmg_dice = $9, dmg_dice_size = $10, dmg_stat = $11 WHERE class_id = $12 AND id = $13';
+        await query(sql, [
+            trait.level,
+            trait.name,
+            trait.description,
+            trait.type,
+            trait.visible,
+            trait.val,
+            trait.replace,
+            trait.abil_replace,
+            trait.dmg_dice,
+            trait.dmg_dice_size,
+            trait.dmg_stat,
+            clas.id,
+            trait.id,
+        ]);
 
         return 'Successfully updated Class Trait in Database';
     }
