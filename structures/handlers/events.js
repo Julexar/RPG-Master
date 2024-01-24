@@ -1,38 +1,30 @@
 import Ascii from 'ascii-table';
-import fs from 'fs';
 import { client } from '../..';
+import { events } from '../../events';
 
 class eventHandler {
     static async run() {
         const eventsTable = new Ascii('Events').setHeading('Name', 'Status', 'Reason');
-        const dirs = fs.readdirSync('./events');
 
-        for (const dir of dirs) {
-            const files = fs.readdirSync(`./events/${dir}`);
+        for (const event of events) {
+            let name;
 
-            for (const file of files) {
-                const module = await import(`../../events/${dir}/${file}`);
-                const event = module.default;
-                let name;
+            if (!event.name || !event.run) return eventsTable.addRow(`${event.name}`, 'Failed', 'Missing Name/Run');
 
-                if (!event.name || !event.run) {
-                    return eventsTable.addRow(`${event.name || file}`, 'Failed', 'Missing Name/Run');
-                }
+            name = event.name;
 
-                name = event.name;
+            if (event.nick) name += ` (${event.nick})`;
 
-                if (event.nick) {
-                    name += ` (${event.nick})`;
-                }
+            if (event.once) client.once(event.name, async (...args) => await event.run(...args, client));
+            else client.on(event.name, async (...args) => await event.run(...args, client));
 
-                if (event.once) client.once(event.name, (...args) => event.run(...args, client));
-                else client.on(event.name, (...args) => event.run(...args, client));
-
-                eventsTable.addRow(name, 'Success');
-            }
+            eventsTable.addRow(name, 'Success');
         }
+        
         console.log(eventsTable.toString());
     }
 }
 
-export default eventHandler;
+const handler = eventHandler;
+
+export { handler };

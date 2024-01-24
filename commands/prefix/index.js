@@ -7,7 +7,7 @@ for (const dir of dirs) {
     const files = fs.readdirSync(`./commands/prefix/${dir}`);
     for (const file of files) {
         const module = await import(`./${dir}/${file}`);
-        const command = module.default;
+        const command = module.command;
 
         commands.push(command);
     }
