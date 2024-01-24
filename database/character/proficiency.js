@@ -30,7 +30,10 @@ class CharacterProficiency {
         const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND type = $2', [char.id, prof.type]);
 
         if (results.length === 0) {
-            throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies of that type for that Character in the Database!');
+            throw new NotFoundError(
+                'No Character Proficiencies found',
+                'Could not find any Proficiencies of that type for that Character in the Database!'
+            );
         }
 
         return Promise.all(

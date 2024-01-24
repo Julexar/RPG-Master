@@ -1,36 +1,31 @@
 import Ascii from 'ascii-table';
-import fs from 'fs/promises';
-import { client } from '../../index.js';
+import { client } from '../..';
+import { commands } from '../../commands/context';
+
 class contextHandler {
-    constructor() {}
-
-    async run() {
+    static async run() {
         const contextCommandsTable = new Ascii('Context Commands').setHeading('Name', 'Status', 'Reason');
-        const dirs = fs.readdirSync('./commands/context');
 
-        for (const dir of dirs) {
-            const files = fs.readdirSync(`./commands/context/${dir}`);
+        for (const command of commands) {
+            let name;
 
-            for (const file of files) {
-                const module = await import(`../../commands/context/${dir}/${file}`);
-                const command = module.default;
-                let name;
+            if (!command.name || !command.run) return contextCommandsTable.addRow(`${command.name}`, 'Failed', 'Missing Name/Run');
 
-                if (!command.name || !command.run) {
-                    return contextCommandsTable.addRow(`${command.name || file}`, 'Failed', 'Missing Name/Run');
-                }
+            name = command.name;
 
-                name = command.name;
+            if (command.nick) name += ` (${command.nick})`;
 
-                if (command.nick) {
-                    name += ` (${command.nick})`;
-                }
+            if (!command.enabled) return contextCommandsTable.addRow(`${name}`, 'Failed', 'Disabled');
 
-                contextCommandsTable.addRow(name, 'Success');
-            }
+            client.contextCommands.set(command.name, command);
+
+            contextCommandsTable.addRow(name, 'Success');
         }
 
         console.log(contextCommandsTable.toString());
     }
 }
-export default new contextHandler();
+
+const handler = contextHandler;
+
+export { handler };

@@ -8,7 +8,7 @@ Make sure to always check for the latest version in the releases here on GitHub.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.5   | :white_check_mark: |
+|  |  |
 
 ## Reporting an Issue
 

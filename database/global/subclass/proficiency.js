@@ -46,7 +46,11 @@ class SubclassProficiency {
             };
         }
 
-        const results = await query('SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND name = $2 AND type = $3', [sub.id, prof.name, prof.type]);
+        const results = await query('SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND name = $2 AND type = $3', [
+            sub.id,
+            prof.name,
+            prof.type,
+        ]);
 
         if (results.length === 0) {
             throw new NotFoundError('Subclass Proficiency not found', 'Could not find a Subclass Proficiency with that name in the Database!');
@@ -71,7 +75,11 @@ class SubclassProficiency {
             return results.length === 1;
         }
 
-        const results = await query('SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND name = $2 AND type = $3', [sub.id, prof.name, prof.type]);
+        const results = await query('SELECT * FROM subclass_proficiencies WHERE sub_id = $1 AND name = $2 AND type = $3', [
+            sub.id,
+            prof.name,
+            prof.type,
+        ]);
 
         return results.length === 1;
     }

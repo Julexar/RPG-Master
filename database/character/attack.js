@@ -50,8 +50,22 @@ class CharacterAttack {
             throw new DuplicateError('Duplicate Attack', 'An Attack with that name already exists for that Character!');
         }
 
-        const sql = 'INSERT INTO character_attacks (char_id, name, description, atk_stat, save, save_stat, on_fail, dmg_dice, dmg_dice_size, dmg, dmg_type_id, magical, magic_bonus) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)';
-        await query(sql, [char.id, atk.name, atk.description, atk.atk_stat, atk.save, atk.on_fail, atk.dmg_dice, atk.dmg_dice_size, atk.dmg, atk.dmg_type_id, atk.magical, atk.magic_bonus]);
+        const sql =
+            'INSERT INTO character_attacks (char_id, name, description, atk_stat, save, save_stat, on_fail, dmg_dice, dmg_dice_size, dmg, dmg_type_id, magical, magic_bonus) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)';
+        await query(sql, [
+            char.id,
+            atk.name,
+            atk.description,
+            atk.atk_stat,
+            atk.save,
+            atk.on_fail,
+            atk.dmg_dice,
+            atk.dmg_dice_size,
+            atk.dmg,
+            atk.dmg_type_id,
+            atk.magical,
+            atk.magic_bonus,
+        ]);
 
         return 'Successfully added Attack to Character in Database';
     }
@@ -73,7 +87,21 @@ class CharacterAttack {
 
         const sql =
             'UPDATE character_attacks SET name = $1, description = $2, atk_stat = $3, save = $4, save_stat = $5, on_fail = $6, dmg_dice = $7, dmg_dice_size = $8, dmg = $9, dmg_type_id = $10, magical = $11, magic_bonus = $12 WHERE char_id = $13 AND id = $14';
-        await query(sql, [atk.name, atk.description, atk.atk_stat, atk.save, atk.on_fail, atk.dmg_dice, atk.dmg_dice_size, atk.dmg, atk.dmg_type_id, atk.magical, atk.magic_bonus, char.id, atk.id]);
+        await query(sql, [
+            atk.name,
+            atk.description,
+            atk.atk_stat,
+            atk.save,
+            atk.on_fail,
+            atk.dmg_dice,
+            atk.dmg_dice_size,
+            atk.dmg,
+            atk.dmg_type_id,
+            atk.magical,
+            atk.magic_bonus,
+            char.id,
+            atk.id,
+        ]);
 
         return 'Successfully updated Character Attack in Database';
     }

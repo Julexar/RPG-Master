@@ -23,11 +23,17 @@ class clas {
 
         return Promise.all(
             results.map(async (dbClass) => {
-                const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([await ClassProficiency.getAll(dbClass), await ClassSave.getAll(dbClass), await ClassSense.getAll(dbClass), await ClassTrait.getAll(dbClass)]);
+                const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
+                    await ClassProficiency.getAll(dbClass),
+                    await ClassSave.getAll(dbClass),
+                    await ClassSense.getAll(dbClass),
+                    await ClassTrait.getAll(dbClass),
+                ]);
 
                 return {
                     id: dbClass.id,
                     name: dbClass.name,
+                    description: dbClass.description,
                     hitdice: dbClass.hitdice,
                     hitdice_size: dbClass.hitdice_size,
                     caster: dbClass.caster,
@@ -51,11 +57,17 @@ class clas {
             }
 
             const dbClass = results[0];
-            const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([await ClassProficiency.getAll(dbClass), await ClassSave.getAll(dbClass), await ClassSense.getAll(dbClass), await ClassTrait.getAll(dbClass)]);
+            const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
+                await ClassProficiency.getAll(dbClass),
+                await ClassSave.getAll(dbClass),
+                await ClassSense.getAll(dbClass),
+                await ClassTrait.getAll(dbClass),
+            ]);
 
             return {
                 id: dbClass.id,
                 name: dbClass.name,
+                description: dbClass.description,
                 hitdice: dbClass.hitdice,
                 hitdice_size: dbClass.hitdice_size,
                 caster: dbClass.caster,
@@ -75,11 +87,17 @@ class clas {
         }
 
         const dbClass = results[0];
-        const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([await ClassProficiency.getAll(dbClass), await ClassSave.getAll(dbClass), await ClassSense.getAll(dbClass), await ClassTrait.getAll(dbClass)]);
+        const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
+            await ClassProficiency.getAll(dbClass),
+            await ClassSave.getAll(dbClass),
+            await ClassSense.getAll(dbClass),
+            await ClassTrait.getAll(dbClass),
+        ]);
 
         return {
             id: dbClass.id,
             name: dbClass.name,
+            description: dbClass.description,
             hitdice: dbClass.hitdice,
             hitdice_size: dbClass.hitdice_size,
             caster: dbClass.caster,
@@ -130,7 +148,8 @@ class clas {
             throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
         }
 
-        const sql = 'UPDATE classes SET name = $1, description = $2, hitdice = $3, hitdice_size = $4, caster = $5, cast_lvl = $6, sub = $7 WHERE id = $8';
+        const sql =
+            'UPDATE classes SET name = $1, description = $2, hitdice = $3, hitdice_size = $4, caster = $5, cast_lvl = $6, sub = $7 WHERE id = $8';
         await query(sql, [clas.name, clas.description, clas.hitdice, clas.hitdice_size, clas.caster, clas.cast_lvl, clas.sub, clas.id]);
 
         return 'Successfully updated Class in Database';

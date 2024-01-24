@@ -1,212 +1,247 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
-class Command {
-    constructor() {
-        this.name = 'prefix';
-        this.description = 'Prefix Command';
+import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
+import { CommandBuilder } from '../../../custom/builders';
+import { client } from '../../..';
+import { NotFoundError, DuplicateError } from '../../../custom/errors';
+import { SuccessEmbed, ErrorEmbed, ListEmbed } from '../../../custom/embeds';
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.enabled = true;
-        this.defaultMemberPermissions = [PermissionFlagsBits.Administrator];
-        this.options = [
-            {
-                name: 'add',
-                description: 'Adds a Prefix',
-                type: ApplicationCommandOptionType.Subcommand,
-                options: [
-                    {
-                        name: 'prefix',
-                        description: 'Provide a Prefix',
-                        type: ApplicationCommandOptionType.String,
-                        required: true,
-                    },
-                ],
-            },
-            {
-                name: 'remove',
-                description: 'Removes a Prefix',
-                type: ApplicationCommandOptionType.Subcommand,
-            },
-            {
-                name: 'list',
-                description: 'Shows a List of all Prefixes',
-                type: ApplicationCommandOptionType.Subcommand,
-            },
-        ];
     }
 
-    async run(client, interaction) {
+    /**
+     *
+     * @param {import("discord.js").CommandInteraction} interaction
+     */
+    async run(interaction) {
         const option = interaction.options;
         const user = interaction.user;
-        const server = interaction.guild;
+        const guild = interaction.guild;
+        let embed, emph, rows, collector, msg, prefixes;
+        let count,
+            num,
+            page = 0;
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
+            new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
+            new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
+        );
+
+        const filter = (m) => m.user.id === user.id;
+
         switch (option.getSubcommand()) {
             case 'add':
-                const addprefix = option.getString('prefix');
-                client.database
-                    .addPrefix(server, addprefix)
-                    .then(async (mes) => {
-                        client.database
-                            .writeLog(server, mes)
-                            .then((msg) => client.database.writeDevLog(msg))
-                            .catch((err) => client.database.writeDevLog(`${err}`));
-                        await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('Green').setTitle('Success').setDescription(`Added Prefix \`${addprefix}\``).setTimestamp()],
-                        });
-                    })
-                    .catch(async (err) => {
-                        client.database
-                            .writeLog(server, `${err}`)
-                            .then(async (msg1) => {
-                                client.database.writeDevLog(msg1);
-                                if (String(err).includes('Error 409')) {
-                                    await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription(`The Prefix \`${addprefix}\` already exists on the Server!`).setTimestamp()],
-                                        ephemeral: true,
-                                    });
-                                } else {
-                                    await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                        ephemeral: true,
-                                    });
-                                }
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    });
-                return;
+                const prefix = option.getString('prefix');
+
+                embed = await addPrefix(guild, prefix);
+
+                emph = embed.data.color === '#FF0000';
+
+                return await interaction.reply({
+                    embeds: [embed],
+                    ephemeral: emph,
+                });
             case 'remove':
-                const row = new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('selpref').setPlaceholder('No Prefix selected...').setMaxValues(1));
-                const row2 = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cancel').setLabel('Cancel Selection').setStyle(ButtonStyle.Danger));
-                client.database
-                    .getPrefixes(server)
-                    .then(async (list) => {
-                        for (let i = 0; i < list.length; i++) {
-                            let prefix = list[i];
-                            row.components[0].addOptions({
-                                label: `${prefix}`,
-                                value: `${prefix}`,
+                const row = new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder().setCustomId('prefix_select').setPlaceholder('No Prefix selected...').setMaxValues(1)
+                );
+
+                rows = [];
+                rows.push(row);
+
+                prefixes = await client.database.Server.prefixes.getAll(guild);
+
+                for (const prefix of prefixes) {
+                    if (count === 24) {
+                        rows.push(row);
+                        count = 0;
+                        num++;
+                    }
+
+                    rows[num].components[0].addOptions({
+                        label: prefix.prefix,
+                        value: `${prefix.id}`,
+                    });
+                    count++;
+                }
+
+                msg = await interaction.reply({
+                    content: 'Select a Prefix to remove',
+                    components: [rows[page], row2],
+                    ephemeral: true,
+                });
+
+                collector = msg.createMessageComponentCollector({ filter, time: 90000 });
+
+                collector.on('collect', async (i) => {
+                    switch (i.customId) {
+                        case 'prefix_select':
+                            const prefix = await client.database.Server.prefixes.getOne(guild, { id: i.values[0] });
+
+                            embed = await removePrefix(guild, prefix);
+
+                            emph = embed.data.color === '#FF0000';
+
+                            await i.deferReply({
+                                embeds: [embed],
+                                ephemeral: emph,
                             });
-                        }
-                        const msg = await interaction.reply({
-                            content: 'Select a Prefix:',
-                            components: [row, row2],
-                        });
-                        const filter = (m) => m.user.id == user.id;
-                        const collector = msg.createMessageComponentCollector({
-                            filter,
-                            time: 90000,
-                        });
-                        collector.on('collect', async (i) => {
-                            if (i.customId == 'selpref') {
-                                await i.deferUpdate();
-                                client.database
-                                    .remPrefix(server, i.values[0])
-                                    .then(async (mes) => {
-                                        client.database
-                                            .writeLog(server, mes)
-                                            .then((msg1) => client.database.writeDevLog(msg1))
-                                            .catch((err) => client.database.writeDevLog(`${err}`));
-                                        if (mes.includes('Removed')) {
-                                            await msg.edit({
-                                                content: '',
-                                                embeds: [new EmbedBuilder().setColor('Green').setTitle('Success').setDescription(`Removed Prefix \`${i.values[0]}\``).setTimestamp()],
-                                                components: [],
-                                            });
-                                        }
-                                    })
-                                    .catch(async (err) => {
-                                        client.database
-                                            .writeLog(server, `${err}`)
-                                            .then(async (msg1) => {
-                                                client.database.writeDevLog(msg1);
-                                                const mes = await i.deferReply();
-                                                if (String(err).includes('Error 404')) {
-                                                    await mes.edit({
-                                                        emebeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('That Prefix does not exist within this Server!').setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                } else {
-                                                    await mes.edit({
-                                                        emebeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                        ephemeral: true,
-                                                    });
-                                                }
-                                            })
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                    });
-                            } else if (i.customId == 'back') {
-                                await msg.edit({
-                                    content: 'Selection has been cancelled',
-                                    embeds: [],
-                                    components: [],
-                                });
-                                await collector.stop();
-                            }
-                        });
-                        collector.on('end', async (collected) => {
-                            if (collected.size === 0) {
-                                await msg.edit({
-                                    content: 'Selection timed out',
-                                    embeds: [],
-                                    components: [],
-                                });
-                            } else {
-                                client.database
-                                    .writeLog(server, `Collected ${collected.size} Interactions.`)
-                                    .then((msg1) => client.database.writeDevLog(msg1))
-                                    .catch((err) => client.database.writeDevLog(`${err}`));
-                            }
-                            setTimeout(async () => {
-                                await msg.delete();
-                            }, 5000);
-                        });
-                    })
-                    .catch((err) => {
-                        client.database
-                            .writeLog(server, `${err}`)
-                            .then(async (msg) => {
-                                client.database.writeDevLog(msg);
-                                if (String(err).includes('Error 404')) {
-                                    await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('There are no registered Prefixes for this Server!').setTimestamp()],
-                                        ephemeral: true,
-                                    });
+                            break;
+                        case 'prev':
+                            await i.deferUpdate();
+
+                            if (page > 0) {
+                                page--;
+
+                                if (page === 0) {
+                                    row2.components[0].setDisabled(true);
+                                    row2.components[1].setDisabled(false);
                                 } else {
-                                    await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                        ephemeral: true,
-                                    });
+                                    row2.components[0].setDisabled(false);
+                                    row2.components[1].setDisabled(false);
                                 }
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                    });
-                return;
+
+                                await msg.edit({
+                                    components: [rows[page], row2],
+                                    ephemeral: true,
+                                });
+                            }
+                            break;
+                        case 'next':
+                            await i.deferUpdate();
+
+                            if (page < rows.length - 1) {
+                                page++;
+
+                                if (page === rows.length - 1) {
+                                    row2.components[0].setDisabled(false);
+                                    row2.components[1].setDisabled(true);
+                                } else {
+                                    row2.components[0].setDisabled(false);
+                                    row2.components[1].setDisabled(false);
+                                }
+
+                                await msg.edit({
+                                    components: [rows[page], row2],
+                                    ephemeral: true,
+                                });
+                            }
+                            break;
+                        case 'cancel':
+                            await i.deferUpdate();
+
+                            collector.stop();
+                            break;
+                    }
+                });
+
+                collector.on('end', async (collected) => {
+                    if (collected.size === 0) {
+                        await msg.edit({
+                            content: 'Selection timed out...',
+                            components: [],
+                            ephemeral: true,
+                        });
+                    }
+
+                    client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
+
+                    setTimeout(async () => {
+                        await msg.delete();
+                    }, 5000);
+                });
+                break;
             case 'list':
-                client.database
-                    .getPrefixes(server)
-                    .then(async (prefixes) => {
-                        prefixes = prefixes.join('\n');
-                        await interaction.reply({
-                            embeds: [new EmbedBuilder().setColor('#00ffff').setTitle('Prefix List').setDescription(prefixes).setTimestamp()],
-                        });
-                    })
-                    .catch(async (err) => {
-                        client.database
-                            .writeLog(server, `${err}`)
-                            .then(async (msg) => {
-                                client.database.writeDevLog(msg);
-                                if (String(err).includes('Error 404')) {
-                                    await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('There are no registered Prefixes for this Server!').setTimestamp()],
-                                        ephemeral: true,
-                                    });
-                                } else {
-                                    await interaction.reply({
-                                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                        ephemeral: true,
-                                    });
-                                }
-                            })
-                            .catch((err1) => client.database.writeDevLog(`${err1}`));
+                try {
+                    prefixes = await client.database.Server.prefixes.getAll(guild);
+                    prefixes = prefixes.join('\n');
+
+                    return await interaction.reply({
+                        embeds: [new ListEmbed('Prefixes', prefixes)],
                     });
-                return;
+                } catch (err) {
+                    client.writeServerLog(guild, err);
+
+                    if (err instanceof NotFoundError) {
+                        return interaction.reply({
+                            embeds: [new ErrorEmbed(err, false)],
+                            ephemeral: true,
+                        });
+                    } else {
+                        return interaction.reply({
+                            embeds: [new ErrorEmbed(err, true)],
+                            ephemeral: true,
+                        });
+                    }
+                }
         }
     }
 }
-export default new Command();
+
+async function addPrefix(guild, prefix) {
+    try {
+        const msg = await client.database.Server.prefixes.add(guild, prefix);
+
+        return new SuccessEmbed(msg || 'Success', `The Prefix \`${prefix}\` has been added!`);
+    } catch (err) {
+        client.writeServerLog(guild, err);
+
+        if (err instanceof DuplicateError) {
+            return new ErrorEmbed(err, false);
+        } else {
+            return new ErrorEmbed(err, true);
+        }
+    }
+}
+
+async function removePrefix(guild, prefix) {
+    try {
+        const msg = await client.database.Server.prefixes.remove(guild, prefix);
+
+        return new SuccessEmbed(msg || 'Success', `The Prefix \`${prefix}\` has been removed!`);
+    } catch (err) {
+        client.writeServerLog(guild, err);
+
+        if (err instanceof NotFoundError) {
+            return new ErrorEmbed(err, false);
+        } else {
+            return new ErrorEmbed(err, true);
+        }
+    }
+}
+
+const command = new Command({
+    name: 'prefix',
+    description: 'Prefix Command',
+    defaultMemberPermissions: [PermissionFlagsBits.Administrator],
+    options: [
+        {
+            name: 'add',
+            description: 'Adds a Prefix',
+            type: ApplicationCommandOptionType.Subcommand,
+            options: [
+                {
+                    name: 'prefix',
+                    description: 'Provide a Prefix',
+                    type: ApplicationCommandOptionType.String,
+                    required: true,
+                },
+            ],
+        },
+        {
+            name: 'remove',
+            description: 'Removes a Prefix',
+            type: ApplicationCommandOptionType.Subcommand,
+        },
+        {
+            name: 'list',
+            description: 'Shows a List of all Prefixes',
+            type: ApplicationCommandOptionType.Subcommand,
+        },
+    ],
+});
+
+export { command };

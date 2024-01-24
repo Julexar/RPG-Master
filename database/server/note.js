@@ -20,7 +20,11 @@ class ServerNote {
 
     static async getOne(server, user, note) {
         if (note.id) {
-            const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3', [server.id, user.id, note.id]);
+            const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3', [
+                server.id,
+                user.id,
+                note.id,
+            ]);
 
             if (results.length === 0) {
                 throw new NotFoundError('Server Note not found', 'Could not find that Server Note for that User in the Database!');
@@ -29,7 +33,11 @@ class ServerNote {
             return results[0];
         }
 
-        const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3', [server.id, user.id, note.title]);
+        const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3', [
+            server.id,
+            user.id,
+            note.title,
+        ]);
 
         if (results.length === 0) {
             throw new NotFoundError('Server Note not found', 'Could not find a Server Note with that title for that User in the Database!');
@@ -40,12 +48,20 @@ class ServerNote {
 
     static async exists(server, user, note) {
         if (note.id) {
-            const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3', [server.id, user.id, note.id]);
+            const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND id = $3', [
+                server.id,
+                user.id,
+                note.id,
+            ]);
 
             return results.length === 1;
         }
 
-        const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3', [server.id, user.id, note.title]);
+        const results = await query('SELECT * FROM server_notes WHERE server_id = $1 AND user_id = $2 AND title = $3', [
+            server.id,
+            user.id,
+            note.title,
+        ]);
 
         return results.length === 1;
     }

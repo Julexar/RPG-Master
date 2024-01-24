@@ -1,87 +1,77 @@
-import { ApplicationCommandOptionType, EmbedBuilder } from 'discord.js';
-class Command {
-    constructor() {
-        this.name = 'settings';
-        this.description = 'Personal settings';
+import { ApplicationCommandOptionType } from 'discord.js';
+import { CommandBuilder } from '../../../custom/builders';
+import { client } from '../../..';
+import { SuccessEmbed, ErrorEmbed } from '../../../custom/embeds';
+import { NotFoundError } from '../../../custom/errors';
+
+class Command extends CommandBuilder {
+    constructor(data) {
+        super(data);
+
         this.enabled = true;
-        this.options = [
-            {
-                name: 'toggle',
-                description: 'Toggles settings',
-                type: ApplicationCommandOptionType.SubcommandGroup,
-                options: [
-                    {
-                        name: 'suggestions',
-                        description: 'Toggles whether you can receive suggestions',
-                        type: ApplicationCommandOptionType.Subcommand,
-                    },
-                ],
-            },
-        ];
     }
 
-    async run(client, interaction) {
+    /**
+     * @param {import("discord.js").CommandInteraction} interaction
+     */
+    async run(interaction) {
         const option = interaction.options;
         const server = interaction.guild;
         const user = interaction.user;
-        client.database
-            .getGM(server, user)
-            .then(() => {
-                switch (option.getSubcommandGroup()) {
-                    case 'toggle':
-                        switch (option.getSubcommand()) {
-                            case 'suggestions':
-                                client.database
-                                    .toggleGMSuggestion(server, user)
-                                    .then(async (msg) => {
-                                        client.database
-                                            .writeLog(server, `${msg}`)
-                                            .then((mes) => client.database.writeDevLog(`${mes}`))
-                                            .catch((err) => client.database.writeDevLog(`${err}`));
-                                        await interaction.reply({
-                                            content: msg,
-                                            ephemeral: true,
-                                        });
-                                    })
-                                    .catch(async (err) => {
-                                        client.database
-                                            .writeLog(server, `${err}`)
-                                            .then((msg) => client.database.writeDevLog(`${msg}`))
-                                            .catch((err1) => client.database.writeDevLog(`${err1}`));
-                                        if (String(err).includes('Error 404: GM')) {
-                                            await interaction.reply({
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find a GM entry in the Database! Please contact a Staff member').setTimestamp()],
-                                                ephemeral: true,
-                                            });
-                                        } else {
-                                            await interaction.reply({
-                                                embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                                                ephemeral: true,
-                                            });
-                                        }
-                                    });
-                                return;
-                        }
-                        return;
-                }
-            })
-            .catch(async (err) => {
-                client.database
-                    .writeLog(server, `${err}`)
-                    .then((msg) => client.database.writeDevLog(`${msg}`))
-                    .catch((err1) => client.database.writeDevLog(`${err1}`));
-                if (String(err).includes('Error 404')) {
-                    await interaction.reply({
-                        embeds: [new EmbedBuilder().setColor('Red').setTitle(`${err}`).setDescription('Could not find a GM entry in the Database! Please contact a Staff member').setTimestamp()],
-                        ephemeral: true,
-                    });
-                } else {
-                    await interaction.reply({
-                        embeds: [new EmbedBuilder().setColor('Red').setTitle('An Error occurred...').setDescription(`${err}`).setTimestamp()],
-                        ephemeral: true,
-                    });
-                }
-            });
+        let embed, emph;
+
+        if (await client.database.Server.gms.getOne(server, user)) {
+            switch (option.getSubcommandGroup()) {
+                case 'toggle':
+                    switch (option.getSubcommand()) {
+                        case 'suggestions':
+                            embed = await this.toggleSuggestion(server, user);
+
+                            emph = embed.data.color === '#FF0000';
+
+                            await interaction.reply({
+                                embeds: [embed],
+                                ephemeral: emph,
+                            });
+                            break;
+                    }
+                    break;
+            }
+        }
+    }
+
+    async toggleSuggestion(server, user) {
+        try {
+            const msg = await client.database.Server.gms.toggleSuggestion(server, user);
+
+            return new SuccessEmbed(msg || 'Success', 'Successfully toggled receiving suggestions');
+        } catch (err) {
+            client.logServerError(server, err);
+
+            if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+
+            return new ErrorEmbed(err, true);
+        }
     }
 }
-export default new Command();
+
+const command = new Command({
+    name: 'settings',
+    description: 'Personal Settings',
+    options: [
+        {
+            name: 'toggle',
+            description: 'Toggle a setting',
+            type: ApplicationCommandOptionType.SubcommandGroup,
+            options: [
+                {
+                    name: 'suggestions',
+                    description: 'Toggle whether you receive suggestions',
+                    type: ApplicationCommandOptionType.Subcommand,
+                },
+            ],
+        },
+    ],
+});
+
+export { command };

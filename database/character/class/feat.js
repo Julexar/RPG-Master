@@ -8,7 +8,10 @@ class CharacterClassFeat {
         const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2', [char.id, clas.id]);
 
         if (results.length === 0) {
-            throw new NotFoundError('No Character (class-only) Feats found', "Could not find any Feats granted by the Character's Class in the Database!");
+            throw new NotFoundError(
+                'No Character (class-only) Feats found',
+                "Could not find any Feats granted by the Character's Class in the Database!"
+            );
         }
 
         return Promise.all(
@@ -30,10 +33,17 @@ class CharacterClassFeat {
 
     static async getOne(server, char, clas, feat) {
         if (feat.id) {
-            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, feat.id]);
+            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3', [
+                char.id,
+                clas.id,
+                feat.id,
+            ]);
 
             if (results.length === 0) {
-                throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+                throw new NotFoundError(
+                    'Character (class-only) Feat not found',
+                    'Could not find that Feat granted by that Class for that Character in the Database!'
+                );
             }
 
             const charFeat = results[0];
@@ -51,10 +61,17 @@ class CharacterClassFeat {
         }
 
         if (feat.feat_id) {
-            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [char.id, clas.id, feat.feat_id]);
+            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [
+                char.id,
+                clas.id,
+                feat.feat_id,
+            ]);
 
             if (results.length === 0) {
-                throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+                throw new NotFoundError(
+                    'Character (class-only) Feat not found',
+                    'Could not find that Feat granted by that Class for that Character in the Database!'
+                );
             }
 
             const charFeat = results[0];
@@ -72,10 +89,17 @@ class CharacterClassFeat {
         }
 
         const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
-        const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [char.id, clas.id, dbFeat.id]);
+        const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [
+            char.id,
+            clas.id,
+            dbFeat.id,
+        ]);
 
         if (results.length === 0) {
-            throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+            throw new NotFoundError(
+                'Character (class-only) Feat not found',
+                'Could not find that Feat granted by that Class for that Character in the Database!'
+            );
         }
 
         const charFeat = results[0];
@@ -93,19 +117,31 @@ class CharacterClassFeat {
 
     static async exists(server, char, clas, feat) {
         if (feat.id) {
-            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, feat.id]);
+            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3', [
+                char.id,
+                clas.id,
+                feat.id,
+            ]);
 
             return results.length === 1;
         }
 
         if (feat.feat_id) {
-            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [char.id, clas.id, feat.feat_id]);
+            const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [
+                char.id,
+                clas.id,
+                feat.feat_id,
+            ]);
 
             return results.length === 1;
         }
 
         const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
-        const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [char.id, clas.id, dbFeat.id]);
+        const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3', [
+            char.id,
+            clas.id,
+            dbFeat.id,
+        ]);
 
         return results.length === 1;
     }
@@ -129,7 +165,10 @@ class CharacterClassFeat {
 
     static async remove(server, char, clas, feat) {
         if (!(await this.exists(server, char, clas, feat))) {
-            throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+            throw new NotFoundError(
+                'Character (class-only) Feat not found',
+                'Could not find that Feat granted by that Class for that Character in the Database!'
+            );
         }
 
         await query('DELETE FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, feat.id]);

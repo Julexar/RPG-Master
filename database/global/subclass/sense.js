@@ -82,7 +82,10 @@ class SubclassSense {
             const subSense = await this.getOne(sub, sense);
 
             if (sense.range <= subSense.range) {
-                throw new DuplicateError('Duplicate Subclass Sense', 'That Sense is already linked to that Subclass with the same or a higher range!');
+                throw new DuplicateError(
+                    'Duplicate Subclass Sense',
+                    'That Sense is already linked to that Subclass with the same or a higher range!'
+                );
             }
 
             await query('UPDATE subclass_senses SET range = $1 WHERE sub_id = $2 AND id = $3', [sense.range, sub.id, sense.id]);

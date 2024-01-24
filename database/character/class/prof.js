@@ -8,7 +8,10 @@ class CharacterClassProficiency {
         const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2', [char.id, clas.id]);
 
         if (results.length === 0) {
-            throw new NotFoundError('No Character (class-only) Proficiencies found', 'Could not find any Proficiencies granted by that Class for that Character in the Database!');
+            throw new NotFoundError(
+                'No Character (class-only) Proficiencies found',
+                'Could not find any Proficiencies granted by that Class for that Character in the Database!'
+            );
         }
 
         return Promise.all(
@@ -29,10 +32,17 @@ class CharacterClassProficiency {
 
     static async getOne(char, clas, prof) {
         if (prof.id) {
-            const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, prof.id]);
+            const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3', [
+                char.id,
+                clas.id,
+                prof.id,
+            ]);
 
             if (results.length === 0) {
-                throw new NotFoundError('Character (class-only) Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
+                throw new NotFoundError(
+                    'Character (class-only) Proficiency not found',
+                    'Could not find that Proficiency granted by that Class for that Character in the Database!'
+                );
             }
 
             const charProf = results[0];
@@ -48,10 +58,17 @@ class CharacterClassProficiency {
             };
         }
 
-        const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3', [char.id, clas.id, prof.name]);
+        const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3', [
+            char.id,
+            clas.id,
+            prof.name,
+        ]);
 
         if (results.length === 0) {
-            throw new NotFoundError('Character (class-only) Proficiency not found', 'Could not find a Proficiency granted by that Class with that name for that Character in the Database!');
+            throw new NotFoundError(
+                'Character (class-only) Proficiency not found',
+                'Could not find a Proficiency granted by that Class with that name for that Character in the Database!'
+            );
         }
 
         const charProf = results[0];
@@ -69,12 +86,20 @@ class CharacterClassProficiency {
 
     static async exists(char, clas, prof) {
         if (prof.id) {
-            const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, prof.id]);
+            const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3', [
+                char.id,
+                clas.id,
+                prof.id,
+            ]);
 
             return results.length === 1;
         }
 
-        const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3', [char.id, clas.id, prof.name]);
+        const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3', [
+            char.id,
+            clas.id,
+            prof.name,
+        ]);
 
         return results.length === 1;
     }
@@ -84,7 +109,10 @@ class CharacterClassProficiency {
             const charProf = await this.getOne(char, clas, prof);
 
             if (prof.expert === charProf.expert) {
-                throw new DuplicateError('Duplicate Character (class-only) Proficiency', 'That Character already has that Proficiency granted by that Class!');
+                throw new DuplicateError(
+                    'Duplicate Character (class-only) Proficiency',
+                    'That Character already has that Proficiency granted by that Class!'
+                );
             }
 
             const sql = 'UPDATE character_class_profs SET expert = $1 WHERE char_id = $2 AND class_id = $3 AND id = $4';
@@ -105,7 +133,10 @@ class CharacterClassProficiency {
 
     static async remove(char, clas, prof) {
         if (!(await this.exists(char, clas, prof))) {
-            throw new NotFoundError('Character (class-only) Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
+            throw new NotFoundError(
+                'Character (class-only) Proficiency not found',
+                'Could not find that Proficiency granted by that Class for that Character in the Database!'
+            );
         }
 
         await query('DELETE FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, prof.id]);
@@ -115,7 +146,10 @@ class CharacterClassProficiency {
 
     static async update(char, clas, prof) {
         if (!(await this.exists(char, clas, prof))) {
-            throw new NotFoundError('Character (class-only) Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
+            throw new NotFoundError(
+                'Character (class-only) Proficiency not found',
+                'Could not find that Proficiency granted by that Class for that Character in the Database!'
+            );
         }
 
         const sql = 'UPDATE character_class_profs SET name = $1, expert = $2 WHERE char_id = $3 AND class_id = $4 AND id = $5';

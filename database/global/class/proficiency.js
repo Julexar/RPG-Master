@@ -48,7 +48,10 @@ class ClassProficiency {
         const classProf = await query('SELECT * FROM class_proficiencies WHERE class_id = $1 AND name = $2', [clas.id, prof.name])[0];
 
         if (!classProf) {
-            throw new NotFoundError('Class Proficiency not found', 'Could not find a Proficiency granted by that Class with that name in the Database!');
+            throw new NotFoundError(
+                'Class Proficiency not found',
+                'Could not find a Proficiency granted by that Class with that name in the Database!'
+            );
         }
 
         const dbProf = await this.getProficiency({ id: classProf.type });
