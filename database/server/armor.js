@@ -15,22 +15,15 @@ class ServerArmor {
             results.map(async (servArmor) => {
                 const dbArmor = await Armor.getOne({ id: servArmor.armor_id });
 
-                return {
+                if (!servArmor.deleted_at) return {
                     id: servArmor.id,
                     server_id: servArmor.server_id,
-                    armor_id: dbArmor.id,
-                    name: dbArmor.name,
-                    description: dbArmor.description,
-                    type: dbArmor.type,
-                    rarity: dbArmor.rarity,
-                    dex_bonus: dbArmor.dex_bonus,
-                    ac: dbArmor.ac,
-                    str_req: dbArmor.str_req,
-                    magical: dbArmor.magical,
-                    magic_bonus: dbArmor.magic_bonus,
-                    attune: dbArmor.attune,
-                    attune_req: dbArmor.attune_req,
+                    armor: dbArmor,
+                    overwrites: servArmor.overwrites,
+                    deleted_at: servArmor.deleted_at
                 };
+
+                return;
             })
         );
     }
@@ -44,22 +37,13 @@ class ServerArmor {
             }
 
             const dbArmor = await Armor.getOne({ id: results[0].armor_id });
+            const servArmor = results[0];
 
             return {
-                id: results[0].id,
-                server_id: results[0].server_id,
-                armor_id: dbArmor.id,
-                name: dbArmor.name,
-                description: dbArmor.description,
-                type: dbArmor.type,
-                rarity: dbArmor.rarity,
-                dex_bonus: dbArmor.dex_bonus,
-                ac: dbArmor.ac,
-                str_req: dbArmor.str_req,
-                magical: dbArmor.magical,
-                magic_bonus: dbArmor.magic_bonus,
-                attune: dbArmor.attune,
-                attune_req: dbArmor.attune_req,
+                id: servArmor.id,
+                server_id: servArmor.server_id,
+                armor: dbArmor,
+                overwrites: servArmor.overwrites,
             };
         }
 
@@ -75,18 +59,9 @@ class ServerArmor {
         return {
             id: servArmor.id,
             server_id: servArmor.server_id,
-            armor_id: dbArmor.id,
-            name: dbArmor.name,
-            description: dbArmor.description,
-            type: dbArmor.type,
-            rarity: dbArmor.rarity,
-            dex_bonus: dbArmor.dex_bonus,
-            ac: dbArmor.ac,
-            str_req: dbArmor.str_req,
-            magical: dbArmor.magical,
-            magic_bonus: dbArmor.magic_bonus,
-            attune: dbArmor.attune,
-            attune_req: dbArmor.attune_req,
+            armor: dbArmor,
+            overwrites: servArmor.overwrites,
+            deleted_at: servArmor.deleted_at
         };
     }
 
@@ -109,8 +84,8 @@ class ServerArmor {
         }
 
         const dbArmor = await Armor.getOne({ name: armor.name });
-        const sql = 'INSERT INTO server_armors (server_id, armor_id) VALUES($1, $2)';
-        await query(sql, [server.id, dbArmor.id]);
+        const sql = 'INSERT INTO server_armors (server_id, armor_id, overwrites) VALUES($1, $2, $3::JSON)';
+        await query(sql, [server.id, dbArmor.id, armor.overwrites]);
 
         return 'Successfully added Armor to Server';
     }
@@ -120,10 +95,34 @@ class ServerArmor {
             throw new NotFoundError('Armor not found', 'Could not find that Armor for that Server in the Database!');
         }
 
+        const date = new Date();
+        const sql = 'UPDATE server_armors SET deleted_at = $1 WHERE server_id = $2 AND id = $3';
+        await query(sql, [date, server.id, armor.id]);
+
+        return 'Successfully marked Armor as deleted in Server';
+    }
+
+    static async remove_final(server, armor) {
+        if (!(await this.exists(server, armor))) {
+            throw new NotFoundError('Armor not found', 'Could not find that Armor for that Server in the Database!');
+        }
+
         const sql = 'DELETE FROM server_armors WHERE server_id = $1 AND id = $2';
         await query(sql, [server.id, armor.id]);
 
         return 'Successfully removed Armor from Server';
+    }
+
+    static async update(server, armor) {
+        if (!(await this.exists(server, armor))) {
+            throw new NotFoundError('Armor not found', 'Could not find that Armor for that Server in the Database!');
+        }
+
+        const dbArmor = await Armor.getOne({ name: armor.name });
+        const sql = 'UPDATE server_armors SET overwrites = $1::JSON WHERE server_id = $2 AND armor_id = $3';
+        await query(sql, [armor.overwrites, server.id, dbArmor.id]);
+
+        return 'Successfully updated Armor';
     }
 }
 

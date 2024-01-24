@@ -15,6 +15,8 @@ import { ServerSubrace } from './subrace.js';
 import { GameMaster } from './gamemaster.js';
 import { Session } from './session';
 import { Prefix } from './prefix.js';
+import { ServerWeapon } from './weapon.js';
+import { ServerSpell } from './spell.js';
 const query = psql.query;
 
 class server {
@@ -34,6 +36,8 @@ class server {
         this.subclasses = ServerSubclass;
         this.races = ServerRace;
         this.subraces = ServerSubrace;
+        this.weapons = ServerWeapon;
+        this.spells = ServerSpell;
     }
 
     async getAll() {
