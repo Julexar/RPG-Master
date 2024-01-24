@@ -46,7 +46,7 @@ class ServerLog {
         return results[0];
     }
 
-    static async add(server, log) {
+    static async add(server) {
         const date = moment().format('YYYY-MM-DDTHH:mm:ss.msZ');
         try {
             const dbLog = await this.getOne(server, { created_at: date });
