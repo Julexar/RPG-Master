@@ -7,9 +7,7 @@ class CharacterFeat {
     static async getAll(server, char) {
         const results = await query('SELECT * FROM character_feats WHERE char_id = $1', [char.id]);
 
-        if (results.length === 0) {
-            throw new NotFoundError('No Character Feats found', 'Could not find any Feats for that Character in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('No Character Feats found', 'Could not find any Feats for that Character in the Database!');
 
         return Promise.all(
             results.map(async (charFeat) => {
