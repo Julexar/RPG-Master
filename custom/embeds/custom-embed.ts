@@ -1,24 +1,24 @@
-import { ColorResolvable, EmbedBuilder } from 'discord.js';
+import { ColorResolvable, EmbedBuilder, APIEmbedField } from 'discord.js';
 
 class CustomEmbed extends EmbedBuilder {
-    constructor(title: string, description: string, color: ColorResolvable, fields: any[] | null, author: any) {
+    constructor(
+        title: string,
+        description: string,
+        color: ColorResolvable | null = null,
+        fields: APIEmbedField[] | null = null,
+        author: { displayName: string, iconURL: () => string } | undefined
+    ) {
         super({
             color: 0x00FFFF,
-            description: description,
-            footer: {
-                text: 'Made by Julexar',
-            },
+            description,
+            title,
+            fields: fields || [],
+            author: author && { name: author.displayName, iconURL: author.iconURL() },
+            footer: { text: 'Made by Julexar' },
         });
 
         this.setTimestamp();
-
-        if (title) this.setTitle(title);
-
-        if (color) this.setColor(color);
-
-        if (fields) this.setFields(fields);
-
-        if (author) this.setAuthor({ name: author.displayName, iconURL: author.iconURL() });
+        this.setColor(color);
     }
 }
 
