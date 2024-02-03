@@ -4,6 +4,7 @@ import { ClassProficiency } from './proficiency.js';
 import { ClassSave } from './save.js';
 import { ClassSense } from './sense.js';
 import { ClassTrait } from './trait.js';
+import { MCRequirement } from './mc_requirement.js';
 const query = psql.query;
 
 class clas {
@@ -12,6 +13,7 @@ class clas {
         this.saves = ClassSave;
         this.senses = ClassSense;
         this.traits = ClassTrait;
+        this.mc_requirements = MCRequirement;
     }
 
     async getAll() {
