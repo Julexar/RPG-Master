@@ -1,6 +1,6 @@
 import { Armor } from './armor';
 import { Class } from './class';
-import { Command } from './command.ts';
+import { Command } from './command';
 import { Condition } from './condition.ts';
 import { Damagetype } from './dmgtype.ts';
 import { Feats } from './feats.ts';
