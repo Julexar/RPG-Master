@@ -3,7 +3,7 @@ class CustomError extends Error {
 
     constructor(message: string, code: number, cause: string) {
         super(message || 'Something went wrong!');
-        this.name = `Error ${code || String(500)}`;
+        this.name = `Error ${code || '500'}`;
         this.cause = cause;
     }
 }
