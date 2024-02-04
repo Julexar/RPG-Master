@@ -22,7 +22,7 @@ class PSQL {
         });
     }
 
-    query(query: string, params: any[] | null) {
+    query(query: string, params: any[] | undefined = undefined) {
         return new Promise((resolve, reject) => {
             this.pool.query(query, params, (err: any, results: any) => {
                 if (err) reject(new InternalServerError('Something went wrong!', err));
