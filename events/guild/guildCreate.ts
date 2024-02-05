@@ -99,13 +99,13 @@ class Event {
                 client.writeServerLog(server, `Attempting to write Command /${command.name} to Database...`)
 
                 try {
-                    const cmd = await client.database.Command.getOne({name: command.name}, 1);
+                    const cmd = await client.database.Command.getOne({name: command.name}, BigInt(1));
                     
                     await client.database.Server.commands.add(server, {
                         id: command.id,
                         command_id: cmd.id,
                         name: command.name,
-                        type: 1
+                        type_id: 1
                     });
 
                     await client.writeServerLog(server, `Successfully wrote Command /${command.name} to Database`);
@@ -131,7 +131,7 @@ class Event {
                 }
             });
         })
-        .catch((err: Error) => client.logServerError(server, err))
+        .catch((err: any) => client.logServerError(server, err))
 
         await client.writeServerLog(server, 'Finished registering Server Commands - Bot is now ready!')
     }
