@@ -15,6 +15,8 @@ import { ServerSubrace } from './subrace.js';
 import { GameMaster } from './gamemaster.js';
 import { Session } from './session';
 import { Prefix } from './prefix.js';
+import { ServerWeapon } from './weapon.js';
+import { ServerSpell } from './spell.js';
 const query = psql.query;
 
 class server {
@@ -34,14 +36,14 @@ class server {
         this.subclasses = ServerSubclass;
         this.races = ServerRace;
         this.subraces = ServerSubrace;
+        this.weapons = ServerWeapon;
+        this.spells = ServerSpell;
     }
 
     async getAll() {
         const results = await query('SELECT * FROM servers');
 
-        if (results.length === 0) {
-            throw new NotFoundError('No Servers found', 'Could not find any Servers in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('No Servers found', 'Could not find any Servers in the Database!');
 
         return results;
     }
@@ -50,18 +52,14 @@ class server {
         if (server.id) {
             const results = await query('SELECT * FROM servers WHERE id = $1', [server.id]);
 
-            if (results.length === 0) {
-                throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-            }
+            if (results.length === 0) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
             return results[0];
         }
 
         const results = await query('SELECT * FROM servers WHERE name = $1', [server.name]);
 
-        if (results.length === 0) {
-            throw new NotFoundError('Server not found', 'Could not find a Server with that name in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('Server not found', 'Could not find a Server with that name in the Database!');
 
         return results[0];
     }
@@ -79,9 +77,7 @@ class server {
     }
 
     async add(server) {
-        if (await this.exists(server)) {
-            throw new DuplicateError('Duplicate Server', 'This Server already exists in the Database!');
-        }
+        if (await this.exists(server)) throw new DuplicateError('Duplicate Server', 'This Server already exists in the Database!');
 
         const sql = 'INSERT INTO servers (id, name, dm_role) VALUES ($1, $2, $3)';
         await query(sql, [server.id, server.name, server.dm_role]);
@@ -90,9 +86,7 @@ class server {
     }
 
     async remove(server) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         await query('DELETE FROM servers WHERE id = $1', [server.id]);
 
@@ -100,9 +94,7 @@ class server {
     }
 
     async update(server) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         const sql = 'UPDATE servers SET name = $1, dm_role = $2 WHERE id = $3';
         await query(sql, [server.name, server.dm_role, server.id]);
@@ -111,9 +103,7 @@ class server {
     }
 
     async setDupSessions(server, bool) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         await query('UPDATE servers SET dup_sessions = $1 WHERE id = $2', [bool, server.id]);
 
@@ -121,9 +111,7 @@ class server {
     }
 
     async setSumChannel(server, channel) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         await query('UPDATE servers SET sum_chan = $1 WHERE id = $2', [channel.id, server.id]);
 
@@ -131,9 +119,7 @@ class server {
     }
 
     async setLogChannel(server, channel) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         await query('UPDATE servers SET log_chan = $1 WHERE id = $2', [channel.id, server.id]);
 
@@ -141,9 +127,7 @@ class server {
     }
 
     async setGMEdit(server, bool) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         await query('UPDATE servers SET gm_edit = $1 WHERE id = $2', [bool, server.id]);
 
@@ -154,18 +138,14 @@ class server {
         if (!type && !role) {
             const results = await query('SELECT admin_role, mod_role FROM servers WHERE id = $1', [server.id]);
 
-            if (results.length === 0) {
-                throw new NotFoundError('No Staff Roles found', 'Could not find any Staff Roles in the Database!');
-            }
+            if (results.length === 0) throw new NotFoundError('No Staff Roles found', 'Could not find any Staff Roles in the Database!');
 
             return results;
         }
 
         const results = await query(`SELECT ${type}_role FROM servers WHERE id = $1`, [server.id]);
 
-        if (results.length === 0) {
-            throw new NotFoundError('Staff Role not found', 'Could not find that Staff Role in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('Staff Role not found', 'Could not find that Staff Role in the Database!');
 
         return results[0];
     }
@@ -182,9 +162,7 @@ class server {
 
             return `Successfully set ${type} role to <@&${role.id}>`;
         } catch (err) {
-            if (!(err instanceof NotFoundError)) {
-                throw err;
-            }
+            if (!(err instanceof NotFoundError)) throw err;
 
             await query(`UPDATE servers SET ${type}_role = $1 WHERE id = $2`, [role.id, server.id]);
 
@@ -193,15 +171,11 @@ class server {
     }
 
     async getDMRole(server) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         const results = await query('SELECT dm_role FROM servers WHERE id = $1', [server.id]);
 
-        if (results.length === 0) {
-            throw new NotFoundError('No GM Role found', 'Could not find a GM Role in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('No GM Role found', 'Could not find a GM Role in the Database!');
 
         return results[0].dm_role;
     }
@@ -209,17 +183,13 @@ class server {
     async setDMRole(server, role) {
         try {
             const dmRoleID = await this.getDMRole(server);
-            if (dmRoleID == role.id) {
-                throw new DuplicateError('Duplicate GM Role', 'This GM Role already exists in the Database!');
-            }
+            if (dmRoleID == role.id) throw new DuplicateError('Duplicate GM Role', 'This GM Role already exists in the Database!');
 
             await query('UPDATE servers SET dm_role = $1 WHERE id = $2', [role.id, server.id]);
 
             return `Successfully set GM Role to <@&${role.id}>`;
         } catch (err) {
-            if (!(err instanceof NotFoundError)) {
-                throw err;
-            }
+            if (!(err instanceof NotFoundError)) throw err;
 
             await query('UPDATE servers SET dm_role = $1 WHERE id = $2', [role.id, server.id]);
 
@@ -228,9 +198,7 @@ class server {
     }
 
     async toggleLogs(server, bool) {
-        if (!(await this.exists(server))) {
-            throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
-        }
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         await query('UPDATE servers SET print_logs = $1 WHERE id = $2', [bool, server.id]);
 
