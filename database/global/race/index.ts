@@ -1,8 +1,8 @@
 import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
-import { RaceResistance } from './immunity.ts';
+import { RaceResistance } from './resistance.ts';
 import { RaceProficiency } from './proficiency.ts';
-import { RaceImmunity } from './resistance.ts';
+import { RaceImmunity } from './immunity.ts';
 import { RaceSense } from './sense.ts';
 import { RaceTrait } from './trait.ts';
 import { RaceStats } from './stats.ts';
@@ -51,12 +51,12 @@ class race {
         return Promise.all(
             results.map(async (dbRace) => {
                 const [raceStats, raceImmunities, raceResistances, raceProfs, raceSenses, raceTraits] = await Promise.all([
-                    this.stats.getAll(dbRace),
-                    this.immunities.getAll(dbRace),
-                    this.resistances.getAll(dbRace),
-                    this.profs.getAll(dbRace),
-                    this.senses.getAll(dbRace),
-                    this.traits.getAll(dbRace),
+                    RaceStats.getAll(dbRace),
+                    RaceImmunity.getAll(dbRace),
+                    RaceResistance.getAll(dbRace),
+                    RaceProficiency.getAll(dbRace),
+                    RaceSense.getAll(dbRace),
+                    RaceTrait.getAll(dbRace),
                 ]);
 
                 return {
@@ -86,12 +86,12 @@ class race {
 
             const dbRace = results[0];
             const [raceStats, raceImmunities, raceResistances, raceProfs, raceSenses, raceTraits] = await Promise.all([
-                this.stats.getAll(dbRace),
-                this.immunities.getAll(dbRace),
-                this.resistances.getAll(dbRace),
-                this.profs.getAll(dbRace),
-                this.senses.getAll(dbRace),
-                this.traits.getAll(dbRace),
+                RaceStats.getAll(dbRace),
+                RaceImmunity.getAll(dbRace),
+                RaceResistance.getAll(dbRace),
+                RaceProficiency.getAll(dbRace),
+                RaceSense.getAll(dbRace),
+                RaceTrait.getAll(dbRace),
             ]);
 
             return {
@@ -117,12 +117,12 @@ class race {
 
         const dbRace = results[0];
         const [raceStats, raceImmunities, raceResistances, raceProfs, raceSenses, raceTraits] = await Promise.all([
-            this.stats.getAll(dbRace),
-            this.immunities.getAll(dbRace),
-            this.resistances.getAll(dbRace),
-            this.profs.getAll(dbRace),
-            this.senses.getAll(dbRace),
-            this.traits.getAll(dbRace),
+            RaceStats.getAll(dbRace),
+            RaceImmunity.getAll(dbRace),
+            RaceResistance.getAll(dbRace),
+            RaceProficiency.getAll(dbRace),
+            RaceSense.getAll(dbRace),
+            RaceTrait.getAll(dbRace),
         ]);
 
         return {
