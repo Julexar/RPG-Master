@@ -17,7 +17,7 @@ interface AddCommand {
     enabled: boolean;
 }
 
-class Command {
+class command {
     types: CommandType;
     constructor() {
         this.types = CommandType;
@@ -99,5 +99,7 @@ class Command {
         return `Successfully updated ${type.name} \"${command.name}\" in Database`;
     }
 }
+
+const Command = new command();
 
 export { Command };

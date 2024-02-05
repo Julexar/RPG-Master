@@ -116,7 +116,7 @@ class Event {
                 try {
                     await client.writeServerLog(server, `Searching Database for Restrictions for Command /${command.name}...`)
                     
-                    const restrictions = await client.database.Server.commands.restrictions.getAll(command)
+                    const restrictions = await client.database.Server.commands.restrictions.getAll({ id: BigInt(command.id) })
                     await client.writeServerLog(server, `Found ${restrictions.length} Restrictions for Command /${command.name} - Attempting to add them to the Command...`)
 
                     await guild.commands.permissions.add({
