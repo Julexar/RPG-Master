@@ -19,6 +19,6 @@
     "stop": "killall node"
   },
   "devDependencies": {
-    "prettier": "^3.2.6"
+    "prettier": "^3.2.5"
   }
 }
