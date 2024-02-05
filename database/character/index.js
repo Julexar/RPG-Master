@@ -1,5 +1,5 @@
 import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors';
+import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { CharacterStats } from './stats.js';
 import { CharacterFeat } from './feat.js';
 import { CharacterImmunity } from './immunity.js';
@@ -9,7 +9,7 @@ import { CharacterSense } from './sense.js';
 import { CharacterNote } from './note.js';
 import { CharacterAction } from './action.js';
 import { CharacterAttack } from './attack.js';
-import { Class } from '../global';
+import { Server } from '..';
 import { CharacterClassFeat } from './class/feat.js';
 import { CharacterClassProficiency } from './class/prof.js';
 import { CharacterRaceFeat } from './race/feat.js';
@@ -36,63 +36,81 @@ class character {
         this.subrace_profs = CharacterSubraceProf;
     }
 
-    async getAll(user) {
+    /**
+     * 
+     * @param {import('discord.js').User} user 
+     * @param {import('discord.js').Guild} server 
+     * @returns 
+     */
+    async getAll(user, server) {
         const results = await query('SELECT * FROM characters WHERE user_id = $1', [user.id]);
 
-        if (results.length === 0) {
-            throw new NotFoundError('No Characters found', 'Could not find any Characters in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('No Characters found', 'Could not find any Characters in the Database!');
 
         return Promise.all(
             results.map(async (character) => {
+                if (character.deleted_at) return;
+
                 const charStats = await CharacterStats.getAll(character);
+                const charFeats = await CharacterFeat.getAll(user.guild, character);
+                const charImmunities = await CharacterImmunity.getAll(character);
+                const charResistances = await CharacterResistance.getAll(character);
+                const charProfs = await CharacterProficiency.getAll(character);
+                const charSenses = await CharacterSense.getAll(character);
+                const charActions = await CharacterAction.getAll(character);
+                const charClass = (await Server.classes.getOne(server, { id: character.class_id })).class;
+                const charSubclass = (await Server.subclasses.getOne(server, { id: character.subclass_id })).sub;
+                const charRace = (await Server.races.getOne(server, { id: character.race_id })).race;
+                const charSubrace = (await Server.subraces.getOne(server, { id: character.subrace_id })).sub;
+                const charClassFeats = await CharacterClassFeat.getAll(server, character, charClass);
+                const charClassProfs = await CharacterClassProficiency.getAll(character, charClass);
+                const charRaceFeats = await CharacterRaceFeat.getAll(server, character, charRace);
+                const charRaceProfs = await CharacterRaceProficiency.getAll(character, charRace);
+                const charSubclassProfs = await CharacterSubclassProficiency.getAll(character, charSubclass);
+                const charSubraceProfs = await CharacterSubraceProf.getAll(character, charSubrace);
+
+                charClass.profs.concat(charClassProfs);
+                charRace.profs.concat(charRaceProfs);
+                charSubclass.profs.concat(charSubclassProfs);
+                charSubrace.profs.concat(charSubraceProfs);
 
                 return {
-                    owner: user.id,
+                    id: character.id,
+                    user_id: user.id,
                     name: character.name,
+                    portrait: character.portrait,
                     ac: character.ac,
                     hp: {
-                        current: character.hp,
+                        current: character.hp_current,
                         max: character.hp_max,
                         temp: character.hp_temp,
-                        method: character.hp_method,
                     },
-                    portrait: character.portrait,
-                    init: character.init,
+                    initiative: character.initiative,
                     level: character.level,
+                    xp: character.xp,
+                    currency: JSON.parse(character.currency),
                     stats: charStats,
-                    money: {
-                        pp: character.pp,
-                        gp: character.gp,
-                        ep: character.ep,
-                        sp: character.sp,
-                        cp: character.cp,
+                    feats: charFeats,
+                    immunities: charImmunities,
+                    resistances: charResistances,
+                    profs: charProfs,
+                    senses: charSenses,
+                    actions: charActions,
+                    class: {
+                        ...charClass,
+                        level: character.class_level,
+                        feats: charClassFeats,
                     },
-                    multi: character.multi,
-                    armor: character.armor_id,
-                    race: character.race_id,
-                    subrace: character.subrace_id,
-                    class: character.class_id,
-                    subclass: character.subclass_id,
-                    class_level: character.class_level,
-                    mc: [
-                        {
-                            id: character.mc1_id,
-                            level: character.mc1_level,
-                            sub: character.mc1_sub_id,
-                        },
-                        {
-                            id: character.mc2_id,
-                            level: character.mc2_level,
-                            sub: character.mc2_sub_id,
-                        },
-                        {
-                            id: character.mc2_id,
-                            level: character.mc2_level,
-                            sub: character.mc3_sub_id,
-                        },
-                    ],
-                };
+                    race: {
+                        ...charRace,
+                        feats: charRaceFeats,
+                    },
+                    subclass: charSubclass,
+                    subrace: charSubrace,
+                    multiclass: character.multiclass,
+                    created_at: character.created_at,
+                    deleted_at: character.deleted_at
+                }
             })
         );
     }
@@ -101,116 +119,142 @@ class character {
         if (char.id) {
             const results = await query('SELECT * FROM characters WHERE user_id = $1 AND id = $2', [user.id, char.id]);
 
-            if (results.length === 0) {
-                throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
-            }
+            if (results.length === 0) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
             const character = results[0];
+            
             const charStats = await CharacterStats.getAll(character);
+            const charFeats = await CharacterFeat.getAll(user.guild, character);
+            const charImmunities = await CharacterImmunity.getAll(character);
+            const charResistances = await CharacterResistance.getAll(character);
+            const charProfs = await CharacterProficiency.getAll(character);
+            const charSenses = await CharacterSense.getAll(character);
+            const charActions = await CharacterAction.getAll(character);
+            const charClass = (await Server.classes.getOne(server, { id: character.class_id })).class;
+            const charSubclass = (await Server.subclasses.getOne(server, { id: character.subclass_id })).sub;
+            const charRace = (await Server.races.getOne(server, { id: character.race_id })).race;
+            const charSubrace = (await Server.subraces.getOne(server, { id: character.subrace_id })).sub;
+            const charClassFeats = await CharacterClassFeat.getAll(server, character, charClass);
+            const charClassProfs = await CharacterClassProficiency.getAll(character, charClass);
+            const charRaceFeats = await CharacterRaceFeat.getAll(server, character, charRace);
+            const charRaceProfs = await CharacterRaceProficiency.getAll(character, charRace);
+            const charSubclassProfs = await CharacterSubclassProficiency.getAll(character, charSubclass);
+            const charSubraceProfs = await CharacterSubraceProf.getAll(character, charSubrace);
+
+            charClass.profs.concat(charClassProfs);
+            charRace.profs.concat(charRaceProfs);
+            charSubclass.profs.concat(charSubclassProfs);
+            charSubrace.profs.concat(charSubraceProfs);
+
+            if (character.deleted_at) throw new BadRequestError('Character deleted', 'The Character you are trying to view has been deleted!');
 
             return {
-                owner: user.id,
+                id: character.id,
+                user_id: user.id,
                 name: character.name,
+                portrait: character.portrait,
                 ac: character.ac,
                 hp: {
-                    current: character.hp,
+                    current: character.hp_current,
                     max: character.hp_max,
                     temp: character.hp_temp,
-                    method: character.hp_method,
                 },
-                portrait: character.portrait,
-                init: character.init,
+                initiative: character.initiative,
                 level: character.level,
+                xp: character.xp,
+                currency: JSON.parse(character.currency),
                 stats: charStats,
-                money: {
-                    pp: character.pp,
-                    gp: character.gp,
-                    ep: character.ep,
-                    sp: character.sp,
-                    cp: character.cp,
+                feats: charFeats,
+                immunities: charImmunities,
+                resistances: charResistances,
+                profs: charProfs,
+                senses: charSenses,
+                actions: charActions,
+                class: {
+                    ...charClass,
+                    level: character.class_level,
+                    feats: charClassFeats,
                 },
-                multi: character.multi,
-                armor: character.armor_id,
-                race: character.race_id,
-                subrace: character.subrace_id,
-                class: character.class_id,
-                subclass: character.subclass_id,
-                class_level: character.class_level,
-                mc: [
-                    {
-                        id: character.mc1_id,
-                        level: character.mc1_level,
-                        sub: character.mc1_sub_id,
-                    },
-                    {
-                        id: character.mc2_id,
-                        level: character.mc2_level,
-                        sub: character.mc2_sub_id,
-                    },
-                    {
-                        id: character.mc2_id,
-                        level: character.mc2_level,
-                        sub: character.mc3_sub_id,
-                    },
-                ],
-            };
+                race: {
+                    ...charRace,
+                    feats: charRaceFeats,
+                },
+                subclass: charSubclass,
+                subrace: charSubrace,
+                multiclass: character.multiclass,
+                created_at: character.created_at,
+                deleted_at: character.deleted_at
+            }
         }
 
         const results = await query('SELECT * FROM characters WHERE user_id = $1 AND name = $2', [user.id, char.name]);
 
-        if (results.length === 0) {
-            throw new NotFoundError('Character not found', 'Could not find a Character with that Name in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('Character not found', 'Could not find a Character with that Name in the Database!');
 
         const character = results[0];
+        
         const charStats = await CharacterStats.getAll(character);
+        const charFeats = await CharacterFeat.getAll(user.guild, character);
+        const charImmunities = await CharacterImmunity.getAll(character);
+        const charResistances = await CharacterResistance.getAll(character);
+        const charProfs = await CharacterProficiency.getAll(character);
+        const charSenses = await CharacterSense.getAll(character);
+        const charActions = await CharacterAction.getAll(character);
+        const charClass = (await Server.classes.getOne(server, { id: character.class_id })).class;
+        const charSubclass = (await Server.subclasses.getOne(server, { id: character.subclass_id })).sub;
+        const charRace = (await Server.races.getOne(server, { id: character.race_id })).race;
+        const charSubrace = (await Server.subraces.getOne(server, { id: character.subrace_id })).sub;
+        const charClassFeats = await CharacterClassFeat.getAll(server, character, charClass);
+        const charClassProfs = await CharacterClassProficiency.getAll(character, charClass);
+        const charRaceFeats = await CharacterRaceFeat.getAll(server, character, charRace);
+        const charRaceProfs = await CharacterRaceProficiency.getAll(character, charRace);
+        const charSubclassProfs = await CharacterSubclassProficiency.getAll(character, charSubclass);
+        const charSubraceProfs = await CharacterSubraceProf.getAll(character, charSubrace);
+
+        charClass.profs.concat(charClassProfs);
+        charRace.profs.concat(charRaceProfs);
+        charSubclass.profs.concat(charSubclassProfs);
+        charSubrace.profs.concat(charSubraceProfs);
+
+        if (character.deleted_at) throw new BadRequestError('Character deleted', 'The Character you are trying to view has been deleted!');
 
         return {
-            owner: user.id,
+            id: character.id,
+            user_id: user.id,
             name: character.name,
+            portrait: character.portrait,
             ac: character.ac,
             hp: {
-                current: character.hp,
+                current: character.hp_current,
                 max: character.hp_max,
                 temp: character.hp_temp,
-                method: character.hp_method,
             },
-            portrait: character.portrait,
-            init: character.init,
+            initiative: character.initiative,
             level: character.level,
+            xp: character.xp,
+            currency: JSON.parse(character.currency),
             stats: charStats,
-            money: {
-                pp: character.pp,
-                gp: character.gp,
-                ep: character.ep,
-                sp: character.sp,
-                cp: character.cp,
+            feats: charFeats,
+            immunities: charImmunities,
+            resistances: charResistances,
+            profs: charProfs,
+            senses: charSenses,
+            actions: charActions,
+            class: {
+                ...charClass,
+                level: character.class_level,
+                feats: charClassFeats,
             },
-            multi: character.multi,
-            armor: character.armor_id,
-            race: character.race_id,
-            subrace: character.subrace_id,
-            class: character.class_id,
-            subclass: character.subclass_id,
-            class_level: character.class_level,
-            mc: [
-                {
-                    id: character.mc1_id,
-                    level: character.mc1_level,
-                    sub: character.mc1_sub_id,
-                },
-                {
-                    id: character.mc2_id,
-                    level: character.mc2_level,
-                    sub: character.mc2_sub_id,
-                },
-                {
-                    id: character.mc2_id,
-                    level: character.mc2_level,
-                    sub: character.mc3_sub_id,
-                },
-            ],
-        };
+            race: {
+                ...charRace,
+                feats: charRaceFeats,
+            },
+            subclass: charSubclass,
+            subrace: charSubrace,
+            multiclass: JSON.parse(character.multiclass),
+            created_at: character.created_at,
+            deleted_at: character.deleted_at
+        }
     }
 
     async exists(user, char) {
@@ -225,53 +269,39 @@ class character {
         return results.length === 1;
     }
 
-    async add(user, char) {
-        if (await this.exists(user, char)) {
-            throw new DuplicateError('Duplicate Character', 'A Character with that name already exists in the Database!');
+    async isDeleted(user, char) {
+        if (char.id) {
+            const results = await query('SELECT * FROM characters WHERE user_id = $1 AND id = $2', [user.id, char.id]);
+
+            return !!results[0].deleted_at;
         }
 
-        const sql =
-            'INSERT INTO characters (user_id, name, ac, hp, hp_max, hp_temp, init, level, xp, pp, gp, ep, sp, cp, armor_id, race_id, subrace_id, class_id, subclass_id, class_level, multi, mc1_id, mc1_sub_id, mc1_level, mc2_id, mc2_sub_id, mc2_level, mc3_id, mc3_sub_id, mc3_level) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)';
-        await query(sql, [
-            user.id,
-            char.name,
-            char.ac,
-            char.hp,
-            char.hp_max,
-            char.hp_temp,
-            char.init,
-            char.level,
-            char.xp,
-            char.money.pp,
-            char.money.gp,
-            char.money.ep,
-            char.money.sp,
-            char.money.cp,
-            char.armor,
-            char.race,
-            char.subrace,
-            char.class,
-            char.subclass,
-            char.class_level,
-            char.multi,
-            char.mc[0].id,
-            char.mc[0].sub,
-            char.mc[0].level,
-            char.mc[1].id,
-            char.mc[1].sub,
-            char.mc[1].level,
-            char.mc[2].id,
-            char.mc[2].sub,
-            char.mc[2].level,
-        ]);
+        const results = await query('SELECT * FROM characters WHERE user_id = $1 AND name = $2', [user.id, char.name]);
+
+        return !!results[0].deleted_at;
+    }
+
+    async add(user, char) {
+        if (await this.exists(user, char)) throw new DuplicateError('Duplicate Character', 'A Character with that name already exists in the Database!');
+
+        const sql = 'INSERT INTO characters (user_id, name, portrait, ac, level, xp, hp_current, hp_max, hp_temp, initiative, currency, race_id, subrace_id, class_id, subclass_id, class_level, multiclass) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10, $11::JSON, $12, $13, $14, $15, $16::JSON)';
+        await query(sql, [user.id, char.name, char.portrait, char.ac, char.level, char.xp, char.hp.current, char.hp.max, char.hp.temp, char.initiative, char.currency, char.race.id, char.subrace.id, char.class.id, char.subclass.id, char.class.level, char.multiclass]);
 
         return `Successfully added Character \"${char.name}\" for User \"${user.username}\" to Database`;
     }
 
     async remove(user, char) {
-        if (!(await this.exists(user, char))) {
-            throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
-        }
+        if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
+
+        if (await this.isDeleted(user, char)) throw new BadRequestError('Character already deleted', 'The Character you are trying to delete has already been deleted!');
+
+        await query('UPDATE characters SET deleted_at = $1 WHERE user_id = $2 AND id = $3', [Date.now(), user.id, char.id]);
+
+        return `Successfully marked Character \"${char.name}\" of User \"${user.username}\" as deleted in Database`;
+    }
+
+    async remove_final(user, char) {
+        if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         await query('DELETE FROM characters WHERE user_id = $1 AND id = $2', [user.id, char.id]);
 
@@ -279,78 +309,29 @@ class character {
     }
 
     async update(user, char) {
-        if (!(await this.exists(user, char))) {
-            throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
-        }
+        if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
+
+        if (await this.isDeleted(user, char)) throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
 
         const charHP = char.hp.current ? char.hp.current : char.hp;
         const charHPMax = char.hp.max ? char.hp.max : char.hp_max;
         const charHPTemp = char.hp.temp ? char.hp.temp : char.hp_temp;
-        const charHPMethod = char.hp.method ? char.hp.method : char.hp_method;
-        const pp = char.money ? char.money.pp : char.pp;
-        const gp = char.money ? char.money.gp : char.gp;
-        const sp = char.money ? char.money.sp : char.sp;
-        const ep = char.money ? char.money.ep : char.ep;
-        const cp = char.money ? char.money.cp : char.cp;
-        const charRace = char.race ? char.race : char.race_id;
-        const charSubRace = char.subrace ? char.subrace : char.subrace_id;
-        const charClass = char.class ? char.class : char.class_id;
-        const charSubClass = char.subclass ? char.subclass : char.subclass_id;
-        const charMC1 = char.mc ? char.mc[0].id : char.mc1_id;
-        const charMC1Lvl = char.mc ? char.mc[0].level : char.mc1_level;
-        const charMC1Sub = char.mc ? char.mc[0].sub : char.mc1_sub_id;
-        const charMC2 = char.mc ? char.mc[1].id : char.mc2_id;
-        const charMC2Lvl = char.mc ? char.mc[1].level : char.mc2_level;
-        const charMC2Sub = char.mc ? char.mc[1].sub : char.mc2_sub_id;
-        const charMC3 = char.mc ? char.mc[2].id : char.mc3_id;
-        const charMC3Lvl = char.mc ? char.mc[2].level : char.mc3_level;
-        const charMC3Sub = char.mc ? char.mc[2].sub : char.mc3_sub_id;
+        const charRaceId = char.race ? char.race.id : char.race_id;
+        const charSubRaceId = char.subrace ? char.subrace.id : char.subrace_id;
+        const charClassId = char.class ? char.class.id : char.class_id;
+        const charClassLvl = char.class ? char.class.level : char.class_level;
+        const charSubClassId = char.subclass ? char.subclass.id : char.subclass_id;
 
-        const sql =
-            'UPDATE characters SET name = $1, ac = $2, hp = $3, hp_max = $4, hp_temp = $5, init = $6, level = $7, xp = $8, pp = $9, gp = $10, ep = $11, sp = $12, cp = $13, armor_id = $14, race_id = $15, subrace_id = $16 class_id = $17, subclass_id = $18, class_level = $19, multi = $20, mc1_id = $21, mc1_sub_id = $22, mc1_level = $23, mc2_id = $24, mc2_sub_id = $25, mc2_level = $26, mc3_id = $27, mc3_sub_id = $28, mc3_level = $29, portrait = $30, hp_method = $31 WHERE user_id = $32 AND id = $33';
-        await query(sql, [
-            char.name,
-            char.ac,
-            char.hp.current,
-            charHP,
-            charHPMax,
-            charHPTemp,
-            char.init,
-            char.level,
-            char.xp,
-            pp,
-            gp,
-            ep,
-            sp,
-            cp,
-            char.multi,
-            charRace,
-            charSubRace,
-            charClass,
-            charSubClass,
-            char.class_level,
-            charMC1,
-            charMC1Sub,
-            charMC1Lvl,
-            charMC2,
-            charMC2Sub,
-            charMC2Lvl,
-            charMC3,
-            charMC3Sub,
-            charMC3Lvl,
-            char.portrait,
-            charHPMethod,
-            user.id,
-            char.id,
-        ]);
+        const sql = 'UPDATE characters SET name = $1, ac = $2, portrait = $3, hp_current = $4, hp_max = $5, hp_temp = $6, initiative = $7, level = $8, xp = $9, currency = $10::JSON, race_id = $11, subrace_id = $12, class_id = $13, subclass_id = $14, class_level = $15, multiclass = $16::JSON WHERE user_id = $17 AND id = $18';
+        await query(sql, [char.name, char.ac, char.portrait, charHP, charHPMax, charHPTemp, char.initiative, char.level, char.xp, JSON.stringify(char.currency), charRaceId, charSubRaceId, charClassId, charSubClassId, charClassLvl, JSON.stringify(char.multiclass), user.id, char.id]);
 
         return `Successfully updated Character \"${char.name}\" of User \"${user.username}\" in Database`;
     }
 
     async setXP(user, char, xp) {
-        if (!(await this.exists(user, char))) {
-            throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
-        }
+        if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
+
+        if (await this.isDeleted(user, char)) throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
 
         await query('UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3', [xp, user.id, char.id]);
 
@@ -383,23 +364,20 @@ class character {
         await this.setXP(user, char, xp);
     }
 
-    async updateHP(user, char) {
+    async updateHP(server, user, char) {
         const dbChar = await this.getOne(user, char);
-        const charClass = await Class.getOne({ id: dbChar.class });
         const charConstitution = await CharacterStats.getOne(char, 'con');
-        let hp = charClass.hitdice_size + charConstitution;
+        let hp = dbChar.class.hitdice_size + charConstitution;
 
-        const modifier = dbChar.hp_method === 'fixed' ? 0.5 : Math.random();
+        const modifier = (await Server.getOne(server)).hp_method;
 
-        if (!dbChar.multi) {
-            hp += dbChar.class_level - 1 * (Math.ceil(charClass.hitdice_size * modifier) + charConstitution);
+        if (!dbChar.multiclass) {
+            hp += dbChar.class.level - 1 * (Math.ceil(dbChar.class.hitdice_size * modifier) + charConstitution);
         } else {
             await Promise.all(
-                dbChar.mc.map(async (mc) => {
+                dbChar.multiclass.map(async (mc) => {
                     if (mc.enabled) {
-                        const charMC = await Class.getOne({ id: mc.id });
-
-                        hp += mc.level - 1 * (Math.ceil(charMC.hitdice_size * modifier) + charConstitution);
+                        hp += mc.level - 1 * (Math.ceil(mc.class.hitdice_size * modifier) + charConstitution);
                     }
                 })
             );
