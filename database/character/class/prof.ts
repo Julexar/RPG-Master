@@ -1,11 +1,27 @@
-import { psql } from '../../psql.js';
+import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../../custom/errors';
-import { Proficiency } from '../../global';
+import { Proficiency } from '../..';
 const query = psql.query;
 
+interface CharacterClassProf {
+    id: bigint;
+    char_id: bigint;
+    class_id: bigint;
+    name: string;
+    type_id: bigint;
+    expert: boolean;
+    deleted_at: Date | null;
+}
+
+interface AddCharClasProf {
+    name: string;
+    type_id: bigint;
+    expert: boolean;
+}
+
 class CharacterClassProficiency {
-    static async getAll(char, clas) {
-        const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2', [char.id, clas.id]);
+    static async getAll(char: { id: bigint }, clas: { id: bigint }) {
+        const results = await query('SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2', [char.id, clas.id]) as CharacterClassProf[];
 
         if (results.length === 0) throw new NotFoundError('No Character Class Proficiencies found', 'Could not find any Proficiencies granted by that Class for that Character in the Database!');
 
@@ -28,10 +44,10 @@ class CharacterClassProficiency {
         );
     }
 
-    static async getOne(char, clas, prof) {
+    static async getOne(char: { id: bigint }, clas: { id: bigint }, prof: { id?: bigint; name?: string }) {
         if (prof.id) {
             const sql = 'SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, clas.id, prof.id]);
+            const results = await query(sql, [char.id, clas.id, prof.id]) as CharacterClassProf[];
 
             if (results.length === 0) throw new NotFoundError('Character Class Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
 
@@ -52,7 +68,7 @@ class CharacterClassProficiency {
         }
 
         const sql = 'SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3';
-        const results = await query(sql, [char.id, clas.id, prof.name]);
+        const results = await query(sql, [char.id, clas.id, prof.name]) as CharacterClassProf[];
 
         if (results.length === 0) throw new NotFoundError('Character Class Proficiency not found', 'Could not find a Proficiency granted by that Class with that name for that Character in the Database!');
 
@@ -72,55 +88,55 @@ class CharacterClassProficiency {
         };
     }
 
-    static async exists(char, clas, prof) {
+    static async exists(char: { id: bigint }, clas: { id: bigint }, prof: { id?: bigint; name?: string }) {
         if (prof.id) {
             const sql = 'SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, clas.id, prof.id]);
+            const results = await query(sql, [char.id, clas.id, prof.id]) as CharacterClassProf[];
 
             return results.length === 1;
         }
 
         const sql = 'SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3';
-        const results = await query(sql, [char.id, clas.id, prof.name]);
+        const results = await query(sql, [char.id, clas.id, prof.name]) as CharacterClassProf[];
 
         return results.length === 1;
     }
 
-    static async isDeleted(char, clas, prof) {
+    static async isDeleted(char: { id: bigint }, clas: { id: bigint }, prof: { id?: bigint; name?: string }) {
         if (prof.id) {
             const sql = 'SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, clas.id, prof.id]);
+            const results = await query(sql, [char.id, clas.id, prof.id]) as CharacterClassProf[];
 
             return !!results[0].deleted_at;
         }
 
         const sql = 'SELECT * FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND name = $3';
-        const results = await query(sql, [char.id, clas.id, prof.name]);
+        const results = await query(sql, [char.id, clas.id, prof.name]) as CharacterClassProf[];
 
         return !!results[0].deleted_at;
     }
 
-    static async add(char, clas, prof) {
+    static async add(char: { id: bigint }, clas: { id: bigint }, prof: AddCharClasProf) {
         try {
             const charProf = await this.getOne(char, clas, prof);
 
             if (prof.expert === charProf.expert) throw new DuplicateError('Duplicate Character Class Proficiency', 'That Character already has that Proficiency granted by that Class!');
 
             const sql = 'UPDATE character_class_profs SET expert = $1 WHERE char_id = $2 AND class_id = $3 AND id = $4';
-            await query(sql, [prof.expert, char.id, clas.id, prof.id]);
+            await query(sql, [prof.expert, char.id, clas.id, charProf.id]);
 
             return 'Successfully updated Character Class Proficiency in Database';
         } catch (err) {
             if (!(err instanceof NotFoundError)) throw err;
 
-            const sql = 'INSERT INTO character_class_profs (char_id, class_id, name, type, expert) VALUES($1, $2, $3, $4, $5)';
-            await query(sql, [char.id, clas.id, prof.name, prof.type, prof.expert]);
+            const sql = 'INSERT INTO character_class_profs (char_id, class_id, name, type_id, expert) VALUES($1, $2, $3, $4, $5)';
+            await query(sql, [char.id, clas.id, prof.name, prof.type_id, prof.expert]);
 
             return 'Successfully added Character Class Proficiency to Database';
         }
     }
 
-    static async remove(char, clas, prof) {
+    static async remove(char: { id: bigint }, clas: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, clas, prof))) throw new NotFoundError('Character Class Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
 
         if (await this.isDeleted(char, clas, prof)) throw new BadRequestError('Character Class Proficiency deleted', 'The Character Class Proficiency you are trying to remove has already been deleted!');
@@ -131,7 +147,7 @@ class CharacterClassProficiency {
         return 'Successfully marked Character Class Proficiency as deleted in Database';
     }
 
-    static async remove_final(char, clas, prof) {
+    static async remove_final(char: { id: bigint }, clas: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, clas, prof))) throw new NotFoundError('Character Class Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
 
         await query('DELETE FROM character_class_profs WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, prof.id]);
@@ -139,7 +155,7 @@ class CharacterClassProficiency {
         return 'Successfully removed Character Class Proficiency from Database';
     }
 
-    static async update(char, clas, prof) {
+    static async update(char: { id: bigint }, clas: { id: bigint }, prof: CharacterClassProf) {
         if (!(await this.exists(char, clas, prof))) throw new NotFoundError('Character Class Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
 
         if (await this.isDeleted(char, clas, prof)) throw new BadRequestError('Character Class Proficiency deleted', 'The Character Class Proficiency you are trying to update has been deleted!');
@@ -150,7 +166,7 @@ class CharacterClassProficiency {
         return 'Successfully updated Character Class Proficiency in Database';
     }
 
-    static async restore(char, clas, prof) {
+    static async restore(char: { id: bigint }, clas: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, clas, prof))) throw new NotFoundError('Character Class Proficiency not found', 'Could not find that Proficiency granted by that Class for that Character in the Database!');
 
         if (!(await this.isDeleted(char, clas, prof))) throw new BadRequestError('Character Class Proficiency not deleted', 'The Character Class Proficiency you are trying to restore has not been deleted!');

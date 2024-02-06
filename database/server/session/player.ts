@@ -1,14 +1,27 @@
-import { psql } from '../../psql.js';
-import { NotFoundError, DuplicateError } from '../../../custom/errors/index.js';
+import { psql } from '../../psql.ts';
+import { NotFoundError, DuplicateError } from '../../../custom/errors';
+import { Session } from './';
+import { User } from 'discord.js';
+import { DBCharacter } from '../../character';
 const query = psql.query;
+
+interface DBPlayer {
+    id: bigint;
+    session_id: bigint;
+    user_id: bigint;
+    char_id: bigint;
+}
+
+interface AddPlayer {
+    user: User;
+    char: DBCharacter;
+}
 
 class SessionPlayer {
     static async getAll(session) {
         const results = await query('SELECT * FROM session_players WHERE session_id = $1', [session.id]);
 
-        if (results.length === 0) {
-            throw new NotFoundError('No Session Players found', 'Could not find any Players for that Session in the Database!');
-        }
+        if (results.length === 0) throw new NotFoundError('No Session Players found', 'Could not find any Players for that Session in the Database!');
 
         return results;
     }

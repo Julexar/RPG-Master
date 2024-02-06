@@ -1,11 +1,27 @@
-import { psql } from '../../psql.js';
+import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../../custom/errors';
-import { Proficiency } from '../../global';
+import { Proficiency } from '../..';
 const query = psql.query;
 
+interface CharacterRaceProf {
+    id: bigint;
+    char_id: bigint;
+    race_id: bigint;
+    name: string;
+    type_id: bigint;
+    expert: boolean;
+    deleted_at: Date | null;
+}
+
+interface AddCharRaceProf {
+    name: string;
+    type_id: bigint;
+    expert: boolean;
+}
+
 class CharacterRaceProficiency {
-    static async getAll(char, race) {
-        const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2', [char.id, race.id]);
+    static async getAll(char: { id: bigint }, race: { id: bigint }) {
+        const results = await query('SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2', [char.id, race.id]) as CharacterRaceProf[];
 
         if (results.length === 0) throw new NotFoundError('No Character Race Proficiencies found', 'Could not find any racial Proficiencies for that Character in the Database!');
 
@@ -28,15 +44,15 @@ class CharacterRaceProficiency {
         );
     }
 
-    static async getOne(char, race, prof) {
+    static async getOne(char: { id: bigint }, race: { id: bigint }, prof: { id?: bigint; name?: string }) {
         if (prof.id) {
             const sql = 'SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, race.id, prof.id]);
+            const results = await query(sql, [char.id, race.id, prof.id]) as CharacterRaceProf[];
 
             if (results.length === 0) throw new NotFoundError('Character Race Proficiency not found', 'Could not find that racial Proficiency of that Character in the Database!');
 
             const charRaceProf = results[0];
-            const dbProf = await Proficiency.getOne({ id: charRaceProf.type });
+            const dbProf = await Proficiency.getOne({ id: charRaceProf.type_id });
 
             if (charRaceProf.deleted_at) throw new BadRequestError('Character Race Proficiency deleted', 'The racial Proficiency of that Character that you are trying to view has been deleted!');
 
@@ -52,12 +68,12 @@ class CharacterRaceProficiency {
         }
 
         const sql = 'SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3';
-        const results = await query(sql, [char.id, race.id, prof.name]);
+        const results = await query(sql, [char.id, race.id, prof.name]) as CharacterRaceProf[];
 
         if (results.length === 0) throw new NotFoundError('Character Race Proficiency not found', 'Could not find a racial Proficiency of that Character with that name in the Database!');
 
         const charRaceProf = results[0];
-        const dbProf = await Proficiency.getOne({ id: charRaceProf.type });
+        const dbProf = await Proficiency.getOne({ id: charRaceProf.type_id });
 
         if (charRaceProf.deleted_at) throw new BadRequestError('Character Race Proficiency deleted', 'The racial Proficiency of that Character that you are trying to view has been deleted!');
 
@@ -72,55 +88,55 @@ class CharacterRaceProficiency {
         };
     }
 
-    static async exists(char, race, prof) {
+    static async exists(char: { id: bigint }, race: { id: bigint }, prof: { id?: bigint; name?: string }) {
         if (prof.id) {
             const sql = 'SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, race.id, prof.id]);
+            const results = await query(sql, [char.id, race.id, prof.id]) as CharacterRaceProf[];
 
             return results.length === 1;
         }
 
         const sql = 'SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3';
-        const results = await query(sql, [char.id, race.id, prof.name]);
+        const results = await query(sql, [char.id, race.id, prof.name]) as CharacterRaceProf[];
 
         return results.length === 1;
     }
 
-    static async isDeleted(char, race, prof) {
+    static async isDeleted(char: { id: bigint }, race: { id: bigint }, prof: { id?: bigint; name?: string }) {
         if (prof.id) {
             const sql = 'SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, race.id, prof.id]);
+            const results = await query(sql, [char.id, race.id, prof.id]) as CharacterRaceProf[];
 
             return !!results[0].deleted_at;
         }
 
         const sql = 'SELECT * FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND name = $3';
-        const results = await query(sql, [char.id, race.id, prof.name]);
+        const results = await query(sql, [char.id, race.id, prof.name]) as CharacterRaceProf[];
 
         return !!results[0].deleted_at;
     }
 
-    static async add(char, race, prof) {
+    static async add(char: { id: bigint }, race: { id: bigint }, prof: AddCharRaceProf) {
         try {
             const charRaceProf = await this.getOne(char, race, prof);
 
             if (prof.expert === charRaceProf.expert) throw new DuplicateError('Duplicate Character Race Proficiency', 'That Character already has that racial Proficiency in the Database!');
 
             const sql = 'UPDATE character_race_profs SET expert = $1 WHERE char_id = $2 AND race_id = $3 AND id = $4';
-            await query(sql, [prof.expert, char.id, race.id, prof.id]);
+            await query(sql, [prof.expert, char.id, race.id, charRaceProf.id]);
 
             return 'Successfully updated Character Race Proficiency in Database';
         } catch (err) {
             if (!(err instanceof NotFoundError)) throw err;
 
             const sql = 'INSERT INTO character_race_profs (char_id, race_id, name, type, expert) VALUES($1, $2, $3, $4, $5)';
-            await query(sql, [char.id, race.id, prof.name, prof.type, prof.expert]);
+            await query(sql, [char.id, race.id, prof.name, prof.type_id, prof.expert]);
 
             return 'Successfully added Race Proficiency to Character in Database';
         }
     }
 
-    static async remove(char, race, prof) {
+    static async remove(char: { id: bigint }, race: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, race, prof))) throw new NotFoundError('Character Race Proficiency not found', 'Could not find that Race Proficiency for that Character in the Database!');
 
         if (await this.isDeleted(char, race, prof)) throw new BadRequestError('Character Race Proficiency deleted', 'The racial Proficiency of that Character that you are trying to delete has already been deleted!');
@@ -131,7 +147,7 @@ class CharacterRaceProficiency {
         return 'Successfully marked Character Race Proficiency as deleted in Database';
     }
 
-    static async remove_final(char, race, prof) {
+    static async remove_final(char: { id: bigint }, race: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, race, prof))) throw new NotFoundError('Character Race Proficiency not found', 'Could not find that Race Proficiency for that Character in the Database!');
 
         await query('DELETE FROM character_race_profs WHERE char_id = $1 AND race_id = $2 AND id = $3', [char.id, race.id, prof.id]);
@@ -139,7 +155,7 @@ class CharacterRaceProficiency {
         return 'Successfully removed Race Proficiency from Character in Database';
     }
 
-    static async update(char, race, prof) {
+    static async update(char: { id: bigint }, race: { id: bigint }, prof: CharacterRaceProf) {
         if (!(await this.exists(char, race, prof))) throw new NotFoundError('Character Race Proficiency not found', 'Could not find that Race Proficiency for that Character in the Database!');
 
         if (await this.isDeleted(char, race, prof)) throw new BadRequestError('Character Race Proficiency deleted', 'The racial Proficiency of that Character that you are trying to update has been deleted!');
@@ -150,7 +166,7 @@ class CharacterRaceProficiency {
         return 'Successfully updated Character Race Proficiency in Database';
     }
 
-    static async restore(char, race, prof) {
+    static async restore(char: { id: bigint }, race: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, race, prof))) throw new NotFoundError('Character Race Proficiency not found', 'Could not find that Race Proficiency for that Character in the Database!');
 
         if (!(await this.isDeleted(char, race, prof))) throw new BadRequestError('Character Race Proficiency not deleted', 'The racial Proficiency of that Character that you are trying to restore has not been deleted!');

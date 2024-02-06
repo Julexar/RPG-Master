@@ -1,12 +1,27 @@
-import { psql } from '../psql.js';
+import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Proficiency } from '..';
 const query = psql.query;
 
+interface CharProficiency {
+    id: bigint;
+    char_id: bigint;
+    type_id: bigint;
+    name: string;
+    expert: boolean;
+    deleted_at: Date | null;
+}
+
+interface AddCharProficiency {
+    type_id: bigint;
+    name: string;
+    expert: boolean;
+}
+
 class CharacterProficiency {
-    static async getAll(char, prof) {
-        if (!prof.type) {
-            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1', [char.id]);
+    static async getAll(char: { id: bigint }, prof?: { type_id: bigint }) {
+        if (!prof) {
+            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1', [char.id]) as CharProficiency[];
 
             if (results.length === 0) throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies for that Character in the Database!');
 
@@ -28,7 +43,7 @@ class CharacterProficiency {
             );
         }
 
-        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND type = $2', [char.id, prof.type]);
+        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND type_id = $2', [char.id, prof.type_id]) as CharProficiency[];
 
         if (results.length === 0) throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies of that type for that Character in the Database!');
 
@@ -50,14 +65,14 @@ class CharacterProficiency {
         );
     }
 
-    static async getOne(char, prof) {
+    static async getOne(char: { id: bigint }, prof: { id?: bigint, name?: string }) {
         if (prof.id) {
-            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
+            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]) as CharProficiency[];
 
             if (results.length === 0) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
             const charProf = results[0];
-            const dbProf = await Proficiency.getOne({ id: charProf.type });
+            const dbProf = await Proficiency.getOne({ id: charProf.type_id });
 
             if (charProf.deleted_at) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to view has been deleted!');
 
@@ -71,12 +86,12 @@ class CharacterProficiency {
             };
         }
 
-        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
+        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]) as CharProficiency[];
 
         if (results.length === 0) throw new NotFoundError('Character Proficiency not found', 'Could not find a Character Proficiency with that name in the Database!');
 
         const charProf = results[0];
-        const dbProf = await Proficiency.getOne({ id: charProf.type });
+        const dbProf = await Proficiency.getOne({ id: charProf.type_id });
 
         if (charProf.deleted_at) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to view has been deleted!');
 
@@ -90,31 +105,31 @@ class CharacterProficiency {
         };
     }
 
-    static async exists(char, prof) {
+    static async exists(char: { id: bigint }, prof: { id?: bigint, name?: string }) {
         if (prof.id) {
-            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
+            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]) as CharProficiency[];
 
             return results.length === 1;
         }
 
-        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
+        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]) as CharProficiency[];
 
         return results.length === 1;
     }
 
-    static async isDeleted(char, prof) {
+    static async isDeleted(char: { id: bigint }, prof: { id?: bigint, name?: string }) {
         if (prof.id) {
-            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
+            const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]) as CharProficiency[];
 
             return !!results[0].deleted_at;
         }
 
-        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
+        const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]) as CharProficiency[];
 
         return !!results[0].deleted_at;
     }
 
-    static async add(char, prof) {
+    static async add(char: { id: bigint }, prof: AddCharProficiency) {
         try {
             const charProf = await this.getOne(char, prof);
 
@@ -128,13 +143,13 @@ class CharacterProficiency {
             if (!(err instanceof NotFoundError)) throw err;
 
             const sql = 'INSERT INTO character_proficiencies (char_id, name, type, expert) VALUES($1, $2, $3, $4)';
-            await query(sql, [char.id, prof.name, prof.type, prof.expert]);
+            await query(sql, [char.id, prof.name, prof.type_id, prof.expert]);
 
             return 'Successfully added Character Proficiency to Database';
         }
     }
 
-    static async remove(char, prof) {
+    static async remove(char: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
         if (await this.isDeleted(char, prof)) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to remove has already been deleted!');
@@ -145,7 +160,7 @@ class CharacterProficiency {
         return 'Successfully deleted Character Proficiency';
     }
 
-    static async remove_final(char, prof) {
+    static async remove_final(char: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
         await query('DELETE FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
@@ -153,18 +168,18 @@ class CharacterProficiency {
         return 'Successfully removed Character Proficiency from Database';
     }
 
-    static async update(char, prof) {
+    static async update(char: { id: bigint }, prof: CharProficiency) {
         if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
         if (await this.isDeleted(char, prof)) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to update has been deleted!');
 
         const sql = 'UPDATE character_proficiencies SET name = $1, type = $2, expert = $3 WHERE char_id = $4 AND id = $5';
-        await query(sql, [prof.name, prof.type, prof.expert, char.id, prof.id]);
+        await query(sql, [prof.name, prof.type_id, prof.expert, char.id, prof.id]);
 
         return 'Successfully updated Character Proficiency in Database';
     }
 
-    static async restore(char, prof) {
+    static async restore(char: { id: bigint }, prof: { id: bigint }) {
         if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
         const sql = 'UPDATE character_proficiencies SET deleted_at = NULL WHERE char_id = $1 AND id = $2';

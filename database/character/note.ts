@@ -1,13 +1,29 @@
-import { psql } from '../psql.js';
+import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Character } from './';
 const query = psql.query;
 
+interface Note {
+    id: bigint;
+    char_id: bigint;
+    title: string;
+    content: string;
+    private: boolean;
+    created_at: Date;
+    deleted_at: Date | null;
+}
+
+interface AddNote {
+    title?: string;
+    content: string;
+    private: boolean;
+}
+
 class CharacterNote {
-    static async getAll(user, char) {
+    static async getAll(user: { id: bigint }, char: { id: bigint }) {
         if (!(await Character.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
-        const results = await query('SELECT * FROM character_notes WHERE char_id = $1', [char.id]);
+        const results = await query('SELECT * FROM character_notes WHERE char_id = $1', [char.id]) as Note[];
 
         if (results.length === 0) throw new NotFoundError('No Character Notes found', 'Could not find any Notes for this Character in the Database!');
 
@@ -18,11 +34,11 @@ class CharacterNote {
         });
     }
 
-    static async getOne(user, char, note) {
+    static async getOne(user: { id: bigint }, char: { id: bigint }, note: { id?: bigint; title?: string }) {
         if (!(await Character.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         if (note.id) {
-            const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND id = $2', [char.id, note.id]);
+            const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND id = $2', [char.id, note.id]) as Note[];
 
             if (results.length === 0) throw new NotFoundError('Character Note not found', 'Could not find that Character Note in the Database!');
 
@@ -31,7 +47,7 @@ class CharacterNote {
             return results[0];
         }
 
-        const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND title = $2', [char.id, note.title]);
+        const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND title = $2', [char.id, note.title]) as Note[];
 
         if (results.length === 0) throw new NotFoundError('Character Note not found', 'Could not find a Character Note with that title in the Database!');
 
@@ -40,33 +56,33 @@ class CharacterNote {
         return results[0];
     }
 
-    static async exists(char, note) {
+    static async exists(char: { id: bigint }, note: { id?: bigint; title?: string }) {
         if (note.id) {
-            const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND id = $2', [char.id, note.id]);
+            const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND id = $2', [char.id, note.id]) as Note[];
 
             return results.length === 1;
         }
 
-        const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND title = $2', [char.id, note.title]);
+        const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND title = $2', [char.id, note.title]) as Note[];
 
         return results.length === 1;
     }
 
-    static async isDeleted(char, note) {
+    static async isDeleted(char: { id: bigint }, note: { id?: bigint; title?: string }) {
         if (note.id) {
-            const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND id = $2', [char.id, note.id]);
+            const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND id = $2', [char.id, note.id]) as Note[];
 
             return !!results[0].deleted_at;
         }
 
-        const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND title = $2', [char.id, note.title]);
+        const results = await query('SELECT * FROM character_notes WHERE char_id = $1 AND title = $2', [char.id, note.title]) as Note[];
 
         if (results.length === 0) throw new NotFoundError('Character Note not found', 'Could not find a Character Note with that title in the Database!');
 
         return !!results[0].deleted_at;
     }
 
-    static async add(user, char, note) {
+    static async add(user: { id: bigint }, char: { id: bigint }, note: AddNote) {
         try {
             const charNote = await this.getOne(user, char, note);
 
@@ -86,7 +102,7 @@ class CharacterNote {
         }
     }
 
-    static async remove(char, note) {
+    static async remove(char: { id: bigint }, note: { id: bigint }) {
         if (!(await this.exists(char, note))) throw new NotFoundError('Character Note not found', 'Could not find that Note for that Character in the Database!');
 
         if (await this.isDeleted(char, note)) throw new BadRequestError('Character Note deleted', 'The Character Note you are trying to delete has already been deleted!');
@@ -97,7 +113,7 @@ class CharacterNote {
         return 'Successfully removed Character Note from Database';
     }
 
-    static async remove_final(char, note) {
+    static async remove_final(char: { id: bigint }, note: { id: bigint }) {
         if (!(await this.exists(char, note))) throw new NotFoundError('Character Note not found', 'Could not find that Note for that Character in the Database!');
 
         await query('DELETE FROM character_notes WHERE char_id = $1 AND id = $2', [char.id, note.id]);
@@ -105,7 +121,7 @@ class CharacterNote {
         return 'Successfully removed Character Note from Database';
     }
 
-    static async update(char, note) {
+    static async update(char: { id: bigint }, note: Note) {
         if (!(await this.exists(char, note))) throw new NotFoundError('Character Note not found', 'Could not find that Note for that Character in the Database!');
 
         if (await this.isDeleted(char, note)) throw new BadRequestError('Character Note deleted', 'The Character Note you are trying to update has been deleted!');
@@ -114,6 +130,17 @@ class CharacterNote {
         await query(sql, [note.title, note.content, note.private, char.id, note.id]);
 
         return 'Successfully updated Character Note in Database';
+    }
+
+    static async restore(char: { id: bigint }, note: { id: bigint }) {
+        if (!(await this.exists(char, note))) throw new NotFoundError('Character Note not found', 'Could not find that Note for that Character in the Database!');
+
+        if (!(await this.isDeleted(char, note))) throw new BadRequestError('Character Note not deleted', 'The Character Note you are trying to restore has not been deleted!');
+
+        const sql = 'UPDATE character_notes SET deleted_at = NULL WHERE char_id = $2 AND id = $3';
+        await query(sql, [char.id, note.id]);
+
+        return 'Successfully restored Character Note in Database';
     }
 }
 

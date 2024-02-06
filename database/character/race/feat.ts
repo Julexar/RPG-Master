@@ -1,17 +1,33 @@
-import { psql } from '../../psql.js';
+import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../../custom/errors';
-import { ServerFeats } from '../../server/feat.js';
+import { Server } from '../..';
 const query = psql.query;
 
+interface CharRaceFeat {
+    id: bigint;
+    char_id: bigint;
+    race_id: bigint;
+    feat_id: bigint;
+    overwrites: JSON | null;
+    deleted_at: Date | null;
+}
+
+interface AddCharRaceFeat {
+    id?: bigint;
+    feat_id?: bigint;
+    name?: string;
+    overwrites: JSON | null;
+}
+
 class CharacterRaceFeat {
-    static async getAll(server, char, race) {
-        const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2', [char.id, race.id]);
+    static async getAll(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }) {
+        const results = await query('SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2', [char.id, race.id]) as CharRaceFeat[];
 
         if (results.length === 0) throw new NotFoundError('No Character Race Feats found', 'Could not find any racial Feats for that Character in the Database!');
 
         return Promise.all(
             results.map(async (charRaceFeat) => {
-                const dbFeat = await ServerFeats.getOne(server, { id: charRaceFeat.feat_id });
+                const dbFeat = await Server.feats.getOne(server, { id: charRaceFeat.feat_id });
 
                 if (charRaceFeat.deleted_at) return;
 
@@ -27,15 +43,15 @@ class CharacterRaceFeat {
         );
     }
 
-    static async getOne(server, char, race, feat) {
+    static async getOne(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
             const sql = 'SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, race.id, feat.id]);
+            const results = await query(sql, [char.id, race.id, feat.id]) as CharRaceFeat[];
 
             if (results.length === 0) throw new NotFoundError('Character Race Feat not found', 'Could not find that racial Feat for that Character in the Database!');
 
             const charRaceFeat = results[0];
-            const dbFeat = await ServerFeats.getOne(server, { id: charRaceFeat.feat_id });
+            const dbFeat = await Server.feats.getOne(server, { id: charRaceFeat.feat_id });
 
             if (charRaceFeat.deleted_at) throw new BadRequestError('Character Race Feat deleted', 'The racial Feat you are trying to view for that Character has been deleted!');
 
@@ -49,9 +65,9 @@ class CharacterRaceFeat {
             };
         }
 
-        const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
+        const dbFeat = await Server.feats.getOne(server, { name: feat.name });
         const sql = 'SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3';
-        const results = await query(sql, [char.id, race.id, dbFeat.id]);
+        const results = await query(sql, [char.id, race.id, dbFeat.id]) as CharRaceFeat[];
 
         if (results.length === 0) throw new NotFoundError('Character Race Feat not found', 'Could not find a racial Feat with that name for that Character in the Database!');
 
@@ -69,46 +85,47 @@ class CharacterRaceFeat {
         };
     }
 
-    static async exists(server, char, race, feat) {
+    static async exists(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
             const sql = 'SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, race.id, feat.id]);
+            const results = await query(sql, [char.id, race.id, feat.id]) as CharRaceFeat[];
 
             return results.length === 1;
         }
 
-        const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
+        const dbFeat = await Server.feats.getOne(server, { name: feat.name });
         const sql = 'SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3';
-        const results = await query(sql, [char.id, race.id, dbFeat.id]);
+        const results = await query(sql, [char.id, race.id, dbFeat.id]) as CharRaceFeat[];
 
         return results.length === 1;
     }
 
-    static async isDeleted(server, char, race, feat) {
+    static async isDeleted(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
             const sql = 'SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, race.id, feat.id])
+            const results = await query(sql, [char.id, race.id, feat.id]) as CharRaceFeat[];
 
             return !!results[0].deleted_at;
         }
 
-        const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
+        const dbFeat = await Server.feats.getOne(server, { name: feat.name });
         const sql = 'SELECT * FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND feat_id = $3';
-        const results = await query(sql, [char.id, race.id, dbFeat.id]);
+        const results = await query(sql, [char.id, race.id, dbFeat.id]) as CharRaceFeat[];
 
         return !!results[0].deleted_at;
     }
 
-    static async add(server, char, race, feat) {
+    static async add(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: AddCharRaceFeat) {
         if (await this.exists(server, char, race, feat)) throw new DuplicateError('Duplicate Character Race Feat', 'That Character already has that racial Feat!');
 
+        const dbFeat = await Server.feats.getOne(server, feat);
         const sql = 'INSERT INTO character_race_feats (char_id, race_id, feat_id) VALUES($1, $2, $3)';
-        await query(sql, [char.id, race.id, feat.feat_id]);
+        await query(sql, [char.id, race.id, dbFeat.id]);
 
         return 'Successfully added Race Feat to Character in Database';
     }
 
-    static async remove(server, char, race, feat) {
+    static async remove(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: { id: bigint }) {
         if (!(await this.exists(server, char, race, feat))) throw new NotFoundError('Character Race Feat not found', 'Could not find that racial Feat for that Character in the Database!');
 
         if (await this.isDeleted(server, char, race, feat)) throw new BadRequestError('Character Race Feat deleted', 'The racial Feat you are trying to remove has already been deleted!');
@@ -119,7 +136,7 @@ class CharacterRaceFeat {
         return 'Successfully marked racial Feat as deleted for Character in Database';
     }
 
-    static async remove_final(server, char, race, feat) {
+    static async remove_final(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: { id: bigint }) {
         if (!(await this.exists(server, char, race, feat))) throw new NotFoundError('Character Race Feat not found', 'Could not find that racial Feat for that Character in the Database!');
 
         await query('DELETE FROM character_race_feats WHERE char_id = $1 AND race_id = $2 AND id = $3', [char.id, race.id, feat.id]);
@@ -127,7 +144,7 @@ class CharacterRaceFeat {
         return 'Successfully removed racial Feat from Character in Database';
     }
 
-    static async update(server, char, race, feat) {
+    static async update(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: CharRaceFeat) {
         if (!(await this.exists(server, char, race, feat))) throw new NotFoundError('Character Race Feat not found', 'Could not find that racial Feat for that Character in the Database!');
 
         if (await this.isDeleted(server, char, race, feat)) throw new BadRequestError('Character Race Feat deleted', 'The racial Feat you are trying to update has been deleted!');
@@ -138,7 +155,7 @@ class CharacterRaceFeat {
         return 'Successfully updated Character Race Feat in Database';
     }
 
-    static async restore(server, char, race, feat) {
+    static async restore(server: { id: bigint }, char: { id: bigint }, race: { id: bigint }, feat: { id: bigint }) {
         if (!(await this.exists(server, char, race, feat))) throw new NotFoundError('Character Race Feat not found', 'Could not find that racial Feat for that Character in the Database!');
 
         if (!(await this.isDeleted(server, char, race, feat))) throw new BadRequestError('Character Race Feat not deleted', 'The racial Feat you are trying to restore has not been deleted!');
