@@ -25,9 +25,9 @@ interface AddSubclass {
 }
 
 class subclass {
-    profs: SubclassProficiency;
-    senses: SubclassSense;
-    traits: SubclassTrait;
+    profs: typeof SubclassProficiency;
+    senses: typeof SubclassSense;
+    traits: typeof SubclassTrait;
     constructor() {
         this.profs = SubclassProficiency;
         this.senses = SubclassSense;
@@ -44,9 +44,9 @@ class subclass {
         return Promise.all(
             results.map(async (dbSub) => {
                 const [subProfs, subSenses, subTraits] = await Promise.all([
-                    SubclassProficiency.getAll(dbSub),
-                    SubclassSense.getAll(dbSub),
-                    SubclassTrait.getAll(dbSub)
+                    await this.profs.getAll(dbSub),
+                    await this.senses.getAll(dbSub),
+                    await this.traits.getAll(dbSub)
                 ]);
 
                 return {
@@ -67,9 +67,9 @@ class subclass {
 
             const dbSub = results[0];
             const [subProfs, subSenses, subTraits] = await Promise.all([
-                SubclassProficiency.getAll(dbSub),
-                SubclassSense.getAll(dbSub),
-                SubclassTrait.getAll(dbSub)
+                await this.profs.getAll(dbSub),
+                await this.senses.getAll(dbSub),
+                await this.traits.getAll(dbSub)
             ]);
 
             return {
@@ -86,9 +86,9 @@ class subclass {
 
         const dbSub = results[0];
         const [subProfs, subSenses, subTraits] = await Promise.all([
-            SubclassProficiency.getAll(dbSub), 
-            SubclassSense.getAll(dbSub), 
-            SubclassTrait.getAll(dbSub)
+            await this.profs.getAll(dbSub),
+            await this.senses.getAll(dbSub),
+            await this.traits.getAll(dbSub)
         ]);
 
         return {

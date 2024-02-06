@@ -31,11 +31,11 @@ interface AddClass {
 }
 
 class clas {
-    profs: ClassProficiency;
-    saves: ClassSave;
-    senses: ClassSense;
-    traits: ClassTrait;
-    mc_requirements: MCRequirement;
+    profs: typeof ClassProficiency;
+    saves: typeof ClassSave;
+    senses: typeof ClassSense;
+    traits: typeof ClassTrait;
+    mc_requirements: typeof MCRequirement;
     constructor() {
         this.profs = ClassProficiency;
         this.saves = ClassSave;
@@ -52,10 +52,10 @@ class clas {
         return Promise.all(
             results.map(async (dbClass) => {
                 const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
-                    await ClassProficiency.getAll(dbClass),
-                    await ClassSave.getAll(dbClass),
-                    await ClassSense.getAll(dbClass),
-                    await ClassTrait.getAll(dbClass),
+                    await this.profs.getAll(dbClass),
+                    await this.saves.getAll(dbClass),
+                    await this.senses.getAll(dbClass),
+                    await this.traits.getAll(dbClass),
                 ]);
 
                 return {
@@ -85,10 +85,10 @@ class clas {
 
             const dbClass = results[0];
             const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
-                await ClassProficiency.getAll(dbClass),
-                await ClassSave.getAll(dbClass),
-                await ClassSense.getAll(dbClass),
-                await ClassTrait.getAll(dbClass),
+                await this.profs.getAll(dbClass),
+                await this.saves.getAll(dbClass),
+                await this.senses.getAll(dbClass),
+                await this.traits.getAll(dbClass),
             ]);
 
             return {
@@ -114,10 +114,10 @@ class clas {
 
         const dbClass = results[0];
         const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
-            await ClassProficiency.getAll(dbClass),
-            await ClassSave.getAll(dbClass),
-            await ClassSense.getAll(dbClass),
-            await ClassTrait.getAll(dbClass),
+            await this.profs.getAll(dbClass),
+            await this.saves.getAll(dbClass),
+            await this.senses.getAll(dbClass),
+            await this.traits.getAll(dbClass),
         ]);
 
         return {

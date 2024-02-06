@@ -31,17 +31,31 @@ interface AddSpell {
 };
 
 class spell {
-    school: SpellSchool;
+    school: typeof SpellSchool;
     constructor() {
         this.school = SpellSchool;
     }
 
     static async getAll() {
-        const results = await query('SELECT * FROM spells', null) as DBSpell[];
+        const results = await query('SELECT * FROM spells') as DBSpell[];
 
         if (results.length === 0) throw new NotFoundError('No Spells found', 'Could not find any Spells in the Database!');
 
-        return results;
+        return results.map(spell => {
+            return {
+                id: spell.id,
+                name: spell.name,
+                description: spell.description,
+                level: spell.level,
+                school: spell.school_id ? SpellSchool.getOne({ id: spell.school_id }) : null,
+                classes: spell.classes,
+                higher_lvl: spell.higher_lvl ? JSON.parse(JSON.stringify(spell.higher_lvl)) : null,
+                dmgtype: spell.dmgtype_id,
+                dmg_stat: spell.dmg_stat,
+                save_stat: spell.save_stat,
+                stats: spell.stats ? JSON.parse(JSON.stringify(spell.stats)) : null
+            }
+        });
     }
 
     static async getOne(spell: any) {
@@ -50,14 +64,42 @@ class spell {
 
             if (results.length === 0) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
 
-            return results[0];
+            return results.map(spell => {
+                return {
+                    id: spell.id,
+                    name: spell.name,
+                    description: spell.description,
+                    level: spell.level,
+                    school: spell.school_id ? SpellSchool.getOne({ id: spell.school_id }) : null,
+                    classes: spell.classes,
+                    higher_lvl: spell.higher_lvl ? JSON.parse(JSON.stringify(spell.higher_lvl)) : null,
+                    dmgtype: spell.dmgtype_id,
+                    dmg_stat: spell.dmg_stat,
+                    save_stat: spell.save_stat,
+                    stats: spell.stats ? JSON.parse(JSON.stringify(spell.stats)) : null
+                }
+            })[0];
         }
 
         const results = await query('SELECT * FROM spells WHERE name = $1', [spell.name]) as DBSpell[];
 
         if (results.length === 0) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
 
-        return results[0];
+        return results.map(spell => {
+            return {
+                id: spell.id,
+                name: spell.name,
+                description: spell.description,
+                level: spell.level,
+                school: spell.school_id ? SpellSchool.getOne({ id: spell.school_id }) : null,
+                classes: spell.classes,
+                higher_lvl: spell.higher_lvl ? JSON.parse(JSON.stringify(spell.higher_lvl)) : null,
+                dmgtype: spell.dmgtype_id,
+                dmg_stat: spell.dmg_stat,
+                save_stat: spell.save_stat,
+                stats: spell.stats ? JSON.parse(JSON.stringify(spell.stats)) : null
+            }
+        })[0];
     }
 
     static async exists(spell: any) {

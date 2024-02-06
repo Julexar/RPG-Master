@@ -23,17 +23,29 @@ interface AddWeapon {
 };
 
 class weapon {
-    props: WeaponProperty;
+    props: typeof WeaponProperty;
     constructor() {
         this.props = WeaponProperty;
     }
 
     async getAll() {
-        const results = await query('SELECT * FROM weapons', null) as DBWeapon[];
+        const results = await query('SELECT * FROM weapons') as DBWeapon[];
 
         if (results.length === 0) throw new NotFoundError('No Weapons found', 'Could not find any Weapons in the Database!');
 
-        return results;
+        return await Promise.all(
+            results.map(async (weapon) => {
+                return {
+                    id: weapon.id,
+                    name: weapon.name,
+                    description: weapon.description,
+                    type_id: weapon.type_id,
+                    rarity_id: weapon.rarity_id,
+                    stats: weapon.stats !== null ? JSON.parse(JSON.stringify(weapon.stats)) : null,
+                    props: weapon.props !== null ? await Promise.all(weapon.props.map(async (prop) => await this.props.getOne({ id: prop }))) : null
+                }
+            })
+        );
     }
 
     async getOne(weapon: any) {
@@ -42,14 +54,36 @@ class weapon {
 
             if (results.length === 0) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
-            return results[0];
+            const dbWepon = results[0];
+            const dbProps = dbWepon.props?.forEach(async (prop) => await this.props.getOne({ id: prop }));
+
+            return {
+                id: dbWepon.id,
+                name: dbWepon.name,
+                description: dbWepon.description,
+                type_id: dbWepon.type_id,
+                rarity_id: dbWepon.rarity_id,
+                stats: dbWepon.stats !== null ? JSON.parse(JSON.stringify(dbWepon.stats)) : null,
+                props: dbWepon.props !== null ? dbProps : null
+            }
         }
 
         const results = await query('SELECT * FROM weapons WHERE name = $1', [weapon.name]) as DBWeapon[];
 
         if (results.length === 0) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
-        return results[0];
+        const dbWepon = results[0];
+            const dbProps = dbWepon.props?.forEach(async (prop) => await this.props.getOne({ id: prop }));
+
+            return {
+                id: dbWepon.id,
+                name: dbWepon.name,
+                description: dbWepon.description,
+                type_id: dbWepon.type_id,
+                rarity_id: dbWepon.rarity_id,
+                stats: dbWepon.stats !== null ? JSON.parse(JSON.stringify(dbWepon.stats)) : null,
+                props: dbWepon.props !== null ? dbProps : null
+            }
     }
 
     async exists(weapon: any) {
