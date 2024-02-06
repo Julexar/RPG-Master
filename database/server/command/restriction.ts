@@ -18,7 +18,7 @@ interface AddCommandRestriction {
 }
 
 class ServerCommandRestriction {
-    static async getAll(command: { id: bigint}) {
+    static async getAll(command: { id: bigint }) {
         const results = await query('SELECT * FROM server_command_restrictions WHERE command_id = $1', [command.id]) as DBCommandRestriction[];
 
         if (results.length === 0) throw new NotFoundError('No Restrictions found', 'Could not find any Restrictions for that Server Command in the Database!');
