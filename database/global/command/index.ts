@@ -7,7 +7,7 @@ interface DBCommand {
     id: bigint;
     name: string;
     description: string;
-    type_id: bigint;
+    type: string;
     enabled: boolean;
 }
 
@@ -23,17 +23,9 @@ class command {
         this.types = CommandType;
     }
 
-    async getAll(type: { id?: bigint, name?: string }) {
-        if (type.id) {
-            const results = await query('SELECT * FROM commands WHERE type_id = $1', [type.id]) as DBCommand[];
-
-            if (results.length === 0) throw new NotFoundError('No Commands found', 'Could not find any Commands in the Database!');
-
-            return results;
-        }
-
-        const dbType = await CommandType.getOne(type);
-        const results = await query('SELECT * FROM commands WHERE type_id = $1', [dbType.id]) as DBCommand[];
+    async getAll(type: string) {
+        const dbType = await CommandType.getOne({ key: type });
+        const results = await query('SELECT * FROM commands WHERE type = $1', [dbType.key]) as DBCommand[];
 
         if (results.length === 0) throw new NotFoundError('No Commands found', 'Could not find any Commands in the Database!');
 

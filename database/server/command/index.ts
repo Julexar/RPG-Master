@@ -8,6 +8,7 @@ interface DBServerCommand {
     id: bigint;
     server_id: bigint;
     command_id: bigint;
+    type: string;
     enabled: boolean;
     restricted: boolean;
     deleted_at: Date | null;
@@ -15,13 +16,13 @@ interface DBServerCommand {
 
 interface AddServerCommand {
     name: string;
-    type_id: bigint;
+    type: string;
     enabled: boolean;
     restricted: boolean;
 }
 
 class servercommand {
-    restrictions: ServerCommandRestriction;
+    restrictions: typeof ServerCommandRestriction;
     constructor() {
         this.restrictions = ServerCommandRestriction;
     }
@@ -33,13 +34,14 @@ class servercommand {
 
         return Promise.all(
             results.map(async (servCmd) => {
-                const dbCmd = await Command.getOne({ id: servCmd.command_id }, BigInt(1));
+                const dbCmd = await Command.getOne({ id: servCmd.command_id }, servCmd.type);
 
                 if (servCmd.deleted_at) return;
 
                 return {
                     id: servCmd.id,
                     command: dbCmd,
+                    type: dbCmd.type,
                     enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
                     restricted: servCmd.restricted,
                     deleted_at: servCmd.deleted_at
@@ -48,20 +50,21 @@ class servercommand {
         );
     }
 
-    async getOne(server: { id: bigint }, command: { id?: bigint, command_id?: bigint, name?: string, type_id: bigint }) {
+    async getOne(server: { id: bigint }, command: { id?: bigint, command_id?: bigint, name?: string, type: string }) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]) as DBServerCommand[];
 
             if (results.length === 0) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
             const servCmd = results[0];
-            const dbCmd = await Command.getOne({ id: servCmd.command_id }, command.type_id);
+            const dbCmd = await Command.getOne({ id: servCmd.command_id }, command.type);
 
             if (servCmd.deleted_at) throw new BadRequestError('Server Command deleted', 'The Server Command you are trying to view has been deleted in the Database!');
 
             return {
                 id: servCmd.id,
                 command: dbCmd,
+                type: dbCmd.type,
                 enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
                 restricted: servCmd.restricted,
                 deleted_at: servCmd.deleted_at
@@ -69,7 +72,7 @@ class servercommand {
         }
 
         if (command.command_id) {
-            const dbCmd = await Command.getOne({ id: command.command_id }, command.type_id);
+            const dbCmd = await Command.getOne({ id: command.command_id }, command.type);
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND command_id = $2', [server.id, dbCmd.id]) as DBServerCommand[];
 
             if (results.length === 0) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
@@ -81,13 +84,14 @@ class servercommand {
             return {
                 id: servCmd.id,
                 command: dbCmd,
+                type: dbCmd.type,
                 enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
                 restricted: servCmd.restricted,
                 deleted_at: servCmd.deleted_at
             };
         }
 
-        const dbCmd = await Command.getOne({ id: command.id }, command.type_id);
+        const dbCmd = await Command.getOne({ id: command.id }, command.type);
         const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND command_id = $2', [server.id, dbCmd.id]) as DBServerCommand[];
 
         if (results.length === 0) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
@@ -99,33 +103,34 @@ class servercommand {
         return {
             id: servCmd.id,
             command: dbCmd,
+            type: dbCmd.type,
             enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
             restricted: servCmd.restricted,
             deleted_at: servCmd.deleted_at
         };
     }
 
-    async exists(server: { id: bigint }, command: { id?: bigint, name?: string, type_id: bigint }) {
+    async exists(server: { id: bigint }, command: { id?: bigint, name?: string, type: string }) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]) as DBServerCommand[];
 
             return results.length === 1;
         }
 
-        const dbCmd = await Command.getOne({ name: command.name }, command.type_id);
+        const dbCmd = await Command.getOne({ name: command.name }, command.type);
         const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND command_id = $2', [server.id, dbCmd.id]) as DBServerCommand[];
 
         return results.length === 1;
     }
 
-    async isDeleted(server: { id: bigint }, command: { id?: bigint, name?: string, type_id: bigint }) {
+    async isDeleted(server: { id: bigint }, command: { id?: bigint, name?: string, type: string }) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]) as DBServerCommand[];
 
             return !!results[0].deleted_at;
         }
 
-        const dbCmd = await Command.getOne({ name: command.name }, command.type_id);
+        const dbCmd = await Command.getOne({ name: command.name }, command.type);
         const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND command_id = $2', [server.id, dbCmd.id]) as DBServerCommand[];
 
         return !!results[0].deleted_at;
@@ -134,7 +139,7 @@ class servercommand {
     async add(server: { id: bigint }, command: AddServerCommand) {
         if (await this.exists(server, command)) throw new DuplicateError('Duplicate Server Command', 'That Server Command already exists in the Database!');
 
-        const dbCmd = await Command.getOne({ name: command.name }, command.type_id);
+        const dbCmd = await Command.getOne({ name: command.name }, command.type);
 
         const sql = 'INSERT INTO server_commands (server_id, command_id, enabled, restricted) VALUES($1, $2, $3, $4)';
         await query(sql, [server.id, dbCmd.id, command.enabled, command.restricted]);
@@ -142,7 +147,7 @@ class servercommand {
         return `Successfully added Command \"${command.name}\" to Server in Database`;
     }
 
-    async remove(server: { id: bigint }, command: { id: bigint, type_id: bigint }) {
+    async remove(server: { id: bigint }, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         if (await this.isDeleted(server, command)) throw new BadRequestError('Server Command already deleted', 'The Server Command you are trying to remove has already been deleted in the Database!');
@@ -153,7 +158,7 @@ class servercommand {
         return 'Successfully marked Command as deleted for Server in Database';
     }
 
-    async remove_final(server: { id: bigint }, command: { id: bigint, type_id: bigint }) {
+    async remove_final(server: { id: bigint }, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         await query('DELETE FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]);
@@ -161,7 +166,7 @@ class servercommand {
         return 'Successfully removed Command from Server in Database';
     }
 
-    async restore(server: { id: bigint }, command: { id: bigint, type_id: bigint }) {
+    async restore(server: { id: bigint }, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         if (!(await this.isDeleted(server, command))) throw new BadRequestError('Server Command not deleted', 'The Server Command you are trying to restore has not been deleted in the Database!');
@@ -172,7 +177,7 @@ class servercommand {
         return 'Successfully restored Command for Server in Database';
     }
 
-    async toggle(server: { id: bigint }, command: { id: bigint, type_id: bigint }) {
+    async toggle(server: { id: bigint }, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         await query('UPDATE server_commands SET enabled = NOT enabled WHERE server_id = $1 AND id = $2', [server.id, command.id]);
@@ -180,7 +185,7 @@ class servercommand {
         return 'Successfully toggled Command for Server in Database';
     }
 
-    async restrict(server: { id: bigint }, command: { id: bigint, type_id: bigint }) {
+    async restrict(server: { id: bigint }, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         await query('UPDATE server_commands SET restricted = NOT restricted WHERE server_id = $1 AND id = $2', [server.id, command.id]);
