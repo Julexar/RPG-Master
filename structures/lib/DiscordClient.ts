@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits } from "discord.js";
+import { Client, Collection, GatewayIntentBits, Guild } from "discord.js";
 import { config } from "../../config.ts";
 import * as db from '../../database';
 import moment from 'moment';
@@ -43,7 +43,7 @@ class DiscordClient extends Client {
         }
     }
 
-    async writeServerLog(server: {id: bigint; name: string}, content: string) {
+    async writeServerLog(server: Guild, content: string) {
         try {
             const date = moment().format('YYYY-MM-DD HH:mm:ss');
 
@@ -61,7 +61,7 @@ class DiscordClient extends Client {
         }
     }
 
-    async logServerError(server: {id: bigint; name: string}, err: { cause: any; }) {
+    async logServerError(server: Guild, err: { cause: any; }) {
         try {
             await this.writeServerLog(server, `${err}\n${err.cause}`);
         } catch (error) {
