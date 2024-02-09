@@ -1,3 +1,4 @@
+import { Guild } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Server } from '..';
@@ -18,7 +19,7 @@ interface AddCharFeat {
 }
 
 class CharacterFeat {
-    static async getAll(server: { id: bigint }, char: { id: bigint }) {
+    static async getAll(server: Guild, char: { id: bigint }) {
         const results = await query('SELECT * FROM character_feats WHERE char_id = $1', [char.id]) as CharFeat[];
 
         if (results.length === 0) throw new NotFoundError('No Character Feats found', 'Could not find any Feats for that Character in the Database!');
@@ -40,7 +41,7 @@ class CharacterFeat {
         );
     }
 
-    static async getOne(server: { id: bigint }, char: { id: bigint }, feat: { id?: bigint, name?: bigint }) {
+    static async getOne(server: Guild, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
         if (feat.id) {
             const results = await query('SELECT * FROM character_feats WHERE char_id = $1 AND id = $2', [char.id, feat.id]) as CharFeat[];
 
@@ -78,7 +79,7 @@ class CharacterFeat {
         };
     }
 
-    static async exists(server: { id: bigint }, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
+    static async exists(server: Guild, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
         if (feat.id) {
             const results = await query('SELECT * FROM character_feats WHERE char_id = $1 AND id = $2', [char.id, feat.id]) as CharFeat[];
 
@@ -91,7 +92,7 @@ class CharacterFeat {
         return results.length === 1;
     }
 
-    static async isDeleted(server: { id: bigint }, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
+    static async isDeleted(server: Guild, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
         if (feat.id) {
             const results = await query('SELECT * FROM character_feats WHERE char_id = $1 AND id = $2', [char.id, feat.id]) as CharFeat[];
 
@@ -104,7 +105,7 @@ class CharacterFeat {
         return !!results[0].deleted_at;
     }
 
-    static async add(server: { id: bigint }, char: { id: bigint }, feat: AddCharFeat) {
+    static async add(server: Guild, char: { id: bigint }, feat: AddCharFeat) {
         if (await this.exists(server, char, feat)) throw new DuplicateError('Duplicate Character Feat', 'That Feat is already linked to that Character!');
 
         const dbFeat = await Server.feats.getOne(server, feat);
@@ -113,7 +114,7 @@ class CharacterFeat {
         return 'Successfully added Feat to Character in Database';
     }
 
-    static async remove(server: { id: bigint }, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
+    static async remove(server: Guild, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
         if (!(await this.exists(server, char, feat))) throw new NotFoundError('Character Feat not found', 'Could not find that Feat for that Character in the Database!');
 
         await query('UPDATE character_feats SET deleted_at = $1 WHERE char_id = $2 AND id = $3', [Date.now(), char.id, feat.id]);
@@ -121,7 +122,7 @@ class CharacterFeat {
         return 'Successfully marked Feat as deleted for Character in Database';
     }
 
-    static async remove_final(server: { id: bigint }, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
+    static async remove_final(server: Guild, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
         if (!(await this.exists(server, char, feat))) throw new NotFoundError('Character Feat not found', 'Could not find that Feat for that Character in the Database!');
 
         await query('DELETE FROM character_feats WHERE char_id = $1 AND id = $2', [char.id, feat.id]);
@@ -129,7 +130,7 @@ class CharacterFeat {
         return 'Successfully removed Feat from Character in Database';
     }
 
-    static async update(server: { id: bigint }, char: { id: bigint }, feat: CharFeat) {
+    static async update(server: Guild, char: { id: bigint }, feat: CharFeat) {
         if (!(await this.exists(server, char, feat))) throw new NotFoundError('Character Feat not found', 'Could not find that Feat for that Character in the Database!');
 
         if (await this.isDeleted(server, char, feat)) throw new BadRequestError('Character Feat deleted', 'The Character Feat you are trying to update has been deleted!');
@@ -139,7 +140,7 @@ class CharacterFeat {
         return 'Successfully updated Feat for Character in Database';
     }
 
-    static async restore(server: { id: bigint }, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
+    static async restore(server: Guild, char: { id: bigint }, feat: { id?: bigint, name?: string }) {
         if (!(await this.exists(server, char, feat))) throw new NotFoundError('Character Feat not found', 'Could not find that Feat for that Character in the Database!');
 
         if (!(await this.isDeleted(server, char, feat))) throw new BadRequestError('Character Feat not deleted', 'The Character Feat you are trying to restore has not been deleted!');

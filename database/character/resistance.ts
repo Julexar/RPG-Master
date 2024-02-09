@@ -1,3 +1,4 @@
+import { Guild } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Server } from '..';
@@ -18,7 +19,7 @@ interface AddCharResistance {
 }
 
 class CharacterResistance {
-    static async getAll(server: { id: bigint }, char: { id: bigint }) {
+    static async getAll(server: Guild, char: { id: bigint }) {
         const results = await query('SELECT * FROM character_resistances WHERE char_id = $1', [char.id]) as CharResistance[];
 
         if (results.length === 0) {
@@ -50,7 +51,7 @@ class CharacterResistance {
         );
     }
 
-    static async getOne(server: { id: bigint }, char: { id: bigint }, resist: { id?: bigint, name?: string, type?: string }) {
+    static async getOne(server: Guild, char: { id: bigint }, resist: { id?: bigint, name?: string, type?: string }) {
         if (resist.id) {
             const results = await query('SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resist.id]) as CharResistance[];
 
@@ -101,7 +102,7 @@ class CharacterResistance {
         };
     }
 
-    static async exists(server: { id: bigint }, char: { id: bigint }, resist: { id?: bigint, name?: string, type?: string }) {
+    static async exists(server: Guild, char: { id: bigint }, resist: { id?: bigint, name?: string, type?: string }) {
         if (resist.id) {
             const results = await query('SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resist.id]) as CharResistance[];
 
@@ -124,7 +125,7 @@ class CharacterResistance {
         return results.length === 1;
     }
 
-    static async isDeleted(server: { id: bigint }, char: { id: bigint }, resist: { id?: bigint, name?: string, type?: string }) {
+    static async isDeleted(server: Guild, char: { id: bigint }, resist: { id?: bigint, name?: string, type?: string }) {
         if (resist.id) {
             const results = await query('SELECT * FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resist.id]) as CharResistance[];
 
@@ -147,7 +148,7 @@ class CharacterResistance {
         return !!results[0].deleted_at;
     }
 
-    static async add(server: { id: bigint }, char: { id: bigint }, resist: AddCharResistance) {
+    static async add(server: Guild, char: { id: bigint }, resist: AddCharResistance) {
         if (await this.exists(server, char, resist)) throw new DuplicateError('Duplicate Character Resistance', 'That Resistance is already linked to that Character!');
 
         if (!resist.resist_id) {
@@ -171,7 +172,7 @@ class CharacterResistance {
         return 'Successfully added Resistance to Character in Database';
     }
 
-    static async remove(server: { id: bigint }, char: { id: bigint }, resist: { id: bigint }) {
+    static async remove(server: Guild, char: { id: bigint }, resist: { id: bigint }) {
         if (!(await this.exists(server, char, resist))) throw new NotFoundError('Character Resistance not found', 'Could not find that Resistance for that Character in the Database!');
 
         if (await this.isDeleted(server, char, resist)) throw new BadRequestError('Character Resistance already deleted', 'That Resistance is already removed from that Character!');
@@ -181,7 +182,7 @@ class CharacterResistance {
         return 'Successfully removed Resistance from Character in Database';
     }
 
-    static async remove_final(server: { id: bigint }, char: { id: bigint }, resist: { id: bigint }) {
+    static async remove_final(server: Guild, char: { id: bigint }, resist: { id: bigint }) {
         if (!(await this.exists(server, char, resist))) throw new NotFoundError('Character Resistance not found', 'Could not find that Resistance for that Character in the Database!');
 
         await query('DELETE FROM character_resistances WHERE char_id = $1 AND id = $2', [char.id, resist.id]);
@@ -189,7 +190,7 @@ class CharacterResistance {
         return 'Successfully removed Resistance from Character in Database';
     }
 
-    static async restore(server: { id: bigint }, char: { id: bigint }, resist: { id: bigint }) {
+    static async restore(server: Guild, char: { id: bigint }, resist: { id: bigint }) {
         if (!(await this.exists(server, char, resist))) throw new NotFoundError('Character Resistance not found', 'Could not find that Resistance for that Character in the Database!');
 
         if (!(await this.isDeleted(server, char, resist))) throw new BadRequestError('Character Resistance not deleted', 'That Resistance is not removed from that Character!');

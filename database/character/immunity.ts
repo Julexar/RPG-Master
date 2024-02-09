@@ -1,3 +1,4 @@
+import { Guild } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Server } from '..';
@@ -18,7 +19,7 @@ interface AddCharImmunity {
 }
 
 class CharacterImmunity {
-    static async getAll(server: { id: bigint }, char: { id: bigint }) {
+    static async getAll(server: Guild, char: { id: bigint }) {
         const results = await query('SELECT * FROM character_immunities WHERE char_id = $1', [char.id]) as CharImmunity[];
 
         if (results.length === 0) throw new NotFoundError('No Character Immunities found', 'Could not find any Immunities for that Character in the Database!');
@@ -48,7 +49,7 @@ class CharacterImmunity {
         );
     }
 
-    static async getOne(server: { id: bigint }, char: { id: bigint }, immune: { id?: bigint, name?: string, type?: string }) {
+    static async getOne(server: Guild, char: { id: bigint }, immune: { id?: bigint, name?: string, type?: string }) {
         if (immune.id) {
             const results = await query('SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]) as CharImmunity[];
 
@@ -103,7 +104,7 @@ class CharacterImmunity {
         };
     }
 
-    static async exists(server: { id: bigint }, char: { id: bigint }, immune: { id?: bigint, name?: string, type?: string }) {
+    static async exists(server: Guild, char: { id: bigint }, immune: { id?: bigint, name?: string, type?: string }) {
         if (immune.id) {
             const results = await query('SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]) as CharImmunity[];
 
@@ -126,7 +127,7 @@ class CharacterImmunity {
         return results.length === 1;
     }
 
-    static async isDeleted(server: { id: bigint }, char: { id: bigint }, immune: { id?: bigint, name?: string, type?: string }) {
+    static async isDeleted(server: Guild, char: { id: bigint }, immune: { id?: bigint, name?: string, type?: string }) {
         if (immune.id) {
             const results = await query('SELECT * FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]) as CharImmunity[];
 
@@ -149,7 +150,7 @@ class CharacterImmunity {
         return !!results[0].deleted_at;
     }
 
-    static async add(server: { id: bigint }, char: { id: bigint }, immune: AddCharImmunity) {
+    static async add(server: Guild, char: { id: bigint }, immune: AddCharImmunity) {
         if (await this.exists(server, char, immune)) throw new DuplicateError('Duplicate Character Immunity', 'That Immunity is already linked to that Character!');
 
         if (!immune.immune_id) {
@@ -173,7 +174,7 @@ class CharacterImmunity {
         return 'Successfully added Character Immunity to Database';
     }
 
-    static async remove(server: { id: bigint }, char: { id: bigint }, immune: { id: bigint }) {
+    static async remove(server: Guild, char: { id: bigint }, immune: { id: bigint }) {
         if (!(await this.exists(server, char, immune))) throw new NotFoundError('Character Immunity not found', 'Could not find that Immunity for that Character in the Database!');
 
         if (await this.isDeleted(server, char, immune)) throw new BadRequestError('Character Immunity deleted', 'The Character Immunity you are trying to remove has already been deleted!');
@@ -183,7 +184,7 @@ class CharacterImmunity {
         return 'Successfully removed Character Immunity from Database';
     }
 
-    static async remove_final(server: { id: bigint }, char: { id: bigint }, immune: { id: bigint }) {
+    static async remove_final(server: Guild, char: { id: bigint }, immune: { id: bigint }) {
         if (!(await this.exists(server, char, immune))) throw new NotFoundError('Character Immunity not found', 'Could not find that Immunity for that Character in the Database!');
 
         await query('DELETE FROM character_immunities WHERE char_id = $1 AND id = $2', [char.id, immune.id]);
@@ -191,7 +192,7 @@ class CharacterImmunity {
         return 'Successfully removed Character Immunity from Database';
     }
 
-    static async restore(server: { id: bigint }, char: { id: bigint }, immune: { id: bigint }) {
+    static async restore(server: Guild, char: { id: bigint }, immune: { id: bigint }) {
         if (!(await this.exists(server, char, immune))) throw new NotFoundError('Character Immunity not found', 'Could not find that Immunity for that Character in the Database!');
 
         if (!(await this.isDeleted(server, char, immune))) throw new BadRequestError('Character Immunity not deleted', 'The Character Immunity you are trying to restore has not been deleted!');

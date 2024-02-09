@@ -1,3 +1,4 @@
+import { User, Guild } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { CharacterStats } from './stats.ts';
@@ -114,7 +115,7 @@ class character {
         this.subrace_profs = CharacterSubraceProf;
     }
 
-    async getAll(user: { id: bigint }, server: { id: bigint }) {
+    async getAll(user: User, server: Guild) {
         const results = await query('SELECT * FROM characters WHERE user_id = $1', [user.id]) as DBCharacter[];
 
         if (results.length === 0) throw new NotFoundError('No Characters found', 'Could not find any Characters in the Database!');
@@ -190,7 +191,7 @@ class character {
         );
     }
 
-    async getOne(user: { id: bigint }, char: { id?: bigint, name?: string }, server: { id: bigint }) {
+    async getOne(user: User, char: { id?: bigint, name?: string }, server: Guild) {
         if (char.id) {
             const results = await query('SELECT * FROM characters WHERE user_id = $1 AND id = $2', [user.id, char.id]) as DBCharacter[];
 
@@ -338,7 +339,7 @@ class character {
         }
     }
 
-    async exists(user: { id: bigint }, char: { id?: bigint, name?: string }) {
+    async exists(user: User, char: { id?: bigint, name?: string }) {
         if (char.id) {
             const results = await query('SELECT * FROM characters WHERE user_id = $1 AND id = $2', [user.id, char.id]) as DBCharacter[];
 
@@ -350,7 +351,7 @@ class character {
         return results.length === 1;
     }
 
-    async isDeleted(user: { id: bigint }, char: { id?: bigint, name?: string }) {
+    async isDeleted(user: User, char: { id?: bigint, name?: string }) {
         if (char.id) {
             const results = await query('SELECT * FROM characters WHERE user_id = $1 AND id = $2', [user.id, char.id]) as DBCharacter[];
 
@@ -362,7 +363,7 @@ class character {
         return !!results[0].deleted_at;
     }
 
-    async add(user: { id: bigint, displayName: string }, char: AddCharacter) {
+    async add(user: User, char: AddCharacter) {
         if (await this.exists(user, char)) throw new DuplicateError('Duplicate Character', 'A Character with that name already exists in the Database!');
 
         const sql = 'INSERT INTO characters (user_id, name, portrait, ac, level, xp, hp_current, hp_max, hp_temp, initiative, currency, race_id, subrace_id, class_id, subclass_id, class_level, multiclass) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10, $11::JSON, $12, $13, $14, $15, $16::JSON)';
@@ -371,7 +372,7 @@ class character {
         return `Successfully added Character \"${char.name}\" for User \"${user.displayName}\" to Database`;
     }
 
-    async remove(user: { id: bigint, displayName: string }, char: { id: bigint, name?: string }) {
+    async remove(user: User, char: { id: bigint, name?: string }) {
         if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         if (await this.isDeleted(user, char)) throw new BadRequestError('Character already deleted', 'The Character you are trying to delete has already been deleted!');
@@ -381,7 +382,7 @@ class character {
         return `Successfully marked Character \"${char.name}\" of User \"${user.displayName}\" as deleted in Database`;
     }
 
-    async remove_final(user: { id: bigint, displayName: string }, char: { id: bigint, name?: string }) {
+    async remove_final(user: User, char: { id: bigint, name?: string }) {
         if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         await query('DELETE FROM characters WHERE user_id = $1 AND id = $2', [user.id, char.id]);
@@ -389,7 +390,7 @@ class character {
         return `Successfulled removed Character \"${char.name}\" of User \"${user.displayName}\" from Database`;
     }
 
-    async update(user: { id: bigint, displayName: string }, char: DBCharacter) {
+    async update(user: User, char: DBCharacter) {
         if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         if (await this.isDeleted(user, char)) throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
@@ -409,7 +410,7 @@ class character {
         return `Successfully updated Character \"${char.name}\" of User \"${user.displayName}\" in Database`;
     }
 
-    async setXP(user: { id: bigint, displayName: string }, char: { id: bigint, name?: string }, xp: number) {
+    async setXP(user: User, char: { id: bigint, name?: string }, xp: number) {
         if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         if (await this.isDeleted(user, char)) throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
@@ -419,7 +420,7 @@ class character {
         return `Successfully set Level of Character \"${char.name}\" to ${Math.ceil(xp / 300) - 1} (${xp} XP)`;
     }
 
-    async addXP(server: { id: bigint }, user: { id: bigint }, char: { id: bigint, name?: string }, xp: number) {
+    async addXP(server: Guild, user: User, char: { id: bigint, name?: string }, xp: number) {
         const dbChar = await this.getOne(user, char, server);
 
         const newXP = dbChar.xp + xp > 335000 ? 335000 : dbChar.xp + xp;
@@ -429,7 +430,7 @@ class character {
         return `Successfully added ${xp} XP to Character \"${char.name}\". Character is now Level ${Math.ceil(newXP / 300) - 1} (${newXP} XP)`;
     }
 
-    async removeXP(server: { id: bigint }, user: { id: bigint }, char: { id: bigint, name?: string }, xp: number) {
+    async removeXP(server: Guild, user: User, char: { id: bigint, name?: string }, xp: number) {
         const dbChar = await this.getOne(user, char, server);
 
         const newXP = dbChar.xp - xp < 300 ? 300 : dbChar.xp - xp;
@@ -439,13 +440,13 @@ class character {
         return `Successfully removed ${xp} XP from Character \"${char.name}\". Character is now Level ${Math.ceil(newXP / 300) - 1} (${newXP} XP)`;
     }
 
-    async setLevel(user: { id: bigint, displayName: string }, char: { id: bigint, name?: string }, level: number) {
+    async setLevel(user: User, char: { id: bigint, name?: string }, level: number) {
         const xp = 300 * (level - 1);
 
         await this.setXP(user, char, xp);
     }
 
-    async updateHP(server: { id: bigint }, user: { id: bigint }, char: { id: bigint, name?: string }) {
+    async updateHP(server: Guild, user: User, char: { id: bigint, name?: string }) {
         const dbChar = await this.getOne(user, char, server);
         const charConstitution = (await CharacterStats.getOne(char, { stat_key: 'con' })).value;
         let hp = dbChar.class.hitdice + charConstitution;
