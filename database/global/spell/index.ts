@@ -36,7 +36,7 @@ class spell {
         this.school = SpellSchool;
     }
 
-    static async getAll() {
+    async getAll() {
         const results = await query('SELECT * FROM spells') as DBSpell[];
 
         if (results.length === 0) throw new NotFoundError('No Spells found', 'Could not find any Spells in the Database!');
@@ -58,7 +58,7 @@ class spell {
         });
     }
 
-    static async getOne(spell: any) {
+    async getOne(spell: any) {
         if (spell.id) {
             const results = await query('SELECT * FROM spells WHERE id = $1', [spell.id]) as DBSpell[];
 
@@ -102,7 +102,7 @@ class spell {
         })[0];
     }
 
-    static async exists(spell: any) {
+    async exists(spell: any) {
         if (spell.id) {
             const results = await query('SELECT * FROM spells WHERE id = $1', [spell.id]) as DBSpell[];
 
@@ -114,7 +114,7 @@ class spell {
         return results.length === 1;
     }
 
-    static async add(spell: AddSpell) {
+    async add(spell: AddSpell) {
         if (await this.exists(spell)) throw new DuplicateError('Spell already exists', 'A Spell with that Name already exists in the Database!');
 
         const sql = 'INSERT INTO spells (name, description, level, school_id, classes, higher_lvl, dmgtype_id, dmg_stat, save_stat, stats) VALUES ($1, $2, $3, $4, ARRAY$5, $6, $7, $8, $9, $10::JSON)';
@@ -123,7 +123,7 @@ class spell {
         return 'Successfully added Spell to Database';
     }
 
-    static async remove(spell: any) {
+    async remove(spell: any) {
         if (!await this.exists(spell)) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
 
         await query('DELETE FROM spells WHERE id = $1', [spell.id]);
@@ -131,7 +131,7 @@ class spell {
         return 'Successfully removed Spell from Database';
     }
 
-    static async update(spell: DBSpell) {
+    async update(spell: DBSpell) {
         if (!await this.exists(spell)) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
 
         const sql = 'UPDATE spells SET name = $1, description = $2, level = $3, school_id = $4, classes = ARRAY$5, higher_lvl = $6, dmgtype_id = $7, dmg_stat = $8, save_stat = $9, stats = $10::JSON WHERE id = $11';

@@ -1,6 +1,7 @@
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Server } from '..';
+import { Guild } from 'discord.js';
 const query = psql.query;
 
 interface CharAttack {
@@ -35,7 +36,7 @@ interface AddCharAttack {
 }
 
 class CharacterAttack {
-    static async getAll(char: { id: bigint }) {
+    static async getAll(server: Guild, char: { id: bigint }) {
         const results = await query('SELECT * FROM character_attacks WHERE char_id = $1', [char.id]) as CharAttack[];
 
         if (results.length === 0) throw new NotFoundError('No Attacks found', 'Could not find any Attacks for that Character in the Database!');
@@ -43,7 +44,7 @@ class CharacterAttack {
         return results.map((atk) => {
             if (atk.deleted_at) return;
 
-            const dmgtype = Server.dmgtypes.getOne({ id: atk.dmgtype_id });
+            const dmgtype = Server.dmgtypes.getOne(server, { id: atk.dmgtype_id });
 
             return {
                 id: atk.id,
@@ -64,7 +65,7 @@ class CharacterAttack {
         });
     }
 
-    static async getOne(char: { id: bigint }, atk: { id?: bigint; name?: string }) {
+    static async getOne(server: Guild, char: { id: bigint }, atk: { id?: bigint; name?: string }) {
         if (atk.id) {
             const results = await query('SELECT * FROM character_attacks WHERE char_id = $1 AND id = $2', [char.id, atk.id]) as CharAttack[];
 
@@ -73,7 +74,7 @@ class CharacterAttack {
             if (results[0].deleted_at) throw new BadRequestError('Attack deleted', 'The Attack you are trying to view has been deleted!');
 
             const charAtk = results[0];
-            const dmgtype = Server.dmgtypes.getOne({ id: charAtk.dmgtype_id });
+            const dmgtype = Server.dmgtypes.getOne(server, { id: charAtk.dmgtype_id });
 
             return {
                 id: charAtk.id,
@@ -100,7 +101,7 @@ class CharacterAttack {
         if (results[0].deleted_at) throw new BadRequestError('Attack deleted', 'The Attack you are trying to view has been deleted!');
 
         const charAtk = results[0];
-        const dmgtype = Server.dmgtypes.getOne({ id: charAtk.dmgtype_id });
+        const dmgtype = Server.dmgtypes.getOne(server, { id: charAtk.dmgtype_id });
 
         return {
             id: charAtk.id,

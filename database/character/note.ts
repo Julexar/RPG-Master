@@ -1,6 +1,7 @@
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Character } from './';
+import { User } from 'discord.js';
 const query = psql.query;
 
 interface Note {
@@ -20,7 +21,7 @@ interface AddNote {
 }
 
 class CharacterNote {
-    static async getAll(user: { id: bigint }, char: { id: bigint }) {
+    static async getAll(user: User, char: { id: bigint }) {
         if (!(await Character.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         const results = await query('SELECT * FROM character_notes WHERE char_id = $1', [char.id]) as Note[];
@@ -34,7 +35,7 @@ class CharacterNote {
         });
     }
 
-    static async getOne(user: { id: bigint }, char: { id: bigint }, note: { id?: bigint; title?: string }) {
+    static async getOne(user: User, char: { id: bigint }, note: { id?: bigint; title?: string }) {
         if (!(await Character.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
         if (note.id) {
@@ -82,7 +83,7 @@ class CharacterNote {
         return !!results[0].deleted_at;
     }
 
-    static async add(user: { id: bigint }, char: { id: bigint }, note: AddNote) {
+    static async add(user: User, char: { id: bigint }, note: AddNote) {
         try {
             const charNote = await this.getOne(user, char, note);
 
