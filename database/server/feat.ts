@@ -1,4 +1,4 @@
-import { APIGuild } from 'discord.js';
+import { Guild } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Feats } from '..';
@@ -13,7 +13,7 @@ interface DBServerFeat {
 }
 
 class ServerFeats {
-    static async getAll(server: APIGuild) {
+    static async getAll(server: Guild) {
         const results = await query('SELECT * FROM server_feats WHERE server_id = $1', [server.id]) as DBServerFeat[];
 
         if (results.length === 0) throw new NotFoundError('No Server Feats found', 'Could not find any Server Feats in the Database!');
@@ -35,7 +35,7 @@ class ServerFeats {
         );
     }
 
-    static async getOne(server: APIGuild, feat: { id?: bigint; name?: string }) {
+    static async getOne(server: Guild, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
             const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]) as DBServerFeat[];
 
@@ -73,7 +73,7 @@ class ServerFeats {
         };
     }
 
-    static async exists(server: APIGuild, feat: { id?: bigint; name?: string }) {
+    static async exists(server: Guild, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
             const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]) as DBServerFeat[];
 
@@ -86,7 +86,7 @@ class ServerFeats {
         return results.length === 1;
     }
 
-    static async isDeleted(server: APIGuild, feat: { id?: bigint; name?: string }) {
+    static async isDeleted(server: Guild, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
             const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]) as DBServerFeat[];
 
@@ -99,7 +99,7 @@ class ServerFeats {
         return !!results[0].deleted_at;
     }
 
-    static async add(server: APIGuild, feat: { name: string }) {
+    static async add(server: Guild, feat: { name: string }) {
         if (await this.exists(server, feat)) throw new DuplicateError('Duplicate Server Feat', 'That Server Feat already exists in the Database!');
 
         const dbFeat = await Feats.getOne({ name: feat.name });
@@ -109,7 +109,7 @@ class ServerFeats {
         return 'Successfully added Server Feat to Database';
     }
 
-    static async remove_final(server: APIGuild, feat: { id: bigint }) {
+    static async remove_final(server: Guild, feat: { id: bigint }) {
         if (!(await this.exists(server, feat))) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
         await query('DELETE FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]);
@@ -117,7 +117,7 @@ class ServerFeats {
         return 'Successfully removed Server Feat from Database';
     }
 
-    static async remove(server: APIGuild, feat: { id: bigint }) {
+    static async remove(server: Guild, feat: { id: bigint }) {
         if (!(await this.exists(server, feat))) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
         if (await this.isDeleted(server, feat)) throw new BadRequestError('Feat deleted', 'The Server Feat you are trying to remove has already been deleted!');
@@ -127,7 +127,7 @@ class ServerFeats {
         return 'Successfully removed Server Feat from Database';
     }
 
-    static async restore(server: APIGuild, feat: { id: bigint }) {
+    static async restore(server: Guild, feat: { id: bigint }) {
         if (!(await this.exists(server, feat))) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
         if (!(await this.getOne(server, feat)).deleted_at) throw new BadRequestError('Feat not deleted', 'That Server Feat is not deleted!');

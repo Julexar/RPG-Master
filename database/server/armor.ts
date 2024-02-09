@@ -1,4 +1,4 @@
-import { APIGuild } from "discord.js";
+import { Guild } from "discord.js";
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Armor } from '..';
@@ -19,7 +19,7 @@ interface AddArmor {
 }
 
 class ServerArmor {
-    static async getAll(server: APIGuild) {
+    static async getAll(server: Guild) {
         const results = await query('SELECT * FROM server_armors WHERE server_id = $1', [server.id]) as DBServerArmor[];
 
         if (results.length === 0) throw new NotFoundError('No Armor found', 'Could not find any Armors for that Server in the Database!');
@@ -41,7 +41,7 @@ class ServerArmor {
         );
     }
 
-    static async getOne(server: APIGuild, armor: { id?: bigint, name?: string }) {
+    static async getOne(server: Guild, armor: { id?: bigint, name?: string }) {
         if (armor.id) {
             const results = await query('SELECT * FROM server_armors WHERE server_id = $1 AND armor_id = $2', [server.id, armor.id]) as DBServerArmor[];
 
@@ -79,7 +79,7 @@ class ServerArmor {
         };
     }
 
-    static async exists(server: APIGuild, armor: { id?: bigint, name?: string }) {
+    static async exists(server: Guild, armor: { id?: bigint, name?: string }) {
         if (armor.id) {
             const results = await query('SELECT * FROM server_armors WHERE server_id = $1 AND armor_id = $2', [server.id, armor.id]) as DBServerArmor[];
 
@@ -92,7 +92,7 @@ class ServerArmor {
         return results.length === 1;
     }
 
-    static async isDeleted(server: APIGuild, armor: { id?: bigint, name?: string }) {
+    static async isDeleted(server: Guild, armor: { id?: bigint, name?: string }) {
         if (armor.id) {
             const results = await query('SELECT * FROM server_armors WHERE server_id = $1 AND armor_id = $2', [server.id, armor.id]) as DBServerArmor[];
 
@@ -105,7 +105,7 @@ class ServerArmor {
         return !!results[0].deleted_at;
     }
 
-    static async add(server: APIGuild, armor: AddArmor) {
+    static async add(server: Guild, armor: AddArmor) {
         if (await this.exists(server, armor)) throw new DuplicateError('Duplicate Armor', 'That Armor already exists for that Server in the Database!');
 
         const dbArmor = await Armor.getOne({ name: armor.name });
@@ -115,7 +115,7 @@ class ServerArmor {
         return 'Successfully added Armor to Server';
     }
 
-    static async remove(server: APIGuild, armor: { id: bigint }) {
+    static async remove(server: Guild, armor: { id: bigint }) {
         if (!(await this.exists(server, armor))) throw new NotFoundError('Armor not found', 'Could not find that Armor for that Server in the Database!');
 
         if (await this.isDeleted(server, armor)) throw new BadRequestError('Armor deleted', 'The Server Armor you are trying to remove has already been deleted!');
@@ -125,7 +125,7 @@ class ServerArmor {
         return 'Successfully marked Armor as deleted in Server';
     }
 
-    static async remove_final(server: APIGuild, armor: { id: bigint }) {
+    static async remove_final(server: Guild, armor: { id: bigint }) {
         if (!(await this.exists(server, armor))) throw new NotFoundError('Armor not found', 'Could not find that Armor for that Server in the Database!');
 
         await query('DELETE FROM server_armors WHERE server_id = $1 AND id = $2', [server.id, armor.id]);
@@ -133,7 +133,7 @@ class ServerArmor {
         return 'Successfully removed Armor from Server';
     }
 
-    static async update(server: APIGuild, armor: DBServerArmor) {
+    static async update(server: Guild, armor: DBServerArmor) {
         if (!(await this.exists(server, armor))) throw new NotFoundError('Armor not found', 'Could not find that Armor for that Server in the Database!');
 
         if (await this.isDeleted(server, armor)) throw new BadRequestError('Armor deleted', 'The Armor you are trying to update has been deleted!');
@@ -144,7 +144,7 @@ class ServerArmor {
         return 'Successfully updated Armor';
     }
 
-    static async restore(server: APIGuild, armor: { id: bigint }) {
+    static async restore(server: Guild, armor: { id: bigint }) {
         if (!(await this.exists(server, armor))) throw new NotFoundError('Armor not found', 'Could not find that Armor for that Server in the Database!');
         
         if (!await this.isDeleted(server, armor)) throw new BadRequestError('Armor not deleted', 'The Armor you are trying to restore has not been deleted!');

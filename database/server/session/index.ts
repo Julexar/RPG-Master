@@ -1,4 +1,4 @@
-import { APIGuild, APIUser } from 'discord.js';
+import { Guild, User } from 'discord.js';
 import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../../custom/errors';
 import { SessionPlayer } from './player.ts';
@@ -41,7 +41,7 @@ class session {
         this.players = SessionPlayer;
     }
 
-    async getAll(server: APIGuild, user: APIUser | undefined = undefined) {
+    async getAll(server: Guild, user: User | undefined = undefined) {
         if (!user) {
             const results = await query('SELECT * FROM sessions WHERE server_id = $1', [server.id]) as DBSession[];
 
@@ -65,7 +65,7 @@ class session {
         });
     }
 
-    async getOne(server: APIGuild, user: APIUser, session: { id?: bigint; name?: string }) {
+    async getOne(server: Guild, user: User, session: { id?: bigint; name?: string }) {
         if (session.id) {
             const results = await query('SELECT * FROM sessions WHERE server_id = $1 AND id = $2', [server.id, session.id]) as DBSession[];	
 
@@ -86,7 +86,7 @@ class session {
         return results[0];
     }
 
-    async exists(server: APIGuild, user: APIUser, session: { id?: bigint; name?: string }) {
+    async exists(server: Guild, user: User, session: { id?: bigint; name?: string }) {
         if (session.id) {
             const results = await query('SELECT * FROM sessions WHERE server_id = $1 AND id = $2', [server.id, session.id]) as DBSession[];
 
@@ -99,7 +99,7 @@ class session {
         return results.length === 1;
     }
 
-    async isDeleted(server: APIGuild, user: APIUser, session: { id?: bigint; name?: string }) {
+    async isDeleted(server: Guild, user: User, session: { id?: bigint; name?: string }) {
         if (session.id) {
             const results = await query('SELECT * FROM sessions WHERE server_id = $1 AND id = $2', [server.id, session.id]) as DBSession[];
 
@@ -112,7 +112,7 @@ class session {
         return !!results[0].deleted_at;
     }
 
-    async add(server: APIGuild, user: APIUser, session: AddSession) {
+    async add(server: Guild, user: User, session: AddSession) {
         if (await this.exists(server, user, session)) throw new DuplicateError('Duplicate Session', 'A Session with that name already exists in the Database!');
 
         const date = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -135,7 +135,7 @@ class session {
         return 'Successfully added Session to Database';
     }
 
-    async remove(server: APIGuild, user: APIUser, session: { id: bigint }) {
+    async remove(server: Guild, user: User, session: { id: bigint }) {
         if (!(await this.exists(server, user, session))) throw new NotFoundError('Session not found', 'Could not find that Session in the Database!');
 
         if (await this.isDeleted(server, user, session)) throw new BadRequestError('Session deleted', 'That Session has already been deleted from the Database!');
@@ -146,7 +146,7 @@ class session {
         return 'Successfully marked Session as deleted in Database';
     }
 
-    async remove_final(server: APIGuild, user: APIUser, session: { id: bigint }) {
+    async remove_final(server: Guild, user: User, session: { id: bigint }) {
         if (!(await this.exists(server, user, session))) throw new NotFoundError('Session not found', 'Could not find that Session in the Database!');
 
         await query('DELETE FROM sessions WHERE server_id = $1 AND id = $2', [server.id, session.id]);
@@ -154,7 +154,7 @@ class session {
         return 'Successfully removed Session from Database';
     }
 
-    async update(server: APIGuild, user: APIUser, session: DBSession) {
+    async update(server: Guild, user: User, session: DBSession) {
         if (!(await this.exists(server, user, session))) throw new NotFoundError('Session not found', 'Could not find that Session in the Database!');
 
         if (await this.isDeleted(server, user, session)) throw new BadRequestError('Session deleted', 'That Session has been deleted from the Database!');
@@ -178,7 +178,7 @@ class session {
         return 'Successfully updated Session in Database';
     }
 
-    async restore(server: APIGuild, user: APIUser, session: { id: bigint }) {
+    async restore(server: Guild, user: User, session: { id: bigint }) {
         if (!(await this.exists(server, user, session))) throw new NotFoundError('Session not found', 'Could not find that Session in the Database!');
 
         if (!(await this.isDeleted(server, user, session))) throw new BadRequestError('Session not deleted', 'That Session has not been deleted from the Database!');
@@ -189,7 +189,7 @@ class session {
         return 'Successfully restored Session in Database';
     }
 
-    async start(server: APIGuild, user: APIUser, session: { id: bigint }) {
+    async start(server: Guild, user: User, session: { id: bigint }) {
         if (!(await this.exists(server, user, session))) throw new NotFoundError('Session not found', 'Could not find that Session in the Database!');
 
         if (await this.isDeleted(server, user, session)) throw new BadRequestError('Session deleted', 'That Session has been deleted from the Database!');
@@ -201,7 +201,7 @@ class session {
         return 'Successfully started Session';
     }
 
-    async end(server: APIGuild, user: APIUser, session: { id: bigint }) {
+    async end(server: Guild, user: User, session: { id: bigint }) {
         if (!(await this.exists(server, user, session))) throw new NotFoundError('Session not found', 'Could not find that Session in the Database!');
 
         if (await this.isDeleted(server, user, session)) throw new BadRequestError('Session deleted', 'That Session has been deleted from the Database!');

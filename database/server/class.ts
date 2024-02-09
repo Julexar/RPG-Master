@@ -1,4 +1,4 @@
-import { APIGuild } from 'discord.js';
+import { Guild } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Class } from '..';
@@ -19,7 +19,7 @@ interface AddClass {
 }
 
 class ServerClass {
-    static async getAll(server: APIGuild) {
+    static async getAll(server: Guild) {
         const results = await query('SELECT * FROM server_classes WHERE server_id = $1', [server.id]) as DBServerClass[];
 
         if (results.length === 0) throw new NotFoundError('No Server Classes found', 'Could not find any Classes registered for the Server in the Database!');
@@ -41,7 +41,7 @@ class ServerClass {
         );
     }
 
-    static async getOne(server: APIGuild, clas: { id?: bigint; name?: string }) {
+    static async getOne(server: Guild, clas: { id?: bigint; name?: string }) {
         if (clas.id) {
             const results = await query('SELECT * FROM server_classes WHERE server_id = $1 AND id = $2', [server.id, clas.id]) as DBServerClass[];
 
@@ -79,7 +79,7 @@ class ServerClass {
         };
     }
 
-    static async exists(server: APIGuild, clas: { id?: bigint; name?: string }) {
+    static async exists(server: Guild, clas: { id?: bigint; name?: string }) {
         if (clas.id) {
             const results = await query('SELECT * FROM server_classes WHERE server_id = $1 AND id = $2', [server.id, clas.id]) as DBServerClass[];
 
@@ -92,7 +92,7 @@ class ServerClass {
         return results.length === 1;
     }
 
-    static async isDeleted(server: APIGuild, clas: { id?: bigint; name?: string }) {
+    static async isDeleted(server: Guild, clas: { id?: bigint; name?: string }) {
         if (clas.id) {
             const results = await query('SELECT * FROM server_classes WHERE server_id = $1 AND id = $2', [server.id, clas.id]) as DBServerClass[];
 
@@ -105,7 +105,7 @@ class ServerClass {
         return !!results[0].deleted_at;
     }
 
-    static async add(server: APIGuild, clas: AddClass) {
+    static async add(server: Guild, clas: AddClass) {
         if (await this.exists(server, clas)) throw new DuplicateError('Duplicate Server Class', 'That Class has already been registered for that Server in the Database!');
 
         const dbClass = await Class.getOne(clas);
@@ -114,7 +114,7 @@ class ServerClass {
         return 'Successfully registered Class for Server in Database';
     }
 
-    static async remove_final(server: APIGuild, clas: { id: bigint }) {
+    static async remove_final(server: Guild, clas: { id: bigint }) {
         if (!(await this.exists(server, clas))) throw new NotFoundError('Server Class not found', 'Could not find that Class registered for that Server in the Database!');
 
         await query('DELETE FROM server_classes WHERE server_id = $1 AND id = $2', [server.id, clas.id]);
@@ -122,7 +122,7 @@ class ServerClass {
         return 'Successfully unregistered Class from Server in Database';
     }
 
-    static async remove(server: APIGuild, clas) {
+    static async remove(server: Guild, clas) {
         if (!(await this.exists(server, clas))) throw new NotFoundError('Server Class not found', 'Could not find that Class registered for that Server in the Database!');
 
         if (await this.isDeleted(server, clas)) throw new BadRequestError('Class deleted', 'The Class you are trying to remove has already been deleted!');
@@ -132,7 +132,7 @@ class ServerClass {
         return 'Successfully marked Class as deleted for Server in Database';
     }
 
-    static async update(server: APIGuild, clas: DBServerClass) {
+    static async update(server: Guild, clas: DBServerClass) {
         if (!(await this.exists(server, clas))) throw new NotFoundError('Server Class not found', 'Could not find that Class registered for that Server in the Database!');
 
         if (await this.isDeleted(server, clas)) throw new BadRequestError('Class deleted', 'The Class you are trying to update has been deleted!');
@@ -142,7 +142,7 @@ class ServerClass {
         return 'Successfully updated Class for Server in Database';
     }
 
-    static async restore(server: APIGuild, clas: { id: bigint }) {
+    static async restore(server: Guild, clas: { id: bigint }) {
         if (!(await this.exists(server, clas))) throw new NotFoundError('Server Class not found', 'Could not find that Class registered for that Server in the Database!');
 
         if (!(await this.isDeleted(server, clas))) throw new BadRequestError('Class not deleted', 'The Server Class you are trying to restore has not been deleted!');

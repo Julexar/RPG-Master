@@ -1,4 +1,4 @@
-import { APIGuild } from 'discord.js';
+import { Guild } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
 import { Condition } from '..';
@@ -12,7 +12,7 @@ interface DBServerCondition {
 }
 
 class ServerCondition {
-    static async getAll(server: APIGuild) {
+    static async getAll(server: Guild) {
         const results = await query('SELECT * FROM server_condition WHERE server_id = $1', [server.id]) as DBServerCondition[];
 
         if (results.length === 0) throw new NotFoundError('No Server Conditions found', 'Could not find any conditions for that Server in the Database!');
@@ -33,7 +33,7 @@ class ServerCondition {
         );
     }
 
-    static async getOne(server: APIGuild, condition: { id?: bigint; name?: string }) {
+    static async getOne(server: Guild, condition: { id?: bigint; name?: string }) {
         if (condition.id) {
             const results = await query('SELECT * FROM server_conditions WHERE server_id = $1 AND id = $2', [server.id, condition.id]) as DBServerCondition[];
 
@@ -67,7 +67,7 @@ class ServerCondition {
         };
     }
 
-    static async exists(server: APIGuild, condition: { id?: bigint; name?: string }) {
+    static async exists(server: Guild, condition: { id?: bigint; name?: string }) {
         if (condition.id) {
             const results = await query('SELECT * FROM server_conditions WHERE server_id = $1 AND id = $2', [server.id, condition.id]) as DBServerCondition[];
 
@@ -80,7 +80,7 @@ class ServerCondition {
         return results.length === 1;
     }
 
-    static async isDeleted(server: APIGuild, condition: { id?: bigint; name?: string }) {
+    static async isDeleted(server: Guild, condition: { id?: bigint; name?: string }) {
         if (condition.id) {
             const results = await query('SELECT * FROM server_conditions WHERE server_id = $1 AND id = $2', [server.id, condition.id]) as DBServerCondition[];
 
@@ -93,7 +93,7 @@ class ServerCondition {
         return !!results[0].deleted_at;
     }
 
-    static async add(server: APIGuild, condition: { name: string}) {
+    static async add(server: Guild, condition: { name: string}) {
         if (await this.exists(server, condition)) throw new DuplicateError('Duplicate Server Condition', 'That condition already exists for that Server in the Database!');
 
         const dbCond = await Condition.getOne({ name: condition.name });
@@ -102,7 +102,7 @@ class ServerCondition {
         return 'Successfully added Server Condition to Database';
     }
 
-    static async remove_final(server: APIGuild, condition: { id: bigint}) {
+    static async remove_final(server: Guild, condition: { id: bigint}) {
         if (!(await this.exists(server, condition))) throw new NotFoundError('Server Condition not found', 'Could not find that condition for that Server in the Database!');
 
         await query('DELETE FROM server_conditions WHERE server_id = $1 AND id = $2', [server.id, condition.id]);
@@ -110,7 +110,7 @@ class ServerCondition {
         return 'Successfully removed Server Condition from Database';
     }
 
-    static async remove(server: APIGuild, condition: { id: bigint }) {
+    static async remove(server: Guild, condition: { id: bigint }) {
         if (!(await this.exists(server, condition))) throw new NotFoundError('Server Condition not found', 'Could not find that condition for that Server in the Database!');
 
         if (await this.isDeleted(server, condition)) throw new BadRequestError('Server Condition deleted', 'The Server Condition you are trying to remove has already been deleted!');
@@ -120,7 +120,7 @@ class ServerCondition {
         return 'Successfully marked Server Condition as deleted in Database';
     }
 
-    static async restore(server: APIGuild, condition: { id: bigint }) {
+    static async restore(server: Guild, condition: { id: bigint }) {
         if (!(await this.exists(server, condition))) throw new NotFoundError('Server Condition not found', 'Could not find that condition for that Server in the Database!');
 
         if (!(await this.isDeleted(server, condition))) throw new BadRequestError('Server Condition not deleted', 'The Server Condition you are trying to restore has not been deleted!');

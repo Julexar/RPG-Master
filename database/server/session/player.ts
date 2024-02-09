@@ -1,7 +1,7 @@
 import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
 import { Session } from './';
-import { APIUser } from 'discord.js';
+import { User } from 'discord.js';
 import { DBCharacter } from '../../character';
 const query = psql.query;
 
@@ -21,7 +21,7 @@ class SessionPlayer {
         return results;
     }
 
-    static async getOne(session: { id: bigint }, player: APIUser) {
+    static async getOne(session: { id: bigint }, player: User) {
         const results = await query('SELECT * FROM session_players WHERE session_id = $1 AND id = $2', [session.id, player.id]) as DBPlayer[];
 
         if (results.length === 0) throw new NotFoundError('Session Player not found', 'Could not find that Player for that Session in the Database!');
@@ -29,13 +29,13 @@ class SessionPlayer {
         return results[0];
     }
 
-    static async exists(session: { id: bigint }, player: APIUser) {
+    static async exists(session: { id: bigint }, player: User) {
         const results = await query('SELECT * FROM session_players WHERE session_id = $1 AND user_id = $2', [session.id, player.id]) as DBPlayer[];
 
         return results.length === 1;
     }
 
-    static async add(session: { id: bigint }, player: APIUser, char: DBCharacter) {
+    static async add(session: { id: bigint }, player: User, char: DBCharacter) {
         try {
             const sesPlayer = await this.getOne(session, player);
 
@@ -55,7 +55,7 @@ class SessionPlayer {
         }
     }
 
-    static async remove(session: { id: bigint }, player: APIUser) {
+    static async remove(session: { id: bigint }, player: User) {
         if (!(await this.exists(session, player))) throw new NotFoundError('Session Player not found', 'Could not find that Player for that Session in the Database!');
 
         await query('DELETE FROM session_players WHERE session_id = $1 AND user_id = $2', [session.id, player.id]);
@@ -63,7 +63,7 @@ class SessionPlayer {
         return 'Successfully left Session';
     }
 
-    static async update(session: { id: bigint }, player: APIUser, char: DBCharacter) {
+    static async update(session: { id: bigint }, player: User, char: DBCharacter) {
         if (!(await this.exists(session, player))) throw new NotFoundError('Session Player not found', 'Could not find that Player for that Session in the Database!');
 
         const sql = 'UPDATE session_players SET char_id = $1 WHERE session_id = $2 AND user_id = $3';
