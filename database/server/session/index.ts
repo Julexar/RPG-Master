@@ -216,4 +216,4 @@ class session {
 
 const Session = new session();
 
-export { Session };
+export { Session, DBSession };
