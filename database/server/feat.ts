@@ -1,11 +1,20 @@
-import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors/index.js';
-import { Feats } from '../global/feats.js';
+import { APIGuild } from 'discord.js';
+import { psql } from '../psql.ts';
+import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
+import { Feats } from '..';
 const query = psql.query;
 
+interface DBServerFeat {
+    id: bigint;
+    server_id: bigint;
+    feat_id: bigint;
+    overwrites: string;
+    deleted_at: Date | null;
+}
+
 class ServerFeats {
-    static async getAll(server) {
-        const results = await query('SELECT * FROM server_feats WHERE server_id = $1', [server.id]);
+    static async getAll(server: APIGuild) {
+        const results = await query('SELECT * FROM server_feats WHERE server_id = $1', [server.id]) as DBServerFeat[];
 
         if (results.length === 0) throw new NotFoundError('No Server Feats found', 'Could not find any Server Feats in the Database!');
 
@@ -26,9 +35,9 @@ class ServerFeats {
         );
     }
 
-    static async getOne(server, feat) {
+    static async getOne(server: APIGuild, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
-            const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]);
+            const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]) as DBServerFeat[];
 
             if (results.length === 0) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
@@ -47,7 +56,7 @@ class ServerFeats {
         }
 
         const dbFeat = await Feats.getOne({ name: feat.name });
-        const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND feat_id = $2', [server.id, dbFeat.id]);
+        const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND feat_id = $2', [server.id, dbFeat.id]) as DBServerFeat[];
 
         if (results.length === 0) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
@@ -64,29 +73,43 @@ class ServerFeats {
         };
     }
 
-    static async exists(server, feat) {
+    static async exists(server: APIGuild, feat: { id?: bigint; name?: string }) {
         if (feat.id) {
-            const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]);
+            const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]) as DBServerFeat[];
 
             return results.length === 1;
         }
 
         const dbFeat = await Feats.getOne({ name: feat.name });
-        const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND feat_id = $2', [server.id, dbFeat.id]);
+        const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND feat_id = $2', [server.id, dbFeat.id]) as DBServerFeat[];
 
         return results.length === 1;
     }
 
-    static async add(server, feat) {
+    static async isDeleted(server: APIGuild, feat: { id?: bigint; name?: string }) {
+        if (feat.id) {
+            const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]) as DBServerFeat[];
+
+            return !!results[0].deleted_at;
+        }
+
+        const dbFeat = await Feats.getOne({ name: feat.name });
+        const results = await query('SELECT * FROM server_feats WHERE server_id = $1 AND feat_id = $2', [server.id, dbFeat.id]) as DBServerFeat[];
+
+        return !!results[0].deleted_at;
+    }
+
+    static async add(server: APIGuild, feat: { name: string }) {
         if (await this.exists(server, feat)) throw new DuplicateError('Duplicate Server Feat', 'That Server Feat already exists in the Database!');
 
+        const dbFeat = await Feats.getOne({ name: feat.name });
         const sql = 'INSERT INTO server_feats (server_id, feat_id) VALUES($1, $2)';
-        await query(sql, [server.id, feat.feat_id]);
+        await query(sql, [server.id, dbFeat.id]);
 
         return 'Successfully added Server Feat to Database';
     }
 
-    static async remove_final(server, feat) {
+    static async remove_final(server: APIGuild, feat: { id: bigint }) {
         if (!(await this.exists(server, feat))) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
         await query('DELETE FROM server_feats WHERE server_id = $1 AND id = $2', [server.id, feat.id]);
@@ -94,28 +117,24 @@ class ServerFeats {
         return 'Successfully removed Server Feat from Database';
     }
 
-    static async remove(server, feat) {
+    static async remove(server: APIGuild, feat: { id: bigint }) {
         if (!(await this.exists(server, feat))) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
-        await query('UPDATE server_feats SET deleted_at = NOW() WHERE server_id = $1 AND id = $2', [server.id, feat.id]);
+        if (await this.isDeleted(server, feat)) throw new BadRequestError('Feat deleted', 'The Server Feat you are trying to remove has already been deleted!');
+
+        await query('UPDATE server_feats SET deleted_at = $1 WHERE server_id = $2 AND id = $3', [Date.now(), server.id, feat.id]);
 
         return 'Successfully removed Server Feat from Database';
     }
 
-    static async restore(server, feat) {
+    static async restore(server: APIGuild, feat: { id: bigint }) {
         if (!(await this.exists(server, feat))) throw new NotFoundError('Server Feat not found', 'Could not find that Server Feat in the Database!');
 
-        if (!(await this.getOne(server, feat)).deleted_at) throw new BadRequestError('Feat not deleted', 'That Feat for that Server is not deleted!');
+        if (!(await this.getOne(server, feat)).deleted_at) throw new BadRequestError('Feat not deleted', 'That Server Feat is not deleted!');
 
         await query('UPDATE server_feats SET deleted_at = NULL WHERE server_id = $1 AND id = $2', [server.id, feat.id]);
 
         return 'Successfully restored Server Feat in Database';
-    }
-
-    static async restore_all(server) {
-        await query('UPDATE server_feats SET deleted_at = NULL WHERE server_id = $1', [server.id]);
-
-        return 'Successfully restored all Server Feats in Database';
     }
 }
 
