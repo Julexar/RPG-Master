@@ -9,7 +9,7 @@ interface School {
 
 class SpellSchool {
     static async getAll() {
-        const results = await query('SELECT * FROM spell_schools', null) as School[];
+        const results = await query('SELECT * FROM spell_schools') as School[];
 
         if (results.length === 0) throw new NotFoundError('No spell schools found', 'Could not find any Spell Schools in the Database!');
 

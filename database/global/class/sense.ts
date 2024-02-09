@@ -1,4 +1,4 @@
-import { psql } from '../../psql.js';
+import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
 import { Senses } from '..';
 const query = psql.query;

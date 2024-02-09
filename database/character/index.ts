@@ -472,4 +472,4 @@ class character {
 
 const Character = new character();
 
-export { Character };
+export { Character, DBCharacter };

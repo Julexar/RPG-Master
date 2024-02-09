@@ -21,14 +21,14 @@ interface AddArmor {
 
 class Armor {
     static async getAll() {
-        const results = await query('SELECT * FROM armors', null) as DBArmor[];
+        const results = await query('SELECT * FROM armors') as DBArmor[];
 
         if (results.length === 0) throw new NotFoundError('No Armor found', 'Could not find any Armors in the Database!');
 
         return results;
     }
 
-    static async getOne(armor: any) {
+    static async getOne(armor: { id?: bigint, name?: string }) {
         if (armor.id) {
             const results = await query('SELECT * FROM armors WHERE id = $1', [armor.id]) as DBArmor[];
 
@@ -44,7 +44,7 @@ class Armor {
         return results[0];
     }
 
-    static async exists(armor: any) {
+    static async exists(armor: { id?: bigint, name?: string }) {
         if (armor.id) {
             const results = await query('SELECT * FROM armors WHERE id = $1', [armor.id]) as DBArmor[];
 
@@ -65,7 +65,7 @@ class Armor {
         return 'Successfully added Armor to Database';
     }
 
-    static async remove(armor: any) {
+    static async remove(armor: { id: bigint }) {
         if (!(await this.exists(armor))) throw new NotFoundError('Armor not found', 'Could not find that Armor in the Database!');
 
         await query('DELETE FROM armors WHERE id = $1', [armor.id]);
@@ -73,7 +73,7 @@ class Armor {
         return 'Successfully removed Armor from Database';
     }
 
-    static async update(armor: any) {
+    static async update(armor: DBArmor) {
         if (!(await this.exists(armor))) throw new NotFoundError('Armor not found', 'Could not find that Armor in the Database!');
 
         const sql = 'UPDATE armors SET name = $1, description = $2, type_id = $3, rarity_id = $4, stats = $5::JSON WHERE id = $6';

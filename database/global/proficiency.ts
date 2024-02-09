@@ -8,6 +8,11 @@ interface DBProficiency {
     key: string;
 }
 
+interface AddProficiency {
+    name: string;
+    key: string;
+}
+
 class Proficiency {
     static async getAll() {
         const results = await query('SELECT * FROM proficiencies') as DBProficiency[];
@@ -59,7 +64,7 @@ class Proficiency {
         return results.length === 1;
     }
 
-    static async add(prof: { name: string; key: string }) {
+    static async add(prof: AddProficiency) {
         if (await this.exists(prof)) throw new DuplicateError('Duplicate Proficiency', 'That Proficiency already exists in the Database!');
 
         await query('INSERT INTO proficiencies (name, key) VALUES($1, $2)', [prof.name, prof.key]);

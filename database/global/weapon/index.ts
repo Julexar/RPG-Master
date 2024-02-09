@@ -48,7 +48,7 @@ class weapon {
         );
     }
 
-    async getOne(weapon: any) {
+    async getOne(weapon: { id?: bigint, name?: string }) {
         if (weapon.id) {
             const results = await query('SELECT * FROM weapons WHERE id = $1', [weapon.id]) as DBWeapon[];
 
@@ -86,7 +86,7 @@ class weapon {
             }
     }
 
-    async exists(weapon: any) {
+    async exists(weapon: { id?: bigint, name?: string }) {
         if (weapon.id) {
             const results = await query('SELECT * FROM weapons WHERE id = $1', [weapon.id]) as DBWeapon[];
 
@@ -103,32 +103,27 @@ class weapon {
 
         if (weapon.props !== null) {
             const sql = 'INSERT INTO weapons (name, description, type_id, rarity_id, stats, props) VALUES ($1, $2, $3, $4, $5::JSON, ARRAY$6)';
-            const results = await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props.toString()]) as DBWeapon[];
-
-            if (results.length === 0) throw new DuplicateError('Weapon already exists', 'A Weapon with that name already exists in the Database!');
+            await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props.toString()]);
 
             return 'Successfully added Weapon to the Database';
         }
 
         const sql = 'INSERT INTO weapons (name, description, type_id, rarity_id, stats, props) VALUES ($1, $2, $3, $4, $5::JSON, $6)';
-        const results = await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props]) as DBWeapon[];
-
-        if (results.length === 0) throw new DuplicateError('Weapon already exists', 'A Weapon with that name already exists in the Database!');
+        await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props]);
 
         return 'Successfully added Weapon to the Database';
     }
 
-    async update(weapon: any) {
+    async update(weapon: DBWeapon) {
         if (!(await this.exists(weapon))) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
-        const results = await query('UPDATE weapons SET name = $1, description = $2, type_id = $3, rarity_id = $4, stats = $5::JSON, props = $6 WHERE id = $7', [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props, weapon.id]) as DBWeapon[];
-
-        if (results.length === 0) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
+        const sql = 'UPDATE weapons SET name = $1, description = $2, type_id = $3, rarity_id = $4, stats = $5::JSON, props = $6 WHERE id = $7';
+        await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props, weapon.id]);
 
         return 'Successfully updated Weapon in the Database';
     }
 
-    async remove(weapon: any) {
+    async remove(weapon: { id: bigint }) {
         if (!(await this.exists(weapon))) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
         await query('DELETE FROM weapons WHERE id = $1', [weapon.id]);

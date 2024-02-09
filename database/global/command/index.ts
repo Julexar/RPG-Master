@@ -1,6 +1,6 @@
-import { psql } from '../../psql.js';
+import { psql } from '../../psql.ts';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
-import { CommandType } from './types.js';
+import { CommandType } from './types.ts';
 const query = psql.query;
 
 interface DBCommand {

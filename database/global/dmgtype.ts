@@ -1,10 +1,15 @@
-import { psql } from '../psql.js';
-import { NotFoundError, DuplicateError } from '../../custom/errors/index.js';
+import { psql } from '../psql.ts';
+import { NotFoundError, DuplicateError } from '../../custom/errors';
 const query = psql.query;
 
 interface DBDmgtype {
     id: bigint;
     name: string;
+}
+
+interface AddDmgtype {
+    name: string;
+    description: string;
 }
 
 class Damagetype {
@@ -44,7 +49,7 @@ class Damagetype {
         return results.length === 1;
     }
 
-    static async add(dmgtype: { name: string; description: string }) {
+    static async add(dmgtype: AddDmgtype) {
         if (await this.exists(dmgtype)) throw new DuplicateError('Duplicate Damagetype', 'That Damagetype already exists in the Database!');
 
         await query('INSERT INTO damagetypes (name, description) VALUES($1, $2)', [dmgtype.name, dmgtype.description]);
@@ -63,8 +68,7 @@ class Damagetype {
     static async update(dmgtype: DBDmgtype) {
         if (!(await this.exists(dmgtype))) throw new NotFoundError('Damagetype not found', 'Could not find that Damagetype in the Database!');
 
-        const sql = 'UPDATE damagetypes SET name = $1 WHERE id = $2';
-        await query(sql, [dmgtype.name, dmgtype.id]);
+        await query('UPDATE damagetypes SET name = $1 WHERE id = $2', [dmgtype.name, dmgtype.id]);
 
         return 'Successfully updated Damagetype in Database';
     }

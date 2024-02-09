@@ -49,14 +49,13 @@ class RaceSense {
             return {
                 id: raceSense.id,
                 race_id: race.id,
-                name: dbSense.name,
-                sense_id: dbSense.id,
-                range: raceSense.range,
+                sense: dbSense,
+                range: raceSense.range
             };
         }
 
         const dbSense = await Senses.getOne({ name: sense.name });
-        const results = await query('SELECT * FROM race_senses WHERE race_id = $1 AND key = $2', [race.id, dbSense.key]) as DBRaceSense[];
+        const results = await query('SELECT * FROM race_senses WHERE race_id = $1 AND sense_id = $2', [race.id, dbSense.id]) as DBRaceSense[];
 
         if (results.length === 0) throw new NotFoundError('Race Sense not found', 'Could not find a Sense with that name for that Race in the Database!');
 
@@ -78,7 +77,7 @@ class RaceSense {
         }
 
         const dbSense = await Senses.getOne({ name: sense.name });
-        const results = await query('SELECT * FROM race_senses WHERE race_id = $1 AND key = $2', [race.id, dbSense.key]) as DBRaceSense[];
+        const results = await query('SELECT * FROM race_senses WHERE race_id = $1 AND sense_id = $2', [race.id, dbSense.id]) as DBRaceSense[];
 
         return results.length === 1;
     }

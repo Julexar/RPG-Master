@@ -1,3 +1,4 @@
+import { APIGuild } from 'discord.js';
 import { psql } from '../../psql.ts';
 import { Command } from '../../global';
 import { ServerCommandRestriction } from './restriction.ts';
@@ -27,7 +28,7 @@ class servercommand {
         this.restrictions = ServerCommandRestriction;
     }
 
-    async getAll(server: { id: bigint }) {
+    async getAll(server: APIGuild) {
         const results = await query('SELECT * FROM server_commands WHERE server_id = $1', [server.id]) as DBServerCommand[];
 
         if (results.length === 0) throw new NotFoundError('No Server Commands found', 'Could not find any Server Commands in the Database!');
@@ -40,6 +41,7 @@ class servercommand {
 
                 return {
                     id: servCmd.id,
+                    server_id: servCmd.server_id,
                     command: dbCmd,
                     type: dbCmd.type,
                     enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
@@ -50,7 +52,7 @@ class servercommand {
         );
     }
 
-    async getOne(server: { id: bigint }, command: { id?: bigint, command_id?: bigint, name?: string, type: string }) {
+    async getOne(server: APIGuild, command: { id?: bigint, command_id?: bigint, name?: string, type: string }) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]) as DBServerCommand[];
 
@@ -63,6 +65,7 @@ class servercommand {
 
             return {
                 id: servCmd.id,
+                server_id: servCmd.server_id,
                 command: dbCmd,
                 type: dbCmd.type,
                 enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
@@ -83,6 +86,7 @@ class servercommand {
 
             return {
                 id: servCmd.id,
+                server_id: servCmd.server_id,
                 command: dbCmd,
                 type: dbCmd.type,
                 enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
@@ -102,6 +106,7 @@ class servercommand {
 
         return {
             id: servCmd.id,
+            server_id: servCmd.server_id,
             command: dbCmd,
             type: dbCmd.type,
             enabled: servCmd.enabled !== dbCmd.enabled ? dbCmd.enabled : servCmd.enabled,
@@ -110,7 +115,7 @@ class servercommand {
         };
     }
 
-    async exists(server: { id: bigint }, command: { id?: bigint, name?: string, type: string }) {
+    async exists(server: APIGuild, command: { id?: bigint, name?: string, type: string }) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]) as DBServerCommand[];
 
@@ -123,7 +128,7 @@ class servercommand {
         return results.length === 1;
     }
 
-    async isDeleted(server: { id: bigint }, command: { id?: bigint, name?: string, type: string }) {
+    async isDeleted(server: APIGuild, command: { id?: bigint, name?: string, type: string }) {
         if (command.id) {
             const results = await query('SELECT * FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]) as DBServerCommand[];
 
@@ -136,7 +141,7 @@ class servercommand {
         return !!results[0].deleted_at;
     }
 
-    async add(server: { id: bigint }, command: AddServerCommand) {
+    async add(server: APIGuild, command: AddServerCommand) {
         if (await this.exists(server, command)) throw new DuplicateError('Duplicate Server Command', 'That Server Command already exists in the Database!');
 
         const dbCmd = await Command.getOne({ name: command.name }, command.type);
@@ -147,7 +152,7 @@ class servercommand {
         return `Successfully added Command \"${command.name}\" to Server in Database`;
     }
 
-    async remove(server: { id: bigint }, command: { id: bigint, type: string }) {
+    async remove(server: APIGuild, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         if (await this.isDeleted(server, command)) throw new BadRequestError('Server Command already deleted', 'The Server Command you are trying to remove has already been deleted in the Database!');
@@ -158,7 +163,7 @@ class servercommand {
         return 'Successfully marked Command as deleted for Server in Database';
     }
 
-    async remove_final(server: { id: bigint }, command: { id: bigint, type: string }) {
+    async remove_final(server: APIGuild, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         await query('DELETE FROM server_commands WHERE server_id = $1 AND id = $2', [server.id, command.id]);
@@ -166,7 +171,7 @@ class servercommand {
         return 'Successfully removed Command from Server in Database';
     }
 
-    async restore(server: { id: bigint }, command: { id: bigint, type: string }) {
+    async restore(server: APIGuild, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         if (!(await this.isDeleted(server, command))) throw new BadRequestError('Server Command not deleted', 'The Server Command you are trying to restore has not been deleted in the Database!');
@@ -177,7 +182,7 @@ class servercommand {
         return 'Successfully restored Command for Server in Database';
     }
 
-    async toggle(server: { id: bigint }, command: { id: bigint, type: string }) {
+    async toggle(server: APIGuild, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         await query('UPDATE server_commands SET enabled = NOT enabled WHERE server_id = $1 AND id = $2', [server.id, command.id]);
@@ -185,7 +190,7 @@ class servercommand {
         return 'Successfully toggled Command for Server in Database';
     }
 
-    async restrict(server: { id: bigint }, command: { id: bigint, type: string }) {
+    async restrict(server: APIGuild, command: { id: bigint, type: string }) {
         if (!(await this.exists(server, command))) throw new NotFoundError('Server Command not found', 'Could not find that Server Command in the Database!');
 
         await query('UPDATE server_commands SET restricted = NOT restricted WHERE server_id = $1 AND id = $2', [server.id, command.id]);

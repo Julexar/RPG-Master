@@ -1,5 +1,5 @@
-import { psql } from '../../psql.js';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
+import { psql } from '../../psql.ts';
+import { NotFoundError } from '../../../custom/errors';
 import { Stats } from '..';
 const query = psql.query;
 
