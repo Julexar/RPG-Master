@@ -1,7 +1,7 @@
 import { User } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError, BadRequestError } from '../../custom/errors';
-import { User as DBUser } from '.';
+import { User as DBUser } from '..';
 const query = psql.query;
 
 interface DBUserNote {

@@ -1,7 +1,7 @@
-import { Guild, GuildMember, User } from 'discord.js';
+import { Guild, GuildMember} from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError} from '../../custom/errors';
-import { User as DBUser } from '../user';
+import { User } from '..';
 const query = psql.query;
 
 interface DBServerMember {
@@ -19,7 +19,7 @@ class ServerMember {
 
         return Promise.all(
             results.map(async (servMember) => {
-                const dbUser = await DBUser.getOne({ id: servMember.user_id });
+                const dbUser = await User.getOne({ id: servMember.user_id });
 
                 return {
                     id: servMember.id,
@@ -38,7 +38,7 @@ class ServerMember {
             if (results.length === 0) throw new NotFoundError('Server Member not found', 'Could not find that Server Member in the Database!');
 
             const servMember = results[0];
-            const dbUser = await DBUser.getOne({ id: member.user.id });
+            const dbUser = await User.getOne({ id: member.user.id });
 
             return {
                 id: servMember.id,
@@ -48,8 +48,7 @@ class ServerMember {
             };
         }
 
-        const dbUser = await DBUser.getOne({ name: member.user.username });
-
+        const dbUser = await User.getOne({ name: member.user.username });
         const results = await query('SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2', [server.id, dbUser.id]) as DBServerMember[];
 
         if (results.length === 0) throw new NotFoundError('Server Member not found', 'Could not find a Server Member with that name in the Database!');
@@ -71,7 +70,7 @@ class ServerMember {
             return results.length === 1;
         }
 
-        const dbUser = await DBUser.getOne({ name: member.user.username });
+        const dbUser = await User.getOne({ name: member.user.username });
 
         const results = await query('SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2', [server.id, dbUser.id]) as DBServerMember[];
 
@@ -83,7 +82,7 @@ class ServerMember {
 
         const sql = 'INSERT INTO server_members (server_id, user_id, display_name) VALUES($1, $2, $3)';
 
-        if (!(await DBUser.exists(member.user))) await DBUser.add(member.user);
+        if (!(await User.exists(member.user))) await User.add(member.user);
 
         const displayName = member.displayName || member.user.username;
 
