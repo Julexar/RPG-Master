@@ -132,11 +132,11 @@ class server {
         return `Successfully removed Server \"${server.name}\" from Database`;
     }
 
-    async update(server: DBServer) {
+    async update(server: Guild) {
         if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
-        const sql = 'UPDATE servers SET name = $1, dm_role = $2 WHERE id = $3';
-        await query(sql, [server.name, server.gm_roleid, server.id]);
+        const sql = 'UPDATE servers SET name = $1 WHERE id = $3';
+        await query(sql, [server.name, server.id]);
 
         return `Successfully updated Server \"${server.name}\" in Database`;
     }
