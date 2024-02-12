@@ -28,17 +28,17 @@ interface DBServer {
     mod_role: bigint;
     sumary_channelid: bigint;
     log_channelid: bigint;
-    pint_roleid: bigint;
+    ping_roleid: bigint;
     hp_method: number;
     leveling_method: number;
     gm_edit: boolean;
     duplicate_sessions: boolean;
+    print_logs: boolean;
 }
 
 interface AddServer {
     id: bigint;
     name: string;
-    gm_roleid: bigint;
 }
 
 class server {
@@ -118,8 +118,8 @@ class server {
     async add(server: AddServer) {
         if (await this.exists(server)) throw new DuplicateError('Duplicate Server', 'This Server already exists in the Database!');
 
-        const sql = 'INSERT INTO servers (id, name, dm_role) VALUES ($1, $2, $3)';
-        await query(sql, [server.id, server.name, server.gm_roleid]);
+        const sql = 'INSERT INTO servers (id, name) VALUES ($1, $2, $3)';
+        await query(sql, [server.id, server.name]);
 
         return `Successfully added Server \"${server.name}\" to Database`;
     }

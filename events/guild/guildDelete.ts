@@ -1,15 +1,13 @@
+import { Guild } from 'discord.js';
 import { client } from '../..';
 
 class Event {
+    name: string;
     constructor() {
         this.name = 'guildDelete';
     }
 
-    /**
-     *
-     * @param {import("discord.js").Guild} guild
-     */
-    async run(guild) {
+    async run(guild: Guild) {
         await client.database.Server.remove(guild)
         .then(client.writeDevLog)
         .catch(client.logDevError)

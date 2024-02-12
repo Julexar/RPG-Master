@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 const config = {
-    token: process.env.BOT_TOKEN,
+    token: String(process.env.BOT_TOKEN),
     default_prefix: 'r!',
     owners: ['676518256282042393'],
     presence: {

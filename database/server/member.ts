@@ -38,7 +38,7 @@ class ServerMember {
             if (results.length === 0) throw new NotFoundError('Server Member not found', 'Could not find that Server Member in the Database!');
 
             const servMember = results[0];
-            const dbUser = await User.getOne({ id: member.user.id });
+            const dbUser = await User.getOne(member.user);
 
             return {
                 id: servMember.id,
@@ -48,7 +48,7 @@ class ServerMember {
             };
         }
 
-        const dbUser = await User.getOne({ name: member.user.username });
+        const dbUser = await User.getOne(member.user);
         const results = await query('SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2', [server.id, dbUser.id]) as DBServerMember[];
 
         if (results.length === 0) throw new NotFoundError('Server Member not found', 'Could not find a Server Member with that name in the Database!');
@@ -63,15 +63,14 @@ class ServerMember {
         };
     }
 
-    static async exists(server: Guild, member: GuildMember) {
+    static async exists(server: Guild, member: GuildMember | any) {
         if (member.id) {
             const results = await query('SELECT * FROM server_members WHERE server_id = $1 AND id = $2', [server.id, member.id]) as DBServerMember[];
 
             return results.length === 1;
         }
 
-        const dbUser = await User.getOne({ name: member.user.username });
-
+        const dbUser = await User.getOne(member.user);
         const results = await query('SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2', [server.id, dbUser.id]) as DBServerMember[];
 
         return results.length === 1;
@@ -91,13 +90,13 @@ class ServerMember {
         return `Successfully added User \"${displayName}\" to Server \"${server.name}\"`;
     }
 
-    static async remove(server: Guild, member: GuildMember) {
+    static async remove(server: Guild, member: GuildMember | any) {
         if (!(await this.exists(server, member))) throw new NotFoundError('Server Member not found', 'Could not find that Server Member in the Database!');
 
+        const dbMember = await this.getOne(server, member)
         await query('DELETE FROM server_members WHERE server_id = $1 AND id = $2', [server.id, member.id]);
 
-        const name = member.displayName || member.user.displayName;
-        return `Successfully removed User \"${name}\" from Server \"${server.name}\"`;
+        return `Successfully removed User \"${dbMember.displayName}\" from Server \"${server.name}\"`;
     }
 
     static async update(server: Guild, member: GuildMember) {

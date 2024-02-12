@@ -16,10 +16,12 @@ interface DBServerCommand {
 }
 
 interface AddServerCommand {
+    id: bigint;
+    command_id: bigint;
     name: string;
     type: string;
-    enabled: boolean;
-    restricted: boolean;
+    enabled?: boolean;
+    restricted?: boolean;
 }
 
 class servercommand {
@@ -147,7 +149,7 @@ class servercommand {
         const dbCmd = await Command.getOne({ name: command.name }, command.type);
 
         const sql = 'INSERT INTO server_commands (server_id, command_id, enabled, restricted) VALUES($1, $2, $3, $4)';
-        await query(sql, [server.id, dbCmd.id, command.enabled, command.restricted]);
+        await query(sql, [server.id, dbCmd.id, command.enabled ? command.enabled : true, command.restricted ? command.restricted : false]);
 
         return `Successfully added Command \"${command.name}\" to Server in Database`;
     }

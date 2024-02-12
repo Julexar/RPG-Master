@@ -2,7 +2,7 @@ import { Armor, Character, Class, Command, Condition, Damagetype, Feats, ItemTyp
 import { CustomError } from "./custom/errors";
 
 type Config = { 
-    token: string | undefined; 
+    token: string; 
     default_prefix: string; 
     owners: string[]; 
     presence: { 

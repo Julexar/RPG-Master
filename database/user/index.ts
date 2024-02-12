@@ -1,7 +1,8 @@
-import { User } from 'discord.js';
 import { psql } from '../psql.ts';
 import { NotFoundError, DuplicateError } from '../../custom/errors';
 import { UserNote } from './note.ts';
+import { DBCharacter } from '../character';
+import { User } from 'discord.js';
 const query = psql.query;
 
 interface DBUser {
@@ -26,7 +27,7 @@ class user {
         return results;
     }
 
-    async getOne(user: User) {
+    async getOne(user: { id?: bigint, username?: string } | User) {
         if (user.id) {
             const results = await query('SELECT * FROM users WHERE id = $1', [user.id]) as DBUser[];
 
@@ -42,7 +43,7 @@ class user {
         return results[0];
     }
 
-    async exists(user: User) {
+    async exists(user: { id?: bigint, username?: string } | User) {
         if (user.id) {
             const results = await query('SELECT * FROM users WHERE id = $1', [user.id]) as DBUser[];
 
@@ -58,7 +59,7 @@ class user {
         return results[0];
     }
 
-    async add(user: User) {
+    async add(user: { id: bigint, username: string, displayName: string } | User) {
         if (await this.exists(user)) throw new DuplicateError('Duplicate User', 'That User already exists in the Database!');
 
         await query('INSERT INTO users (id, name, display_name) VALUES($1, $2, $3)', [user.id, user.username, user.displayName]);
@@ -66,7 +67,7 @@ class user {
         return `Successfully added User \"${user.username}\" to Database`;
     }
 
-    async remove(user: User) {
+    async remove(user: { id: bigint, username: string } | User) {
         if (!(await this.exists(user))) throw new NotFoundError('User not found', 'Could not find that User in the Database!');
 
         await query('DELETE FROM users WHERE id = $1', [user.id]);
@@ -74,7 +75,7 @@ class user {
         return `Successfully removed User \"${user.username}\" from Database`;
     }
 
-    async update(user: User) {
+    async update(user: { id: bigint; username: string, displayName: string } | User) {
         if (!(await this.exists(user))) throw new NotFoundError('User not found', 'Could not find that User in the Database!');
 
         await query('UPDATE users SET display_name = $1 WHERE id = $2', [user.displayName, user.id]);
@@ -82,7 +83,7 @@ class user {
         return `Successfully updated User \"${user.username}\" in Database`;
     }
 
-    async selectChar(user: User, char: any) {
+    async selectChar(user: { id: bigint; username: string } | User, char: DBCharacter) {
         if (!(await this.exists(user))) throw new NotFoundError('User not found', 'Could not find that User in the Database!');
 
         await query('UPDATE users SET char_id = $1 WHERE id = $2', [char.id, user.id]);
