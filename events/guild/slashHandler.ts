@@ -1,20 +1,21 @@
+import { CommandInteraction, Guild, TextChannel } from 'discord.js';
 import { client } from '../..';
 import { NotFoundError, ForbiddenError } from '../../custom/errors';
 import { ErrorEmbed } from '../../custom/embeds';
 
 class slashHandler {
+    name: string;
+    nick: string;
     constructor() {
         this.name = 'interactionCreate';
         this.nick = 'Slash';
     }
 
-    /**
-     *
-     * @param {import("discord.js").CommandInteraction} interaction
-     */
-    async run(interaction) {
+    async run(interaction: CommandInteraction) {
+        const server = interaction.guild as Guild;
         if (interaction.isChatInputCommand()) {
-            const servCmd = client.database.Server.commands.getOne(server, {name: interaction.commandName});
+            const servCmd = await client.database.Server.commands.getOne(server, { name: interaction.commandName, type: 'slash' });
+            
             if (!servCmd.enabled) {
                 return await interaction.reply({
                     embeds: [
@@ -30,7 +31,7 @@ class slashHandler {
                 });
             }
 
-            const command = client.slashCommands.get(servCmd.name);
+            const command = client.slashCommands.get(servCmd.command.name);
             
             if (!command) {
                 return await interaction.reply({
@@ -47,12 +48,14 @@ class slashHandler {
                 });
             }
 
+            const channel = interaction.channel as TextChannel;
+
             if (command.permissions) {
                 if (command.permissions.bot &&
                     command.permissions.bot.length &&
-                    !interaction.channel.permissionsFor(interaction.guild.me).has(command.permissions.bot)
+                    !channel.permissionsFor(server.me).has(command.permissions.bot)
                 ) {
-                    const perms = interaction.channel.permissionsFor(interaction.guild.me).missing(command.permissions.bot);
+                    const perms = channel.permissionsFor(server.me).missing(command.permissions.bot);
 
                     return await interaction.reply({
                         embeds: [
@@ -69,9 +72,9 @@ class slashHandler {
                 }
             }
 
-            client.writeServerLog(interaction.guild, `/${command.name} was triggered by ${interaction.user.username}`);
+            client.writeServerLog(server, `/${command.name} was triggered by ${interaction.user.username}`);
 
-            if (command.choices) command.setChoices(interaction.guild);
+            if (command.choices) command.setChoices(server);
 
             await command.run(interaction);
         }
