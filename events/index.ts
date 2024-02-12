@@ -8,7 +8,8 @@ for (const dir of dirs) {
     const files = fs.readdirSync(`./events/${dir}`).filter(file => file.endsWith('.ts'));
 
     for (const file of files) {
-        const event = require(`../events/${dir}/${file}`).default;
+        const module = await import(`../events/${dir}/${file}`);
+        const event = module.default;
 
         events.push(event);
     }
