@@ -17,6 +17,7 @@ import { CharacterRaceFeat } from './race/feat.ts';
 import { CharacterRaceProficiency } from './race/prof.ts';
 import { CharacterSubclassProficiency } from './subclass/prof.ts';
 import { CharacterSubraceProf } from './subrace/prof.ts';
+import { CharacterSpell } from './spell.ts';
 const query = psql.query;
 
 interface DBCharacter {
@@ -98,6 +99,7 @@ class character {
     race_profs: typeof CharacterRaceProficiency;
     subclass_profs: typeof CharacterSubclassProficiency;
     subrace_profs: typeof CharacterSubraceProf;
+    spells: typeof CharacterSpell;
     constructor() {
         this.actions = CharacterAction;
         this.attacks = CharacterAttack;
@@ -113,6 +115,7 @@ class character {
         this.race_profs = CharacterRaceProficiency;
         this.subclass_profs = CharacterSubclassProficiency;
         this.subrace_profs = CharacterSubraceProf;
+        this.spells = CharacterSpell;
     }
 
     async getAll(user: User, server: Guild) {

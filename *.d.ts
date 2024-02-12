@@ -18,17 +18,17 @@ type Database = {
     Armor: Armor;
     Character: typeof Character;
     Class: typeof Class;
-    Command: Command;
-    Condition: Condition;
-    Damagetype: Damagetype;
-    Feats: Feats;
-    ItemType: ItemType;
-    ItemRarity: ItemRarity;
-    Proficiency: Proficiency;
+    Command: typeof Command;
+    Condition: typeof Condition;
+    Damagetype: typeof Damagetype;
+    Feats: typeof Feats;
+    ItemType: typeof ItemType;
+    ItemRarity: typeof ItemRarity;
+    Proficiency: typeof Proficiency;
     Race: typeof Race;
-    Senses: Senses;
+    Senses: typeof Senses;
     Server: typeof Server;
-    Stats: Stats;
+    Stats: typeof Stats;
     Spell: typeof Spell;
     Subclass: typeof Subclass;
     Subrace: typeof Subrace;
@@ -37,3 +37,36 @@ type Database = {
 }
 
 type Error = CustomError;
+
+type Character = {
+    id: bigint;
+    user_id: bigint;
+    name: string;
+    portrait: string;
+    ac: number;
+    hp_current: number;
+    hp_max: number;
+    hp_temp: number;
+    initiative: number;
+    level: number;
+    xp: number;
+    currency: {
+        cp: number;
+        sp: number;
+        ep: number;
+        gp: number;
+        pp: number;
+    };
+    race_id: bigint;
+    subrace_id: bigint;
+    class_id: bigint;
+    subclass_id: bigint;
+    class_level: number;
+    multiclass: {
+        class_id: bigint;
+        level: number;
+        enabled: boolean;
+    }[] | null;
+    created_at: Date;
+    deleted_at: Date | null;
+}
