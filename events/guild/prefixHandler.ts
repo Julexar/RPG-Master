@@ -1,35 +1,40 @@
+import { Message, TextChannel } from 'discord.js';
 import { client } from '../..';
 import { ErrorEmbed } from '../../custom/embeds';
 import { ForbiddenError, BadRequestError, NotFoundError } from '../../custom/errors';
 
 class prefixHandler {
+    name: string;
+    nick: string;
     constructor() {
         this.name = 'messageCreate';
         this.nick = 'Prefix';
     }
 
-    /**
-     *
-     * @param {import("discord.js").Message} message
-     */
-    async run(message) {
+    async run(message: Message) {
         const server = message.guild;
+
+        if (!server) throw new BadRequestError('Invalid Server', 'Could not fetch the Server based on the Message!')
+
         try {
-            const prefixes = await client.database.Server.prefixes.getAll(server)
+            const prefixes = await client.database.Server.prefixes.getAll(server) as string[]
 
             for (const prefix of prefixes) {
                 if (message.content.toLowerCase().startsWith(prefix)) {
-                    const args = message.content.slice(prefix.length).trim().split(/\s+--/);
-                    const command = args.shift().toLowerCase();
+                    const args = message.content.slice(prefix.length).trim().split(/\s+--/) as string[];
+                    const arg = args.shift() as string;
+                    const command = arg.toLowerCase();
 
                     const cmd = client.prefixCommands.get(command) || client.prefixCommands.find((c) => c.aliases && c.aliases.includes(command));
 
                     if (!cmd) return;
 
+                    const channel = message.channel as TextChannel
+
                     if (cmd.permissions) {
                         if (cmd.permissions.member && cmd.permissions.member.length >= 1) {
-                            if (!message.channel.permissionsFor(message.member).has(cmd.permissions.member)) {
-                                const perms = message.channel.permissionsFor(message.member).missing(cmd.permissions.member);
+                            if (message.member && !channel.permissionsFor(message.member).has(cmd.permissions.member)) {
+                                const perms = channel.permissionsFor(message.member).missing(cmd.permissions.member);
                                 
                                 return await message.reply({
                                     embeds: [
@@ -40,13 +45,12 @@ class prefixHandler {
                                             ),
                                             false
                                         )
-                                    ],
-                                    ephemeral: true
+                                    ]
                                 });
                             }
                         } else if (cmd.permissions.bot && cmd.permissions.bot.length >= 1) {
-                            if (!message.channel.permissionsFor(message.guild.me).has(cmd.permissions.bot)) {
-                                const perms = message.channel.permissionsFor(message.guild.me).missing(cmd.permissions.bot);
+                            if (!channel.permissionsFor(server.me).has(cmd.permissions.bot)) {
+                                const perms = channel.permissionsFor(server.me).missing(cmd.permissions.bot);
                                 
                                 return await message.reply({
                                     embeds: [
@@ -57,8 +61,7 @@ class prefixHandler {
                                             ),
                                             false
                                         )
-                                    ],
-                                    ephemeral: true
+                                    ]
                                 });
                             }
                         }
@@ -80,8 +83,7 @@ class prefixHandler {
                                             ),
                                             false
                                         )
-                                    ],
-                                    ephemeral: true
+                                    ]
                                 });
                             } else {
                                 client.writeServerLog(server, `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`);
@@ -106,8 +108,7 @@ class prefixHandler {
                                         ),
                                         false
                                     )
-                                ],
-                                ephemeral: true
+                                ]
                             });
                         } else {
                             client.writeServerLog(server, `${prefix}${cmd.name} was triggered by ${message.author.username}\nArguments: ${args.join(', ')}`);
@@ -120,14 +121,12 @@ class prefixHandler {
             }
         } catch (err) {
             if (err instanceof NotFoundError) return await message.reply({
-                embeds: [new ErrorEmbed(err, false)],
-                ephemeral: true
+                embeds: [new ErrorEmbed(err, false)]
             });
 
             return await message.reply({
-                embeds: [new ErrorEmbed(err, true)],
-                ephemeral: true
-            })
+                embeds: [new ErrorEmbed(err, true)]
+            });
         }
     }
 }
