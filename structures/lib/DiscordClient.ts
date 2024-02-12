@@ -61,7 +61,7 @@ class DiscordClient extends Client {
         }
     }
 
-    async logServerError(server: Guild, err: { cause: any; }) {
+    async logServerError(server: Guild, err: Error) {
         try {
             await this.writeServerLog(server, `${err}\n${err.cause}`);
         } catch (error) {

@@ -124,7 +124,7 @@ class server {
         return `Successfully added Server \"${server.name}\" to Database`;
     }
 
-    async remove(server: Guild) {
+    async remove(server: Guild | DBServer) {
         if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
         await query('DELETE FROM servers WHERE id = $1', [server.id]);
