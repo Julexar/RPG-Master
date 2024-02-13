@@ -1,23 +1,20 @@
-import { ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, PermissionFlagsBits, StringSelectMenuBuilder } from 'discord.js';
+import { ActionRow, ActionRowBuilder, ApplicationCommandOptionType, ButtonBuilder, ButtonStyle, CommandInteraction, CommandInteractionOptionResolver, Embed, EmbedBuilder, Guild, GuildMember, PermissionFlagsBits, Role, StringSelectMenuBuilder, TextChannel, User } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { SuccessEmbed, ErrorEmbed, ListEmbed } from '../../../custom/embeds';
 import { client } from '../../..';
 import { DuplicateError, NotFoundError } from '../../../custom/errors';
 
 class Command extends CommandBuilder {
-    constructor(data) {
+    enabled: boolean;
+    constructor(data: any) {
         super(data);
 
         this.enabled = true;
     }
 
-    /**
-     *
-     * @param {import("discord.js").CommandInteraction} interaction
-     */
-    async run(interaction) {
-        const option = interaction.options;
-        const guild = interaction.guild;
+    async run(interaction: CommandInteraction) {
+        const option = interaction.options as CommandInteractionOptionResolver;
+        const guild = interaction.guild as Guild;
         const dbServer = await client.database.Server.getOne(guild);
         const server = {
             name: guild.name,
@@ -25,31 +22,30 @@ class Command extends CommandBuilder {
             members: guild.members,
             roles: guild.roles,
             channels: guild.channels,
-            dm_role: dbServer.dm_role,
-            admin_role: dbServer.admin_role,
-            mod_role: dbServer.mod_role,
-            dup_sessions: dbServer.dup_sessions,
-            sesh_ping: dbServer.sesh_ping,
+            gm_roleid: dbServer.gm_roleid,
+            admin_roleid: dbServer.admin_roleid,
+            mod_roleid: dbServer.mod_roleid,
+            dup_sessions: dbServer.duplicate_sessions,
+            sesh_ping: dbServer.ping_roleid,
             gm_edit: dbServer.gm_edit,
             hp_method: dbServer.hp_method,
-            log_chan: dbServer.log_chan,
-            print_logs: dbServer.print_logs,
+            log_chan: dbServer.log_channelid,
+            print_logs: dbServer.print_logs
         };
-        let embed, emph;
+
+        let embed: any, emph: boolean;
 
         switch (option.getSubcommandGroup()) {
             case 'gm':
-                const gmRole = await server.roles.cache.get(server.dm_role);
-                const user = option.getUser('user');
+                const gmRole = server.roles.cache.get(String(server.gm_roleid)) as Role;
+                const user = option.getUser('user') as User;
                 let gms, row1, msg, collector;
-                let count,
-                    num,
-                    page = 0;
-                const filter = (m) => m.user.id === interaction.user.id;
+                let count, num, page = 0;
+                const filter = m => m.user.id === interaction.user.id;
 
                 switch (option.getSubcommand()) {
                     case 'add':
-                        embed = await addGM(server, user, gmRole);
+                        embed = await addGM(guild, user, gmRole);
 
                         emph = embed.data.color === '#ff0000';
 
@@ -59,19 +55,21 @@ class Command extends CommandBuilder {
                         });
                         break;
                     case 'remove':
-                        gms = await client.database.Server.gms.getAll(server);
+                        gms = await client.database.Server.gms.getAll(guild);
 
-                        const rows = [];
+                        const rows: ActionRowBuilder<StringSelectMenuBuilder>[] = [];
 
-                        row1 = new ActionRowBuilder().addComponents(
+                        row1 = new ActionRowBuilder()
+                        .addComponents(
                             new StringSelectMenuBuilder().setCustomId('gmsel').setMaxValues(1).setPlaceholder('No GM selected...')
                         );
 
-                        const row2 = new ActionRowBuilder().addComponents(
+                        const row2: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder()
+                        .addComponents(
                             new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
                             new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩'),
                             new ButtonBuilder().setCustomId('cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger)
-                        );
+                        ) as ActionRowBuilder<ButtonBuilder>;
 
                         rows.push(row1);
 
@@ -82,11 +80,11 @@ class Command extends CommandBuilder {
                                 count = 0;
                             }
 
-                            const dm = await server.members.cache.get(gm.user_id);
+                            const dm = server.members.cache.get(gm.user_id) as GuildMember;
 
                             rows[num].components[0].addOptions({
-                                label: `${dm.username}`,
-                                value: `${dm.id}`,
+                                label: `${dm.user.username}`,
+                                value: `${dm.user.id}`,
                             });
 
                             count++;
@@ -103,17 +101,18 @@ class Command extends CommandBuilder {
                             time: 90000,
                         });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'gmsel':
-                                    embed = await remGM(server, { id: Number(i.values[0]), gmRole });
+                                    const user = client.users.cache.get(i.values[0]) as User;
+                                    embed = await remGM(guild, user, gmRole);
 
                                     const reply = await i.deferReply();
 
                                     await reply.edit({
                                         embeds: [embed],
                                     });
-                                    break;
+                                break;
                                 case 'prev':
                                     await i.deferUpdate();
 
@@ -134,7 +133,7 @@ class Command extends CommandBuilder {
                                             ephemeral: true,
                                         });
                                     }
-                                    break;
+                                break;
                                 case 'next':
                                     await i.deferUpdate();
 
@@ -155,16 +154,16 @@ class Command extends CommandBuilder {
                                             ephemeral: true,
                                         });
                                     }
-                                    break;
+                                break;
                                 case 'cancel':
                                     await i.deferUpdate();
 
                                     collector.stop();
-                                    break;
+                                break;
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -172,26 +171,29 @@ class Command extends CommandBuilder {
                                     ephemeral: true,
                                 });
                             } else {
-                                client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                                await client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
                             }
 
                             setTimeout(async () => {
                                 await msg.delete();
                             }, 5000);
                         });
-                        break;
+                    break;
                     case 'list':
                         try {
-                            gms = await client.database.Server.gms.getAll(server);
+                            gms = await client.database.Server.gms.getAll(guild);
 
-                            const embeds = [];
+                            const embeds: EmbedBuilder[] = [];
 
-                            row1 = new ActionRowBuilder().addComponents(
+                            row1 = new ActionRowBuilder()
+                            .addComponents(
                                 new ButtonBuilder().setCustomId('prev').setStyle(ButtonStyle.Secondary).setEmoji('⏪').setDisabled(true),
                                 new ButtonBuilder().setCustomId('next').setStyle(ButtonStyle.Secondary).setEmoji('⏩')
-                            );
+                            ) as ActionRowBuilder<ButtonBuilder>;
 
-                            count, num, (page = 0);
+                            count = 0;
+                            num = 0;
+                            page = 0;
 
                             const emb = new ListEmbed('GM List', '', null);
 
@@ -218,7 +220,7 @@ class Command extends CommandBuilder {
                                 time: 90000,
                             });
 
-                            collector.on('collect', async (i) => {
+                            collector.on('collect', async i => {
                                 await i.deferUpdate();
 
                                 switch (i.customId) {
@@ -239,7 +241,7 @@ class Command extends CommandBuilder {
                                                 components: [row1],
                                             });
                                         }
-                                        break;
+                                    break;
                                     case 'next':
                                         if (page < embeds.length - 1) {
                                             page++;
@@ -257,13 +259,13 @@ class Command extends CommandBuilder {
                                                 components: [row1],
                                             });
                                         }
-                                        break;
+                                    break;
                                 }
                             });
 
-                            collector.on('end', async (collected) => {
+                            collector.on('end', async collected => {
                                 if (collected.size > 0) {
-                                    client.writeServerLog(server, `Collected ${collected.size} Interactions`);
+                                    await client.writeServerLog(guild, `Collected ${collected.size} Interactions`);
                                 }
 
                                 row1.components[0].setDisabled(true);
@@ -275,25 +277,25 @@ class Command extends CommandBuilder {
                                 });
                             });
                         } catch (err) {
-                            client.writeServerLog(server, err);
+                            await client.logServerError(guild, err);
 
                             if (err instanceof NotFoundError) {
                                 await interaction.reply({
-                                    embeds: [new ErrorEmbed(`${err}`, `${err.cause}`)],
+                                    embeds: [new ErrorEmbed(err, false)],
                                     ephemeral: true,
                                 });
                             } else {
                                 await interaction.reply({
-                                    embeds: [new ErrorEmbed('An Error occurred...', `${err}\n${err.cause}`)],
+                                    embeds: [new ErrorEmbed(err, true)],
                                     ephemeral: true,
                                 });
                             }
                         }
-                        break;
+                    break;
                     case 'can-edit':
-                        const bool = option.getBoolean('bool');
+                        const bool = option.getBoolean('bool') as boolean;
 
-                        embed = await setGMEdit(server, bool);
+                        embed = await setGMEdit(guild, bool);
 
                         emph = embed.data.color === '#ff0000';
 
@@ -301,7 +303,7 @@ class Command extends CommandBuilder {
                             embeds: [embed],
                             ephemeral: emph,
                         });
-                        break;
+                    break;
                 }
                 break;
             case 'setrole':
@@ -311,135 +313,133 @@ class Command extends CommandBuilder {
                     case 'gm':
                         role1 = option.getRole('role');
 
-                        embed = await setRole(server, 'gm', role1, null);
+                        embed = await setRole(guild, 'gm', role1);
 
                         emph = embed.data.color === '#ff0000';
 
                         await interaction.reply({
                             embeds: [embed],
-                            emphemeral: emph,
+                            ephemeral: emph,
                         });
-                        break;
+                    break;
                     default:
                         role1 = option.getRole('admin');
                         role2 = option.getRole('mod');
 
-                        embed = await setRole(server, 'staff', role1, role2);
+                        embed = await setRole(guild, 'staff', role1, role2);
 
                         emph = embed.data.color === '#ff0000';
 
                         await interaction.reply({
                             embeds: [embed],
-                            emphemeral: emph,
+                            ephemeral: emph,
                         });
-                        break;
+                    break;
                 }
-                break;
+            break;
             case 'getrole':
                 switch (option.getSubcommand()) {
                     case 'gm':
-                        embed = await getRole(server, 'gm');
+                        embed = await getRole(guild, 'gm');
 
                         emph = embed.data.color === '#ff0000';
 
                         await interaction.reply({
                             embeds: [embed],
-                            emphemeral: emph,
+                            ephemeral: emph,
                         });
-                        break;
+                    break;
                     default:
-                        embed = await getRole(server, 'staff');
+                        embed = await getRole(guild, 'staff');
 
                         emph = embed.data.color === '#ff0000';
 
                         await interaction.reply({
                             embeds: [embed],
-                            emphemeral: emph,
+                            ephemeral: emph,
                         });
-                        break;
+                    break;
                 }
                 break;
             case 'setchannel':
-                const channel = option.getChannel('channel');
+                const channel = option.getChannel('channel') as TextChannel;
 
                 switch (option.getSubcommand()) {
                     case 'summary':
-                        embed = await setSumChan(server, channel);
+                        embed = await setSumChan(guild, channel);
 
                         emph = embed.data.color === '#ff0000';
 
                         await interaction.reply({
                             embeds: [embed],
-                            emphemeral: emph,
+                            ephemeral: emph,
                         });
-                        break;
+                    break;
                     case 'log':
-                        embed = await setLogChan(server, channel);
+                        embed = await setLogChan(guild, channel);
 
                         emph = embed.data.color === '#ff0000';
 
                         await interaction.reply({
                             embeds: [embed],
-                            emphemeral: emph,
+                            ephemeral: emph,
                         });
-                        break;
+                    break;
                 }
-                break;
+            break;
         }
 
-        const bool = option.getBoolean('bool');
+        const bool = option.getBoolean('bool') as boolean;
 
         switch (option.getSubcommand()) {
             case 'dup-sessions':
-                embed = await setDupSessions(server, bool);
+                embed = await setDupSessions(guild, bool);
 
                 emph = embed.data.color === '#ff0000';
 
                 await interaction.reply({
                     embeds: [embed],
-                    emphemeral: emph,
+                    ephemeral: emph,
                 });
-                break;
+            break;
             case 'print-logs':
-                embed = await toggleLogs(server, bool);
+                embed = await toggleLogs(guild, bool);
 
                 emph = embed.data.color === '#ff0000';
 
                 await interaction.reply({
                     embeds: [embed],
-                    emphemeral: emph,
+                    ephemeral: emph,
                 });
-                break;
+            break;
         }
     }
 }
 
-async function addGM(server, user, role) {
+async function addGM(server: Guild, user: User, role: Role) {
     try {
         const msg = await client.database.Server.gms.add(server, user);
 
-        const member = await server.members.cache.get(user.id);
+        const member = server.members.cache.get(user.id) as GuildMember;
 
         await member.roles.add(role);
 
-        client.writeServerLog(server, msg);
+        await client.writeServerLog(server, msg);
+
         return new SuccessEmbed(msg || 'Success', `<@${user.id}> has been registered as a GM!`);
     } catch (err) {
         client.logServerError(server, err);
 
-        if (err instanceof DuplicateError) {
-            return new ErrorEmbed(err, false);
-        } else {
-            return new ErrorEmbed(err, true);
-        }
+        if (err instanceof DuplicateError) return new ErrorEmbed(err, false);
+        else return new ErrorEmbed(err, true);
     }
 }
 
-async function remGM(server, user, role) {
+async function remGM(server: Guild, user: User, role: Role) {
     try {
         const msg = await client.database.Server.gms.remove(server, user);
 
-        const member = await server.members.cache.get(user.id);
+        const member = server.members.cache.get(user.id) as GuildMember;
 
         await member.roles.remove(role);
 
@@ -447,15 +447,12 @@ async function remGM(server, user, role) {
     } catch (err) {
         client.logServerError(server, err);
 
-        if (err instanceof NotFoundError) {
-            return new ErrorEmbed(err, false);
-        } else {
-            return new ErrorEmbed(err, true);
-        }
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+        else return new ErrorEmbed(err, true);
     }
 }
 
-async function setGMEdit(server, bool) {
+async function setGMEdit(server: Guild, bool: boolean) {
     try {
         const msg = await client.database.Server.setGMEdit(server, bool);
         const option = bool ? 'enabled' : 'disabled';
@@ -466,22 +463,22 @@ async function setGMEdit(server, bool) {
     }
 }
 
-async function setRole(server, type, role1, role2) {
+async function setRole(server: Guild, type: string, role1: Role, role2: Role | undefined = undefined) {
     try {
         switch (type) {
             case 'gm':
                 return await setDMRole(server, role1);
             default:
-                return await setStaffRole(server, role1, role2);
+                if (role2) return await setStaffRole(server, role1, role2);
         }
     } catch (err) {
         return new ErrorEmbed(err, true);
     }
 }
 
-async function setDMRole(server, role) {
+async function setDMRole(server: Guild, role: Role) {
     try {
-        const msg = await client.database.Server.setDMRole(server, role);
+        const msg = await client.database.Server.setDMRole(server, BigInt(role.id));
 
         return new SuccessEmbed(msg || 'Success', `DM Role has been set to <@&${role.id}>!`);
     } catch (err) {
@@ -489,10 +486,10 @@ async function setDMRole(server, role) {
     }
 }
 
-async function setStaffRole(server, role1, role2) {
+async function setStaffRole(server: Guild, role1: Role, role2: Role) {
     try {
-        const msg1 = await client.database.Server.setStaffRole(server, 'admin', role1);
-        const msg2 = await client.database.Server.setStaffRole(server, 'mod', role2);
+        const msg1 = await client.database.Server.setStaffRole(server, 'admin', BigInt(role1.id));
+        const msg2 = await client.database.Server.setStaffRole(server, 'mod', BigInt(role2.id));
 
         const message = msg1 && msg2 ? `Staff Roles have been set to <@&${role1.id}> and <@&${role2.id}>!` : msg1 ? msg1 : msg2;
 
@@ -502,7 +499,7 @@ async function setStaffRole(server, role1, role2) {
     }
 }
 
-async function getRole(server, type) {
+async function getRole(server: Guild, type: string) {
     try {
         switch (type) {
             case 'gm':
@@ -515,10 +512,10 @@ async function getRole(server, type) {
     }
 }
 
-async function getDMRole(server) {
+async function getDMRole(server: Guild) {
     try {
         const roleID = client.database.Server.getDMRole(server);
-        const role = await server.roles.cache.get(roleID);
+        const role = server.roles.cache.get(String(roleID)) as Role;
 
         return new ListEmbed('DM Role', `This Server\'s DM Role is: <@&${role.id}>`, null);
     } catch (err) {
@@ -530,12 +527,12 @@ async function getDMRole(server) {
     }
 }
 
-async function getStaffRole(server) {
+async function getStaffRole(server: Guild) {
     try {
-        const adminId = client.database.Server.getStaffRole(server, 'admin').admin_role;
-        const modId = client.database.Server.getStaffRole(server, 'mod').mod_role;
-        const adminRole = await server.roles.cache.get(adminId);
-        const modRole = await server.roles.cache.get(modId);
+        const adminId = (await client.database.Server.getStaffRole(server, 'admin'));
+        const modId = (await client.database.Server.getStaffRole(server, 'mod'));
+        const adminRole = server.roles.cache.get(String(adminId)) as Role;
+        const modRole = server.roles.cache.get(String(modId)) as Role;
 
         return new ListEmbed('Staff Roles', "This Server's Staff Roles are:", [
             {
@@ -548,17 +545,14 @@ async function getStaffRole(server) {
             },
         ]);
     } catch (err) {
-        if (err instanceof NotFoundError) {
-            return new ErrorEmbed(err, false);
-        } else {
-            return new ErrorEmbed(err, true);
-        }
+        if (err instanceof NotFoundError) return new ErrorEmbed(err, false);
+        else return new ErrorEmbed(err, true);
     }
 }
 
-async function setSumChan(server, channel) {
+async function setSumChan(server: Guild, channel: TextChannel) {
     try {
-        const msg = await client.database.Server.setSumChannel(server, channel);
+        const msg = await client.database.Server.setSumChannel(server, BigInt(channel.id));
 
         return new SuccessEmbed(msg || 'Success', `Summary Channel for Sessions has been set to <#${channel.id}>`);
     } catch (err) {
@@ -566,9 +560,9 @@ async function setSumChan(server, channel) {
     }
 }
 
-async function setLogChan(server, channel) {
+async function setLogChan(server: Guild, channel: TextChannel) {
     try {
-        const msg = await client.database.Server.setLogChannel(server, channel);
+        const msg = await client.database.Server.setLogChannel(server, BigInt(channel.id));
 
         return new SuccessEmbed(msg || 'Success', `Log Channel has been set to <#${channel.id}>`);
     } catch (err) {
@@ -576,7 +570,7 @@ async function setLogChan(server, channel) {
     }
 }
 
-async function setDupSessions(server, bool) {
+async function setDupSessions(server: Guild, bool: boolean) {
     try {
         const msg = await client.database.Server.setDupSessions(server, bool);
 
@@ -588,7 +582,7 @@ async function setDupSessions(server, bool) {
     }
 }
 
-async function toggleLogs(server, bool) {
+async function toggleLogs(server: Guild, bool: boolean) {
     try {
         const msg = await client.database.Server.toggleLogs(server, bool);
 
