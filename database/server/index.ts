@@ -25,7 +25,7 @@ interface DBServer {
     name: string;
     gm_roleid: bigint;
     admin_roleid: bigint;
-    mod_role: bigint;
+    mod_roleid: bigint;
     sumary_channelid: bigint;
     log_channelid: bigint;
     ping_roleid: bigint;
@@ -173,29 +173,51 @@ class server {
         return `Successfully set the Ability for GMs to edit to ${bool}`;
     }
 
-    async getStaffRole(server: Guild, type: string, roleId: bigint) {
-        if (!type && !roleId) {
+    async getStaffRole(server: Guild, type?: string) {
+        if (!type) {
             const results = await query('SELECT admin_roleid, mod_roleid FROM servers WHERE id = $1', [server.id]) as { admin_roleid: bigint, mod_roleid: bigint }[];
 
             if (results.length === 0) throw new NotFoundError('No Staff Roles found', 'Could not find any Staff Roles in the Database!');
 
-            return results;
+            return results[0];
         }
 
-        const results = await query(`SELECT ${type}_roleid FROM servers WHERE id = $1`, [server.id]) as { admin_roleid: bigint }[] | { mod_roleid: bigint }[];
+        switch (type) {
+            case 'admin':
+                const adminRoleId = await this.getAdminRole(server);
+                return adminRoleId;
+            case 'mod':
+                const modRoleId = await this.getModRole(server);
+                return modRoleId;
+            default:
+        }
+    }
 
-        if (results.length === 0) throw new NotFoundError('Staff Role not found', 'Could not find that Staff Role in the Database!');
+    async getAdminRole(server: Guild) {
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
 
-        return results[0];
+        const results = await query('SELECT admin_roleid FROM servers WHERE id = $1', [server.id]) as { admin_roleid: bigint }[];
+
+        if (results.length === 0) throw new NotFoundError('No Admin Role found', 'Could not find an Admin Role in the Database!');
+
+        return results[0].admin_roleid;
+    }
+
+    async getModRole(server: Guild) {
+        if (!(await this.exists(server))) throw new NotFoundError('Server not found', 'Could not find that Server in the Database!');
+
+        const results = await query('SELECT mod_roleid FROM servers WHERE id = $1', [server.id]) as { mod_roleid: bigint }[];
+
+        if (results.length === 0) throw new NotFoundError('No Mod Role found', 'Could not find a Mod Role in the Database!');
+
+        return results[0].mod_roleid;
     }
 
     async setStaffRole(server: Guild, type: string, roleId: bigint) {
         try {
-            const staffRole = await this.getStaffRole(server, type, roleId)[0];
+            const staffRoleId = await this.getStaffRole(server, type);
 
-            if ((staffRole.admin_roleid || staffRole.mod_roleid) && (staffRole.admin_roleid == roleId || staffRole.mod_roleid == roleId)) {
-                throw new DuplicateError('Duplicate Staff Role', 'This Staff Role already exists in the Database!');
-            }
+            if (staffRoleId === roleId) throw new DuplicateError('Duplicate Staff Role', 'This Staff Role already exists in the Database!');
 
             await query(`UPDATE servers SET ${type}_roleid = $1 WHERE id = $2`, [roleId, server.id]);
 
