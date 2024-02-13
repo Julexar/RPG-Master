@@ -1,7 +1,7 @@
 import { ApplicationCommand, ApplicationCommandPermissions, Collection, Guild, GuildMember, GuildTextBasedChannel, Snowflake } from 'discord.js';
 import { client } from '../..';
-import { NotFoundError } from '../../custom/errors';
-import { Error } from '../../*';
+import { DuplicateError, NotFoundError } from '../../custom/errors';
+import { ErrorEmbed } from '../../custom/embeds';
 
 class Event {
     name: string;
@@ -10,8 +10,21 @@ class Event {
     }
 
     async run(guild: Guild) {
-        const commandArray = client.slashCommands;
-        
+        //Server Registration
+        this.registerServer(guild);
+
+        //Member Registration
+        await this.registerMembers(guild);
+
+        //Interval Creation
+        await this.createInterval(guild);
+
+        //Command Registration
+        await this.registerServerCommands(guild);
+    }
+
+    registerServer(guild: Guild) {
+        client.writeDevLog(`Attempting to register Server \"${guild.name}\"...`)
         const server = {
             id: BigInt(guild.id),
             name: guild.name
@@ -19,12 +32,14 @@ class Event {
 
         client.database.Server.add(server)
         .then(client.writeDevLog)
-        .catch(client.logDevError)
+        .catch(client.logDevError);
         
         client.database.Server.logs.add(guild)
-        .then((msg: string) => client.writeServerLog(guild, msg))
-        .catch((err) => client.logServerError(guild, err))
+        .then(async msg => await client.writeServerLog(guild, msg))
+        .catch(async err => await client.logServerError(guild, err));
+    }
 
+    async registerMembers(guild: Guild) {
         await client.writeServerLog(guild, 'Beginning Member registration - Searching Database for Members...')
 
         client.database.Server.members.getAll(guild)
@@ -44,19 +59,21 @@ class Event {
                 }
             }
         })
-        .catch(async (err) => {
-            await client.logServerError(guild, err)
+        .catch(async (err) => await client.logServerError(guild, err));
 
-            guild.members.cache.forEach(async (member: GuildMember) => {
-                if (!member.user.bot) {
-                    client.database.Server.members.add(guild, member)
-                    .then(msg => client.writeServerLog(guild, msg))
-                    .catch(err => client.logServerError(guild, err))
-                }
-            })
+        guild.members.cache.forEach(async (member: GuildMember) => {
+            if (!member.user.bot) {
+                client.database.Server.members.add(guild, member)
+                .then(async msg => await client.writeServerLog(guild, msg))
+                .catch(async err => {
+                    if (!(err instanceof DuplicateError)) await client.logServerError(guild, err)
+                });
+            }
         });
+    }
 
-        client.writeServerLog(guild, 'Member registration complete - Creating Interval for Logging...')
+    async createInterval(guild: Guild) {
+        await client.writeServerLog(guild, 'Member registration complete - Creating Interval for Logging...')
 
         setInterval(async () => {
             try {
@@ -66,25 +83,33 @@ class Event {
                     if (dbServer.log_channelid) {
                         const channel = guild.channels.cache.get(String(dbServer.log_channelid)) as GuildTextBasedChannel;
 
-                        await client.writeServerLog(guild, 'Logging Interval triggered, logging enabled - Printing Logfile...')
+                        await client.writeServerLog(guild, 'Printing Logfile...')
 
-                        const logfile = await client.database.Server.logs.getLatest(guild)
-
-                        if (!channel) throw new NotFoundError('Channel not found', 'Could not find that Channel in the Server!');
-
-                        await channel.send({
-                            files: [`./logs/${server.id}/${logfile.created_at}.log`]
-                        });
+                        try {
+                            const logfile = await client.database.Server.logs.getLatest(guild);
+    
+                            await channel.send({
+                                files: [`./logs/server/${guild.id}/${logfile.created_at}.log`]
+                            });
+                        } catch (err) {
+                            await client.logServerError(guild, err);
+    
+                            await channel.send({
+                                embeds: [new ErrorEmbed(err, false)]
+                            });
+                        }
                     } else throw new NotFoundError('No Logchannel found', `This Server has no Logchannel defined, please set one with \`/server setchannel log\``)
                 }
             } catch (err) {
-                client.logServerError(guild, err)
+                await client.logServerError(guild, err)
             }
         }, 1000 * 60 * 60 * 24);
+    }
 
+    async registerServerCommands(guild: Guild) {
         await client.writeServerLog(guild, 'Interval created - Attempting to register Server Commands...')
 
-        await guild.commands.set(Array.from(commandArray.values()))
+        guild.commands.set(Array.from(client.slashCommands.values()))
         .then(async (commands: Collection<Snowflake, ApplicationCommand>) => {
             await client.writeServerLog(guild, `Successfully registered ${commands.size} Commands in Server - Attempting to write Server Commands to Database...`)
 
@@ -124,9 +149,9 @@ class Event {
                 }
             });
         })
-        .catch((err) => client.logServerError(guild, err))
+        .catch(async err => await client.logServerError(guild, err));
 
-        await client.writeServerLog(guild, 'Finished registering Server Commands - Bot is now ready!')
+        await client.writeServerLog(guild, 'Finished registering Server Commands - Bot is now ready!');
     }
 }
 
