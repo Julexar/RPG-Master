@@ -1,4 +1,4 @@
-name: Mark as done
+name: Label Automation
 
 on:
   pull_request_target:
@@ -9,7 +9,8 @@ on:
       - closed
 
 jobs:
-  apply:
+  label:
+    name: Mark as Done
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
     steps:
