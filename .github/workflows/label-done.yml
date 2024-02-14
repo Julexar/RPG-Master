@@ -9,7 +9,7 @@ on:
       - closed
 
 jobs:
-  label:
+  done:
     name: Mark as Done
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
@@ -19,3 +19,13 @@ jobs:
           config_path: .github/labeler_done.yml
         env:
           GITHUB_TOKEN: "${{ secrets.WORKFLOW_TOKEN }}"
+
+  remove:
+    name: Remove outdated Labels
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - uses: mondeja/remove-labels-gh-action@v1.1.1
+        with:
+          token: "${{ secrets.WORKFLOW_TOKEN }}"
+          labels: in progress
