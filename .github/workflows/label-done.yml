@@ -14,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
     steps:
-      - uses: srvaroa/labeler@v1.10.0
+      - uses: fuxingloh/multi-labeler@v4.0.0
         with: 
-          config_path: .github/labeler_done.yml
+          config-path: .github/labeler_done.yml
+          config-repo: Julexar/RPG-Master
         env:
           GITHUB_TOKEN: "${{ secrets.WORKFLOW_TOKEN }}"
 
