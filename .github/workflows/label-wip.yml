@@ -1,0 +1,17 @@
+name: Label Automation
+
+on:
+  pull_request: 
+    types:
+      - synchronize
+
+jobs:
+  label:
+    name: Mark as In Progress
+    runs-on: ubuntu-latest
+    steps:
+      - uses: srvaroa/labeler@v1.10.0
+        with:
+          config_path: .github/labeler_wip.yml
+        env:
+          GITHUB_TOKEN: "${{ secrets.WORKFLOW_TOKEN }}"
