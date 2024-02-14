@@ -18,11 +18,10 @@ jobs:
         with: 
           config-path: .github/labeler_done.yml
           config-repo: Julexar/RPG-Master
-        env:
-          GITHUB_TOKEN: "${{ secrets.WORKFLOW_TOKEN }}"
+          github-token: "${{ secrets.WORKFLOW_TOKEN }}"
 
   remove:
-    name: Remove outdated Label
+    name: Remove outdated Labels
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'in progress')
     steps:
