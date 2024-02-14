@@ -8,7 +8,7 @@ on:
 jobs:
   label:
     name: Mark as In Progress 
-    if: github.event.pull_request.merged != true && !contains(github.events.pull_request.labels.*.name, 'in progress')
+    if: github.event.pull_request.merged != true && !contains(github.events.pull_request.labels.*.name, 'in progress') && github.event.pull_request.assignee != null
     runs-on: ubuntu-latest
     steps:
       - uses: fuxingloh/multi-labeler@v4.0.0
