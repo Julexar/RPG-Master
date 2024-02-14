@@ -1,0 +1,4 @@
+version: 1
+labels:
+- label: "done"
+  size-above: 1
