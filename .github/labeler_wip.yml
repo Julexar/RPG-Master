@@ -1,0 +1,6 @@
+version: 1
+appendOnly: true
+mergeable: True
+labels:
+- label: "in progress"
+  size-above: 1
