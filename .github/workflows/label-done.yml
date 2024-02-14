@@ -22,7 +22,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.WORKFLOW_TOKEN }}"
 
   remove:
-    name: Remove outdated Labels
+    name: Remove outdated Label
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'in progress')
     steps:
