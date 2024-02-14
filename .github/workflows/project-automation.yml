@@ -23,3 +23,20 @@ jobs:
               "duplicate": "Scrapped",
               "in progress": "In Progress"
             }
+
+  set_prio:
+    name: Set Priority in Project 
+    if: contains(github.event.label.name, 'priority')
+    runs-on: ubuntu-latest 
+    steps: 
+      - uses: PaperMC/update-projects-action@v0.2.0
+        with:
+          github-token: ${{ secrets.WORKFLOW_TOKEN }}
+          project-url: https://github.com/users/Julexar/projects/7/views/1
+          column-field: Priority
+          label-to-column-map: |
+            {
+              "low priority": "low",
+              "medium priority": "medium",
+              "high priority": "high"
+            }
