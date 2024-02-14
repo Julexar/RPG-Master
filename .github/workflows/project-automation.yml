@@ -26,7 +26,7 @@ jobs:
 
   set_prio:
     name: Set Priority in Project 
-    if: contains(github.event.label.nams, 'priority')
+    if: contains(github.event.label.name, 'priority')
     runs-on: ubuntu-latest 
     steps: 
       - uses: PaperMC/update-projects-action@v0.2.0
