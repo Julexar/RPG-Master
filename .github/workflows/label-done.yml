@@ -1,4 +1,4 @@
-name: Label Automation
+name: Mark as done
 
 on:
   pull_request_target:
@@ -9,13 +9,17 @@ on:
       - closed
 
 jobs:
-  label:
-    name: Mark as done
+  apply:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
     steps:
       - uses: srvaroa/labeler@v1.10.0
         with: 
-          config_path: .github/labeler_config.yml
+          config_path: .github/labeler_done.yml
+        env:
+          GITHUB_TOKEN: "${{ secrets.WORKFLOW_TOKEN }}"
+      - uses: srvaroa/labeler@v1.10.0
+        with:
+          config_path: .github/labeler_done2.yml
         env:
           GITHUB_TOKEN: "${{ secrets.WORKFLOW_TOKEN }}"
