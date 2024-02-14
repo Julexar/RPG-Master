@@ -12,3 +12,5 @@ Describe the issue as detailed as possible.
 
 **Additional Information**
 Add any additional information, such as screenshots, links to resources, etc.
+
+[![CodeQL](https://github.com/Julexar/RPG-Master-Rework/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Julexar/RPG-Master-Rework/actions/workflows/github-code-scanning/codeql)

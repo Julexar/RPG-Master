@@ -27,3 +27,5 @@ If applicable, add screenshots to help explain your problem.
 
 **Additional context**
 Add any other context about the problem here.
+
+[![CodeQL](https://github.com/Julexar/RPG-Master-Rework/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Julexar/RPG-Master-Rework/actions/workflows/github-code-scanning/codeql)
