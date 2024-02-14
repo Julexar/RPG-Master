@@ -1,6 +1,3 @@
 version: 1
-appendOnly: true
 labels:
 - label: "in progress"
-  type: "pull_request"
-  mergeable: True
