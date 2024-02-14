@@ -24,7 +24,7 @@ jobs:
   remove:
     name: Remove outdated Labels
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'in progress')
     steps:
       - uses: mondeja/remove-labels-gh-action@v1.1.1
         with:
