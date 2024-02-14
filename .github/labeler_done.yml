@@ -1,3 +1,7 @@
-version: 1
+version: v1
 labels:
-- label: "done"
+- label: 'done'
+  matcher:
+    files:
+      count:
+        gte: 1
