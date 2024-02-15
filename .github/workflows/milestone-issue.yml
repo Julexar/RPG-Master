@@ -15,5 +15,6 @@ jobs:
           action-token: ${{ secrets.WORKFLOW_TOKEN }}
           co-milestones: >
             {
-              "*":"Finish Bot"
+              "[ISSUE]":"Finish Bot",
+              "[IDEA]":"Finish Bot"
             }
