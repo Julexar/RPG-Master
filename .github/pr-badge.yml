@@ -1,2 +1,2 @@
 - imageUrl: https://github.com/Julexar/RPG-Master/actions/workflows/codeql.yml/badge.svg?branch=$branchName
-  url: https://github.com/Julexar/RPG-Master/actions/workflows/codeql.yml
+  url: https://github.com/Julexar/RPG-Master/actions/workflows/codeql.yml?query=branch:$branchName
