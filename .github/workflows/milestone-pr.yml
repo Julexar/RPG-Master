@@ -1,0 +1,16 @@
+name: Milestone Automation
+
+on:
+  pull_request:
+    types:
+      - opened
+
+jobs:
+  add:
+    name: Add Milestone to PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: andrefcdias/add-to-milestone@v1.3.0
+        with:
+          repo-token: ${{ secrets.WORKFLOW_TOKEN }}
+          milestone: "Finish Bot"
