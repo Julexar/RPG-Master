@@ -8,7 +8,7 @@
 
 - message: "Work in Progress"
   color: "yellow"
-  when: "$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.labels.includes(label => label.name === 'in progress')"
+  when: "$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.labels.includes('in progress')"
 
 - label: "Completed" 
   message: "Tasks"
