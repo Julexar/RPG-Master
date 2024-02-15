@@ -1,10 +1,6 @@
 name: Milestone Automation
 
 on:
-  issues:
-    types:
-      - opened
-      - synchronize
   pull_request:
     types:
       - opened
@@ -12,8 +8,11 @@ on:
 
 jobs:
   add:
+    name: Add Milestone to PR
     runs-on: ubuntu-latest
     steps:
-      - uses: Code-Hex/auto-milestone-binder@v1.0.3
+      - uses: iyu/actions-milestone@v1.3.0
         with:
-          github-token: ${{ secrets.WORKFLOW_TOKEN }}
+          repo-token: ${{ secrets.WORKFLOW_TOKEN }}
+          configuration-path: .github/milestone.yml
+          silent: true
