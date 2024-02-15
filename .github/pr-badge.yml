@@ -6,11 +6,19 @@
   color: "yellow"
   when: "$payload.pull_request.body.includes('- [ ]')"
 
-- message: "Work in Progress"
-  color: "yellow"
-  when: "$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.labels.includes('in progress')"
-
 - label: "Completed" 
   message: "Tasks"
   color: "green"
   when: "!$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.body.includes('- [x]')"
+
+- message: "Work in Progress"
+  color: "yellow"
+  when: "$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.labels.some(label => label.name === 'in progress')"
+
+- message: "Done"
+  color: "green"
+  when: "$payload.pull_request.labels.some(label => label.name === 'done')"
+
+- message: "Won't fix"
+  color: "red"
+  when: "$payload.pull_request.labels.some(label => label.name === 'wontfix')"
