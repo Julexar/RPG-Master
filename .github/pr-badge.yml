@@ -1,2 +1,16 @@
 - imageUrl: https://github.com/Julexar/RPG-Master/actions/workflows/codeql.yml/badge.svg?branch=$branchName
   url: https://github.com/Julexar/RPG-Master/actions/workflows/codeql.yml?query=branch:$branchName
+
+- label: "Warn"
+  message: "Unchecked Tasks"
+  color: "yellow"
+  when: "$payload.pull_request.body.includes('- [ ]')"
+
+- message: "Work in Progress"
+  color: "yellow"
+  when: "$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.labels.includes(label => label.name === 'in progress')"
+
+- label: "Completed" 
+  message: "Tasks"
+  color: "green"
+  when: "!$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.body.includes('- [x]')"
