@@ -1,4 +1,4 @@
-name: Milestone Automation 
+name: Milestone Assigner
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ jobs:
     name: Add Milestone 
     runs-on: ubuntu-latest 
     steps:
-      - uses: Julexar/Milestone-Automation@v1.0 
+      - uses: Julexar/Milestone-Assigner@v1.0 
         with:
           token: ${{ secrets.WORKFLOW_TOKEN }}
           milestone: "Finish Bot"
