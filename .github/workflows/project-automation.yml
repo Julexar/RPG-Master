@@ -38,5 +38,6 @@ jobs:
             {
               "low priority": "low",
               "medium priority": "medium",
-              "high priority": "high"
+              "high priority": "high",
+              "no priority": "none"
             }
