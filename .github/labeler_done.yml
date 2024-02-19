@@ -1,7 +1,0 @@
-version: v1
-labels:
-- label: 'done'
-  matcher:
-    files:
-      count:
-        gte: 1
