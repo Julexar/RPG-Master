@@ -11,7 +11,7 @@ on:
 jobs:
   scrap:
     name: Mark as Scrapped
-    if: github.event.issue.state_reason.includes('planned') || github.event.pull_request.merged == false
+    if: contains(github.event.issue.state_reason, 'planned') || github.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
       - uses: fojia/action-move-issues-to-column@v1.0.2
