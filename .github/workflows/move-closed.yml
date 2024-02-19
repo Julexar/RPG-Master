@@ -11,7 +11,7 @@ on:
 jobs:
   scrap:
     name: Mark as Scrapped
-    if: github.event.issue && github.event.issue.state_reason === 'not planned'
+    if: github.event.issue && github.event.issue.state_reason == 'not planned'
     runs-on: ubuntu-latest
     steps:
       - uses: fojia/action-move-issues-to-column@v1.0.2
