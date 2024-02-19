@@ -19,9 +19,7 @@ jobs:
           project: 'RPG-Master Tasks'
           column: 'Scrapped'
           owner: 'Julexar'
-          repo: 'RPG-Master'
-          type: 'repo'
-          branch: 'root'
+          type: 'user'
 
   done:
     name: Mark as Done
@@ -34,4 +32,4 @@ jobs:
           column: 'Done'
           owner: 'Julexar'
           repo: 'RPG-Master'
-          type: 'repo'
+          type: 'user'
