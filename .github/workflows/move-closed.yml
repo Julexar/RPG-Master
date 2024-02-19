@@ -14,22 +14,20 @@ jobs:
     if: contains(github.event.issue.state_reason, 'planned') || github.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
-      - uses: fojia/action-move-issues-to-column@v1.0.2
+      - uses: Julexar/Update-Project-Column@v1.0
         with:
-          project: 'RPG-Master Tasks'
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+          url: 'https://github.com/users/Julexar/projects/7/views/1'
           column: 'Scrapped'
-          owner: 'Julexar'
-          type: 'user'
-
+          label: 'wontfix'
+          
   done:
     name: Mark as Done
     if: github.event.issue.state_reason == 'completed'
     runs-on: ubuntu-latest
     steps:
-      - uses: fojia/action-move-issues-to-column@v1.0.2
+      - uses: Julexar/Update-Project-Column@v1.0
         with:
-          project: 'RPG-Master Tasks'
-          column: 'Done'
-          owner: 'Julexar'
-          repo: 'RPG-Master'
-          type: 'user'
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+          url: 'https://github.com/users/Julexar/projects/7/views/1'
+          column: 'Scrapped'
