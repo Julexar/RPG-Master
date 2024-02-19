@@ -2,7 +2,8 @@
 name: Custom issue
 about: Submit any other issues
 title: "[ISSUE]"
-labels: custom
+labels: custom, no priority
+assignees: ''
 
 ---
 
