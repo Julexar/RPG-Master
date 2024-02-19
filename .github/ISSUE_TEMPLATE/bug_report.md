@@ -2,7 +2,8 @@
 name: Bug report
 about: Create a report to help us improve
 title: "[ISSUE]"
-labels: bug
+labels: bug, no priority
+assignees: ''
 
 ---
 
