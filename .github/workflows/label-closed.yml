@@ -1,0 +1,35 @@
+name: Label Automation
+
+on:
+  pull_request_target:
+    types:
+      - closed
+  pull_request:
+    types:
+      - closed
+  issues:
+    types:
+      - closed
+
+jobs:
+  scrap:
+    name: Mark as Scrapped
+    if: github.event.issue.state_reason == 'not planned' || github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: fuxingloh/multi-labeler@v4.0.0
+        with:
+          config-path: .github/labeler_wontfix.yml
+          config-repo: Julexar/RPG-Master
+          github-token: ${{ secrets.WORKFLOW_TOKEN }}
+
+  done:
+    name: Mark as Done
+    if: github.event.issue.state_reason == 'completed' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: fuxingloh/multi-labeler@v4.0.0
+        with:
+          config-path: .github/labeler_done.yml
+          config-repo: Julexar/RPG-Master
+          github-token: ${{ secrets.WORKFLOW_TOKEN }}
