@@ -14,7 +14,7 @@ jobs:
   move_issues:
     name: Move Issues in Project
     runs-on: ubuntu-latest
-    if: (github.event.label && (github.event.label.name == 'wontfix' || github.event.label.name == 'duplicate' || github.event.label.name == 'in progress')) || (github.event.pull_request && (contains(github.event.pull_request.labels.*.name, 'wontfix') || contains(github.event.pull_request.labels.*.name, 'duplicate' || contains(github.event.pull_request.labels.*.name, 'in progress')))) || (github.event.issue && (contains(github.event.issue.labels.*.name, 'wontfix') || contains(github.event.issue.labels.*.name, 'duplicate') || contains(github.event.issue.labels.*.name, 'in progress')))
+    if: (github.event.label.name == 'wontfix' || github.event.label.name == 'duplicate' || github.event.label.name == 'in progress') || (contains(github.event.pull_request.labels.*.name, 'wontfix') || contains(github.event.pull_request.labels.*.name, 'duplicate') || contains(github.event.pull_request.labels.*.name, 'in progress')) || (contains(github.event.issue.labels.*.name, 'wontfix') || contains(github.event.issue.labels.*.name, 'duplicate') || contains(github.event.issue.labels.*.name, 'in progress'))
     steps:
       - uses: PaperMC/update-projects-action@v0.2.0
         with:
