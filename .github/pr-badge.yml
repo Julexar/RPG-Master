@@ -4,16 +4,16 @@
 - label: "Warn"
   message: "Unchecked Tasks"
   color: "yellow"
-  when: "$payload.pull_request.body.includes('- [ ]')"
+  when: "$payload.pull_request.body && $payload.pull_request.body.includes('- [ ]')"
 
 - label: "Completed" 
   message: "Tasks"
   color: "green"
-  when: "!$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.body.includes('- [x]')"
+  when: "$payload.pull_request.body && (!$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.body.includes('- [x]'))"
 
 - message: "Work in Progress"
   color: "yellow"
-  when: "$payload.pull_request.body.includes('- [ ]') && $payload.pull_request.labels.some(label => label.name === 'in progress')"
+  when: "$payload.pull_request.body && ($payload.pull_request.body.includes('- [ ]') && $payload.pull_request.labels.some(label => label.name === 'in progress'))"
 
 - message: "Done"
   color: "green"
@@ -22,3 +22,7 @@
 - message: "Won't fix"
   color: "red"
   when: "$payload.pull_request.labels.some(label => label.name === 'wontfix')"
+
+- message: "Duplicate"
+  color: "grey"
+  when: "$payload.pull_request.labels.some(label => label.name === 'duplicate')"
