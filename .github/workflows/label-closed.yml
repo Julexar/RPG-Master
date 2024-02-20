@@ -33,3 +33,14 @@ jobs:
           config-path: .github/labeler_done.yml
           config-repo: Julexar/RPG-Master
           github-token: ${{ secrets.WORKFLOW_TOKEN }}
+
+  remove:
+    name: Remove outdated Labels
+    runs-on: ubuntu-latest
+    if: (github.event.issue.state_reason == 'completed' && contains(github.event.issue.labels.*.name, 'in progress')) || (github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'in progress'))
+    steps:
+      - run: sleep 1
+      - uses: mondeja/remove-labels-gh-action@v1.1.1
+        with:
+          token: "${{ secrets.WORKFLOW_TOKEN }}"
+          labels: in progress
