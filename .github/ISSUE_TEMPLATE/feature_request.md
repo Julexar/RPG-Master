@@ -2,7 +2,8 @@
 name: Feature request
 about: Suggest an idea for this project
 title: "[IDEA]"
-labels: enhancement
+labels: enhancement, no priority
+assignees: ''
 
 ---
 
