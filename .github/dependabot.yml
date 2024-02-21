@@ -10,6 +10,7 @@ updates:
     schedule:
       interval: "daily"
     target-branch: "root"
+    milestone: 2
     labels:
       - "dependencies"
       - "medium priority"
