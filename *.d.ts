@@ -70,3 +70,19 @@ type Character = {
     created_at: Date;
     deleted_at: Date | null;
 }
+
+type Server = {
+    id: bigint;
+    name: string;
+    gm_roleid: bigint;
+    admin_roleid: bigint;
+    mod_roleid: bigint;
+    sumary_channelid: bigint;
+    log_channelid: bigint;
+    ping_roleid: bigint;
+    hp_method: number;
+    leveling_method: number;
+    gm_edit: boolean;
+    duplicate_sessions: boolean;
+    print_logs: boolean;
+}

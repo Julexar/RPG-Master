@@ -1,27 +1,26 @@
+import { CommandInteraction, Guild, TextChannel } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';
-import { NotFoundError } from '../../../custom/errors';
+import { Server } from '../../../*';
+import { BadRequestError, NotFoundError } from '../../../custom/errors';
 import { ErrorEmbed } from '../../../custom/embeds';
 
 class Command extends CommandBuilder {
-    constructor(data) {
+    enabled: boolean;
+    constructor(data: any) {
         super(data);
 
         this.enabled = true;
     }
 
-    /**
-     *
-     * @param {import("discord.js").CommandInteraction} interaction
-     */
-    async run(interaction) {
-        const guild = interaction.guild;
+    async run(interaction: CommandInteraction) {
+        const guild = interaction.guild as Guild;
         try {
-            const server = await client.database.Server.getOne(guild);
-            const log = await client.database.Server.logs.getLatest(server);
+            const server = await client.database.Server.getOne(guild) as Server;
+            const log = await client.database.Server.logs.getLatest(guild);
 
-            if (server.log_chan) {
-                const channel = guild.channels.cache.get(server.log_chan);
+            if (server.log_channelid) {
+                const channel = guild.channels.cache.get(String(server.log_channelid)) as TextChannel;
                 if (channel) {
                     await channel.send({
                         files: [`./logs/server/${server.id}/${log.created_at}.log`],
@@ -31,7 +30,7 @@ class Command extends CommandBuilder {
                         content: `The Log has been sent to <#${channel.id}>`,
                         ephemeral: true,
                     });
-                }
+                } else throw new BadRequestError('Invalid Log Channel', 'That Log Channel does not exist on the Server!');
             }
         } catch (err) {
             client.writeServerLog(guild, err);
