@@ -1,7 +1,12 @@
 {
     "trailingComma": "es5",
-    "tabWidth": 4,
     "semi": true,
     "singleQuote": true,
-    "printWidth": 150
+    "printWidth": 120,
+    "useTabs": true,
+    "tabWidth": 4,
+    "arrowParens": "avoid",
+    "experimentalTernaries": true,
+    "quoteProps": "as-needed",
+    "parser": "typescript"
 }
