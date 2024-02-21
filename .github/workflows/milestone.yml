@@ -10,8 +10,9 @@ on:
 
 jobs:
   add:
-    name: Add Milestone 
-    runs-on: ubuntu-latest 
+    name: Add Milestone
+    if: (!contains(github.events.pull_request.labels.*.name, 'dependencies')) || (!contains(github.events.issue.labels.*.name, 'dependencies'))
+    runs-on: ubuntu-latest
     steps:
       - uses: Julexar/Milestone-Assigner@v1.0 
         with:
