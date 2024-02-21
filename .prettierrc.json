@@ -8,5 +8,4 @@
     "arrowParens": "avoid",
     "experimentalTernaries": true,
     "quoteProps": "as-needed",
-    "parser": "typescript"
 }
