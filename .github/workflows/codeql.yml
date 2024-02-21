@@ -14,7 +14,7 @@ name: "CodeQL"
 on:
   push:
     branches:
-      - '*'
+      - 'root'
   pull_request:
     branches:
       - '*'
