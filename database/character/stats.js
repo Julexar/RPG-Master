@@ -15,7 +15,8 @@ class CharacterStats {
         if (stat.id) {
             const results = await query('SELECT * FROM character_stats WHERE char_id = $1 AND id = $2', [char.id, stat.id]);
 
-            if (results.length === 0) throw new NotFoundError('Character Stat not found', 'Could not find that Stat for that Character in the Database!');
+            if (results.length === 0)
+                throw new NotFoundError('Character Stat not found', 'Could not find that Stat for that Character in the Database!');
 
             return results[0];
         }
@@ -43,12 +44,12 @@ class CharacterStats {
         try {
             const charStats = await this.getAll(char);
 
-            stats = stats.filter((stat) => !stat.key.inlcudes(charStats.map((charStat) => charStat.key)));
-            await Promise.all(stats.map(async (stat) => await this.setOne(char, stat)));
+            stats = stats.filter(stat => !stat.key.inlcudes(charStats.map(charStat => charStat.key)));
+            await Promise.all(stats.map(async stat => await this.setOne(char, stat)));
         } catch (err) {
             if (!(err instanceof NotFoundError)) throw err;
 
-            stats.map(async (stat) => {
+            stats.map(async stat => {
                 await this.setOne(char, stat);
             });
         }
@@ -70,7 +71,8 @@ class CharacterStats {
     }
 
     static async remove(char, stat) {
-        if (!(await this.exists(char, stat))) throw new NotFoundError('Character Stat not found', 'Could not find that Character Stat in the Database!');
+        if (!(await this.exists(char, stat)))
+            throw new NotFoundError('Character Stat not found', 'Could not find that Character Stat in the Database!');
 
         await query('DELETE FROM character_stats WHERE char_id = $1 AND key = $2', [char.id, stat.key]);
 

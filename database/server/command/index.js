@@ -17,7 +17,7 @@ class servercommand {
         }
 
         return Promise.all(
-            results.map(async (servCmd) => {
+            results.map(async servCmd => {
                 const dbCmd = await Command.getOne({ id: servCmd.cmd_id }, 'slash');
 
                 return {

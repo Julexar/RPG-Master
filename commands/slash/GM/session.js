@@ -21,7 +21,7 @@ class Command extends CommandBuilder {
         const user = interaction.user;
         const gm = await client.database.Server.gms.getOne(server, user);
         const member = interaction.member;
-        const filter = (m) => m.user.id == user.id;
+        const filter = m => m.user.id == user.id;
 
         const dmRoleId = await client.database.Server.getOne(server).dm_role;
 
@@ -80,7 +80,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'session_select':
                                     embed = await this.selectSession(server, user, { id: Number(i.values[0]) });
@@ -146,7 +146,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection has timed out...',
@@ -244,7 +244,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             let mes, mescol, mesfilt;
                             switch (i.customId) {
                                 case 'title':
@@ -253,16 +253,16 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with a Title for your Session.',
                                     });
 
-                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', (m) => {
+                                    mescol.on('collect', m => {
                                         menu.data.fields[0].value = m.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -323,12 +323,12 @@ class Command extends CommandBuilder {
 
                                     mescol = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         await j.deferUpdate();
                                         menu.data.fields[1].value = j.values[0];
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -348,16 +348,16 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with the amount of Players for your Session (x-y).',
                                     });
 
-                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', (m) => {
+                                    mescol.on('collect', m => {
                                         menu.data.fields[2].value = m.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -377,16 +377,16 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with the Length of your Session (in Hours).',
                                     });
 
-                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', (m) => {
+                                    mescol.on('collect', m => {
                                         menu.data.fields[3].value = m.content + ' Hour(s)';
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -435,7 +435,7 @@ class Command extends CommandBuilder {
 
                                     mescol = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         await j.deferUpdate();
 
                                         switch (Number(j.values[0])) {
@@ -456,7 +456,7 @@ class Command extends CommandBuilder {
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -476,16 +476,16 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with a Description for your Session.',
                                     });
 
-                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', (m) => {
+                                    mescol.on('collect', m => {
                                         menu.data.fields[5].value = m.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -506,16 +506,16 @@ class Command extends CommandBuilder {
                                             'Please reply with a timestamp for the Starttime of the Session.\n\nYou can get one here: https://hammertime.cyou/',
                                     });
 
-                                    mesfilt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfilt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfilt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', (m) => {
+                                    mescol.on('collect', m => {
                                         menu.data.timestamp = new Date(Number(m.content) * 1000).toISOString();
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You did not reply in time!`,
@@ -568,7 +568,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -618,7 +618,7 @@ class Command extends CommandBuilder {
 
                             collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                            collector.on('collect', async (i) => {
+                            collector.on('collect', async i => {
                                 switch (i.customId) {
                                     case 'confirm':
                                         embed = await client.database.Server.sessions.remove(server, user, { id: gm.session_id });
@@ -645,7 +645,7 @@ class Command extends CommandBuilder {
                                 }
                             });
 
-                            collector.on('end', async (collected) => {
+                            collector.on('end', async collected => {
                                 if (collected.size === 0) {
                                     await msg.edit({
                                         content: 'Confirmation timed out...',
@@ -709,13 +709,10 @@ class Command extends CommandBuilder {
                                     {
                                         name: 'Difficulty',
                                         value:
-                                            session.difficulty === 1
-                                                ? '1 - Easy'
-                                                : session.difficulty === 2
-                                                  ? '2 - Medium'
-                                                  : session.difficulty === 3
-                                                    ? '3 - Hard'
-                                                    : '4 - Deadly',
+                                            session.difficulty === 1 ? '1 - Easy'
+                                            : session.difficulty === 2 ? '2 - Medium'
+                                            : session.difficulty === 3 ? '3 - Hard'
+                                            : '4 - Deadly',
                                     },
                                     {
                                         name: 'Channel',
@@ -780,11 +777,11 @@ class Command extends CommandBuilder {
                                     components: [row1],
                                 });
 
-                                let filt = (m) => m.user.id != user.id;
+                                let filt = m => m.user.id != user.id;
 
                                 const gamecol = msg.createMessageComponentCollector({ filt });
 
-                                gamecol.on('collect', async (i) => {
+                                gamecol.on('collect', async i => {
                                     let player;
                                     session = await client.database.Server.sessions.getOne(server, user, { id: session.id });
 
@@ -826,7 +823,7 @@ class Command extends CommandBuilder {
                                     }
                                 });
 
-                                gamecol.on('end', async (collected) => {
+                                gamecol.on('end', async collected => {
                                     if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
 
                                     row1.components[0].setDisabled(true);

@@ -26,7 +26,7 @@ class race {
         }
 
         return Promise.all(
-            results.map(async (dbRace) => {
+            results.map(async dbRace => {
                 const [raceStats, raceImmunities, raceResistances, raceProfs, raceSenses, raceTraits] = await Promise.all([
                     this.stats.getAll(dbRace),
                     this.immunities.getAll(dbRace),

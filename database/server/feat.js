@@ -10,7 +10,7 @@ class ServerFeats {
         if (results.length === 0) throw new NotFoundError('No Server Feats found', 'Could not find any Server Feats in the Database!');
 
         return Promise.all(
-            results.map(async (servFeat) => {
+            results.map(async servFeat => {
                 const dbFeat = await Feats.getOne({ id: servFeat.feat_id });
 
                 if (servFeat.deleted_at) return;
@@ -20,7 +20,7 @@ class ServerFeats {
                     server_id: server.id,
                     feat: dbFeat,
                     overwrites: servFeat.overwrites,
-                    deleted_at: servFeat.deleted_at
+                    deleted_at: servFeat.deleted_at,
                 };
             })
         );
@@ -42,7 +42,7 @@ class ServerFeats {
                 server_id: server.id,
                 feat: dbFeat,
                 overwrites: servFeat.overwrites,
-                deleted_at: servFeat.deleted_at
+                deleted_at: servFeat.deleted_at,
             };
         }
 
@@ -60,7 +60,7 @@ class ServerFeats {
             server_id: server.id,
             feat: dbFeat,
             overwrites: servFeat.overwrites,
-            deleted_at: servFeat.deleted_at
+            deleted_at: servFeat.deleted_at,
         };
     }
 

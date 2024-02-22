@@ -27,7 +27,7 @@ class Command extends CommandBuilder {
         const option = interaction.options;
         const member = interaction.member;
         const user = member.user;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
         let msg, menu, menus, rows, row, row1, row2, collector, count, num, page, emph, notes, embed;
 
         const private = option.getBoolean('private');
@@ -75,7 +75,7 @@ class Command extends CommandBuilder {
 
                             collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                            collector.on('collect', async (i) => {
+                            collector.on('collect', async i => {
                                 await i.deferUpdate();
 
                                 switch (i.customId) {
@@ -120,7 +120,7 @@ class Command extends CommandBuilder {
                                 }
                             });
 
-                            collector.on('end', async (collected) => {
+                            collector.on('end', async collected => {
                                 if (collected.size > 0) {
                                     client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                 }
@@ -184,7 +184,7 @@ class Command extends CommandBuilder {
 
                             collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                            collector.on('collect', async (i) => {
+                            collector.on('collect', async i => {
                                 await i.deferUpdate();
 
                                 switch (i.customId) {
@@ -229,7 +229,7 @@ class Command extends CommandBuilder {
                                 }
                             });
 
-                            collector.on('end', async (collected) => {
+                            collector.on('end', async collected => {
                                 if (collected.size > 0) {
                                     client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                 }
@@ -301,7 +301,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
@@ -309,15 +309,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with a new Title.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -343,15 +343,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with new Content.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -414,7 +414,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
@@ -452,7 +452,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
@@ -460,15 +460,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with a new Title.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -494,15 +494,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with new Content.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -565,7 +565,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
@@ -625,7 +625,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'selnote':
                                     mes = await i.deferReply();
@@ -655,7 +655,7 @@ class Command extends CommandBuilder {
 
                                     const col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         const mes2 = await j.deferReply();
                                         switch (j.customId) {
                                             case 'confirm':
@@ -681,7 +681,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Confirmation collection timed out...',
@@ -754,7 +754,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Note selection timed out...',
@@ -800,7 +800,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'selnote':
                                     mes = await i.deferReply();
@@ -830,7 +830,7 @@ class Command extends CommandBuilder {
 
                                     const col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         const mes2 = await j.deferReply();
                                         switch (j.customId) {
                                             case 'confirm':
@@ -856,7 +856,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Confirmation collection timed out...',
@@ -929,7 +929,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Note selection timed out...',
@@ -994,7 +994,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
@@ -1002,15 +1002,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with a new Title.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -1036,15 +1036,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with new Content.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -1107,7 +1107,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }
@@ -1147,7 +1147,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'title':
                                     mes = await i.deferReply();
@@ -1155,15 +1155,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with a new Title.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -1189,15 +1189,15 @@ class Command extends CommandBuilder {
                                         content: 'Please reply with new Content.',
                                     });
 
-                                    mesfil = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    mesfil = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ mesfil, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[2].value = j.content;
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -1260,7 +1260,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size > 0) {
                                 client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                             }

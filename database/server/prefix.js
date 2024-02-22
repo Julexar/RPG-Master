@@ -12,7 +12,7 @@ class Prefix {
             return [config.default_prefix];
         }
 
-        return results.map(async (dbPrefix) => {
+        return results.map(async dbPrefix => {
             if (dbPrefix.deleted_at) return;
 
             return dbPrefix.prefix;
@@ -74,7 +74,8 @@ class Prefix {
     static async remove(server, prefix) {
         if (!(await this.exists(server, prefix))) throw new NotFoundError('Prefix not found', 'Could not find that Prefix in the Database!');
 
-        if (await this.isDeleted(server, prefix)) throw new BadRequestError('Prefix deleted', 'The Prefix you are trying to delete has already been deleted!');
+        if (await this.isDeleted(server, prefix))
+            throw new BadRequestError('Prefix deleted', 'The Prefix you are trying to delete has already been deleted!');
 
         await query('UPDATE server_prefixes SET deleted_at = $1 WHERE server_id = $2 AND prefix = $3', [Date.now(), server.id, prefix]);
 

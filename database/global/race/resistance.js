@@ -12,7 +12,7 @@ class RaceResistance {
         }
 
         return Promise.all(
-            results.map(async (raceResist) => {
+            results.map(async raceResist => {
                 let dbResist;
 
                 switch (raceResist.type) {

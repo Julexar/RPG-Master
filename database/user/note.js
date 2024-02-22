@@ -11,7 +11,7 @@ class UserNote {
 
         if (results.length === 0) throw new NotFoundError('No Notes found', 'Could not find any Notes for that User in the Database!');
 
-        return results.map((note) => {
+        return results.map(note => {
             if (note.deleted_at) return;
 
             return note;
@@ -68,7 +68,8 @@ class UserNote {
         try {
             const globNote = await this.getOne(user, note);
 
-            if (note.content === globNote.content && !note.deleted_at) throw new DuplicateError('Duplicate Note', 'A Note with that title and content already exists in the Database!');
+            if (note.content === globNote.content && !note.deleted_at)
+                throw new DuplicateError('Duplicate Note', 'A Note with that title and content already exists in the Database!');
 
             const sql = 'INSERT INTO user_notes (user_id, title, content, private) VALUES($1, $2, $3, $4)';
             await query(sql, [user.id, note.title, note.content, note.private]);
@@ -87,7 +88,8 @@ class UserNote {
     static async remove(user, note) {
         if (!(await this.exists(user, note))) throw new NotFoundError('Note not found', 'Could not find that Note for that User in the Database!');
 
-        if (await this.isDeleted(user, note)) throw new BadRequestError('Note deleted', 'The Note you are trying to remove has already been deleted!');
+        if (await this.isDeleted(user, note))
+            throw new BadRequestError('Note deleted', 'The Note you are trying to remove has already been deleted!');
 
         const sql = 'UPDATE user_notes SET deleted_at = $1 WHERE user_id = $2 AND id = $3';
         await query(sql, [Date.now(), user.id, note.id]);

@@ -8,10 +8,11 @@ class CharacterProficiency {
         if (!prof.type) {
             const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1', [char.id]);
 
-            if (results.length === 0) throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies for that Character in the Database!');
+            if (results.length === 0)
+                throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies for that Character in the Database!');
 
             return Promise.all(
-                results.map(async (charProf) => {
+                results.map(async charProf => {
                     const dbProf = await Proficiency.getOne({ id: charProf.type_id });
 
                     if (charProf.deleted_at) return;
@@ -22,7 +23,7 @@ class CharacterProficiency {
                         type: dbProf,
                         name: charProf.name,
                         expert: charProf.expert,
-                        deleted_at: charProf.deleted_at
+                        deleted_at: charProf.deleted_at,
                     };
                 })
             );
@@ -30,10 +31,14 @@ class CharacterProficiency {
 
         const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND type = $2', [char.id, prof.type]);
 
-        if (results.length === 0) throw new NotFoundError('No Character Proficiencies found', 'Could not find any Proficiencies of that type for that Character in the Database!');
+        if (results.length === 0)
+            throw new NotFoundError(
+                'No Character Proficiencies found',
+                'Could not find any Proficiencies of that type for that Character in the Database!'
+            );
 
         return Promise.all(
-            results.map(async (charProf) => {
+            results.map(async charProf => {
                 const dbProf = await Proficiency.getOne({ id: charProf.type_id });
 
                 if (charProf.deleted_at) return;
@@ -44,7 +49,7 @@ class CharacterProficiency {
                     type: dbProf,
                     name: charProf.name,
                     expert: charProf.expert,
-                    deleted_at: charProf.deleted_at
+                    deleted_at: charProf.deleted_at,
                 };
             })
         );
@@ -54,12 +59,17 @@ class CharacterProficiency {
         if (prof.id) {
             const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
 
-            if (results.length === 0) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
+            if (results.length === 0)
+                throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
             const charProf = results[0];
             const dbProf = await Proficiency.getOne({ id: charProf.type });
 
-            if (charProf.deleted_at) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to view has been deleted!');
+            if (charProf.deleted_at)
+                throw new BadRequestError(
+                    'Character Proficiency deleted',
+                    'The Proficiency of that Character that you are trying to view has been deleted!'
+                );
 
             return {
                 id: charProf.id,
@@ -67,18 +77,23 @@ class CharacterProficiency {
                 type: dbProf,
                 name: charProf.name,
                 expert: charProf.expert,
-                deleted_at: charProf.deleted_at
+                deleted_at: charProf.deleted_at,
             };
         }
 
         const results = await query('SELECT * FROM character_proficiencies WHERE char_id = $1 AND name = $2', [char.id, prof.name]);
 
-        if (results.length === 0) throw new NotFoundError('Character Proficiency not found', 'Could not find a Character Proficiency with that name in the Database!');
+        if (results.length === 0)
+            throw new NotFoundError('Character Proficiency not found', 'Could not find a Character Proficiency with that name in the Database!');
 
         const charProf = results[0];
         const dbProf = await Proficiency.getOne({ id: charProf.type });
 
-        if (charProf.deleted_at) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to view has been deleted!');
+        if (charProf.deleted_at)
+            throw new BadRequestError(
+                'Character Proficiency deleted',
+                'The Proficiency of that Character that you are trying to view has been deleted!'
+            );
 
         return {
             id: charProf.id,
@@ -86,7 +101,7 @@ class CharacterProficiency {
             type: dbProf,
             name: charProf.name,
             expert: charProf.expert,
-            deleted_at: charProf.deleted_at
+            deleted_at: charProf.deleted_at,
         };
     }
 
@@ -118,7 +133,8 @@ class CharacterProficiency {
         try {
             const charProf = await this.getOne(char, prof);
 
-            if (prof.expert === charProf.expert) throw new DuplicateError('Duplicate Character Proficiency', 'That Character already has that Proficiency!');
+            if (prof.expert === charProf.expert)
+                throw new DuplicateError('Duplicate Character Proficiency', 'That Character already has that Proficiency!');
 
             const sql = 'UPDATE character_proficiencies SET expert = $1 WHERE char_id = $2 AND id = $3';
             await query(sql, [prof.expert, char.id, charProf.id]);
@@ -135,9 +151,14 @@ class CharacterProficiency {
     }
 
     static async remove(char, prof) {
-        if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, prof)))
+            throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
-        if (await this.isDeleted(char, prof)) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to remove has already been deleted!');
+        if (await this.isDeleted(char, prof))
+            throw new BadRequestError(
+                'Character Proficiency deleted',
+                'The Proficiency of that Character that you are trying to remove has already been deleted!'
+            );
 
         const sql = 'UPDATE character_proficiencies SET deleted_at = $1 WHERE char_id = $2 AND id = $3';
         await query(sql, [Date.now(), char.id, prof.id]);
@@ -146,7 +167,8 @@ class CharacterProficiency {
     }
 
     static async remove_final(char, prof) {
-        if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, prof)))
+            throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
         await query('DELETE FROM character_proficiencies WHERE char_id = $1 AND id = $2', [char.id, prof.id]);
 
@@ -154,9 +176,14 @@ class CharacterProficiency {
     }
 
     static async update(char, prof) {
-        if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, prof)))
+            throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
-        if (await this.isDeleted(char, prof)) throw new BadRequestError('Character Proficiency deleted', 'The Proficiency of that Character that you are trying to update has been deleted!');
+        if (await this.isDeleted(char, prof))
+            throw new BadRequestError(
+                'Character Proficiency deleted',
+                'The Proficiency of that Character that you are trying to update has been deleted!'
+            );
 
         const sql = 'UPDATE character_proficiencies SET name = $1, type = $2, expert = $3 WHERE char_id = $4 AND id = $5';
         await query(sql, [prof.name, prof.type, prof.expert, char.id, prof.id]);
@@ -165,7 +192,8 @@ class CharacterProficiency {
     }
 
     static async restore(char, prof) {
-        if (!(await this.exists(char, prof))) throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, prof)))
+            throw new NotFoundError('Character Proficiency not found', 'Could not find that Proficiency for that Character in the Database!');
 
         const sql = 'UPDATE character_proficiencies SET deleted_at = NULL WHERE char_id = $1 AND id = $2';
         await query(sql, [char.id, prof.id]);

@@ -10,7 +10,7 @@ class ServerCommandRestriction {
             throw new NotFoundError('No Restrictions found', 'Could not find any Restrictions for that Server Command in the Database!');
         }
 
-        return results.map((restriction) => {
+        return results.map(restriction => {
             return {
                 type: restriction.type,
                 id: restriction.id,
@@ -41,7 +41,7 @@ class ServerCommandRestriction {
             throw new NotFoundError('No Restrictions found', 'Could not find any Restrictions of that Type for the Server Command in the Database!');
         }
 
-        return results.map((restriction) => {
+        return results.map(restriction => {
             return {
                 type: restriction.type,
                 id: restriction.id,
