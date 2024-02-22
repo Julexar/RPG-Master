@@ -15,8 +15,7 @@
   },
   "scripts": {
     "prettier": "npx prettier --write .",
-    "start": "node ./index.js",
-    "stop": "killall node"
+    "push": "git push -u origin root"
   },
   "devDependencies": {
     "prettier": "^3.2.5"
