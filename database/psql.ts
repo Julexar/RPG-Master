@@ -35,6 +35,4 @@ class PSQL {
     }
 }
 
-const psql = new PSQL();
-
-export { psql };
+export const psql = new PSQL();
