@@ -3,6 +3,7 @@
   "version": "",
   "type": "module",
   "dependencies": {
+    "@prisma/client": "^5.10.2",
     "ascii-table": "^0.0.9",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
