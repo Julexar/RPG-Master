@@ -1,1 +1,1 @@
-import { Armor, Condition, Damagetype } from './global';
+import { Armor, Condition, Damagetype, Feat } from './global';
