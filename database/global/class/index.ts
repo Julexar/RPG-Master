@@ -1,6 +1,7 @@
 import { psql } from '../../psql';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
 import { ClassProficiency } from './proficiency';
+import { ClassSave } from './save';
 const { query } = psql;
 
 interface DBClass {
@@ -28,8 +29,10 @@ interface AddClass {
 
 class Clas {
     profs: typeof ClassProficiency;
+    saves: typeof ClassSave;
     constructor() {
         this.profs = ClassProficiency;
+        this.saves = ClassSave;
     }
 
     async getAll() {
@@ -39,13 +42,15 @@ class Clas {
 
         return await Promise.all(
             results.map(async (dbClass) => {
-                const [ classProfs ] = await Promise.all([
-                    await this.profs.getAll(dbClass)
+                const [ classProfs, classSaves ] = await Promise.all([
+                    await this.profs.getAll(dbClass),
+                    await this.saves.getAll(dbClass)
                 ]);
 
                 return {
                     ...dbClass,
-                    profs: classProfs
+                    profs: classProfs,
+                    saves: classSaves
                 }
             })
         );
@@ -58,13 +63,15 @@ class Clas {
             if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find the Class in the Database!');
 
             const dbClass = results[0];
-            const [ classProfs ] = await Promise.all([
-                await this.profs.getAll(dbClass)
+            const [ classProfs, classSaves ] = await Promise.all([
+                await this.profs.getAll(dbClass),
+                await this.saves.getAll(dbClass)
             ]);
 
             return {
                 ...dbClass,
-                profs: classProfs
+                profs: classProfs,
+                saves: classSaves
             };
         }
 
@@ -73,13 +80,15 @@ class Clas {
         if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find a Class with that Name in the Database!');
 
         const dbClass = results[0];
-        const [ classProfs ] = await Promise.all([
-            await this.profs.getAll(dbClass)
+        const [ classProfs, classSaves ] = await Promise.all([
+            await this.profs.getAll(dbClass),
+            await this.saves.getAll(dbClass)
         ]);
 
         return {
             ...dbClass,
-            profs: classProfs
+            profs: classProfs,
+            saves: classSaves
         };
     }
 
