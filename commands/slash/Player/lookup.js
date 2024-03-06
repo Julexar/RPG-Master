@@ -18,7 +18,7 @@ class Command extends CommandBuilder {
         const option = interaction.options;
         const user = interaction.user;
         const server = interaction.guild;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
 
         let msg, collector, menu;
 
@@ -69,7 +69,7 @@ class Command extends CommandBuilder {
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async (i) => {
+                    collector.on('collect', async i => {
                         await i.deferUpdate();
 
                         switch (i.customId) {
@@ -79,11 +79,12 @@ class Command extends CommandBuilder {
                                 const armor = await client.database.Server.armors.getOne(server, { id: armorId });
 
                                 menu.data.title = armor.name;
-                                menu.data.description = armor.attune
-                                    ? armor.attune_req
-                                        ? `_Requires Attunement by (a) ${armor.attune_req}_\n\n` + armor.description
-                                        : `_Requires Attunement_\n\n` + armor.description
-                                    : armor.description;
+                                menu.data.description =
+                                    armor.attune ?
+                                        armor.attune_req ?
+                                            `_Requires Attunement by (a) ${armor.attune_req}_\n\n` + armor.description
+                                        :   `_Requires Attunement_\n\n` + armor.description
+                                    :   armor.description;
                                 menu.addFields(
                                     {
                                         name: 'Rarity',
@@ -164,7 +165,7 @@ class Command extends CommandBuilder {
                         }
                     });
 
-                    collector.on('end', async (collected) => {
+                    collector.on('end', async collected => {
                         if (collected.size === 0) {
                             await msg.edit({
                                 content: 'Selection timed out...',
@@ -225,7 +226,7 @@ class Command extends CommandBuilder {
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async (i) => {
+                    collector.on('collect', async i => {
                         await i.deferUpdate();
 
                         switch (i.customId) {
@@ -350,7 +351,7 @@ class Command extends CommandBuilder {
                         }
                     });
 
-                    collector.on('end', async (collected) => {
+                    collector.on('end', async collected => {
                         if (collected.size === 0) {
                             await msg.edit({
                                 content: 'Selection timed out...',

@@ -16,7 +16,7 @@ class Command extends CommandBuilder {
         const option = interaction.options;
         const server = interaction.guild;
         const user = interaction.user;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
 
         switch (option.getSubcommand()) {
             case 'execute':

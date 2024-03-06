@@ -84,7 +84,7 @@ class Command extends CommandBuilder {
     async run(interaction) {
         const option = interaction.options;
         const user = interaction.user;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
         let collector;
 
         switch (option.getSubcommand()) {
@@ -118,7 +118,7 @@ class Command extends CommandBuilder {
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async (i) => {
+                    collector.on('collect', async i => {
                         switch (i.customId) {
                             case 'setform':
                                 const mr = new ActionRowBuilder().addComponents(
@@ -132,13 +132,13 @@ class Command extends CommandBuilder {
                                 const modal = new ModalBuilder().setCustomId('diceform').setTitle('Dice Formula').addComponents(mr);
 
                                 await i.showModal(modal);
-                                const filt = (int) => int.customId == 'diceform';
+                                const filt = int => int.customId == 'diceform';
 
                                 i.awaitModalSubmit({
                                     filt,
                                     time: 35000,
                                 })
-                                    .then(async (inter) => {
+                                    .then(async inter => {
                                         await inter.deferUpdate();
 
                                         const form = inter.fields.getTextInputValue('formula');
@@ -153,7 +153,7 @@ class Command extends CommandBuilder {
                                             ephemeral: true,
                                         });
                                     })
-                                    .catch(async (err) => {
+                                    .catch(async err => {
                                         await msg.edit({
                                             embeds: [new ErrorEmbed(err, true)],
                                             components: [],
@@ -176,7 +176,7 @@ class Command extends CommandBuilder {
                         }
                     });
 
-                    collector.on('end', async (collected) => {
+                    collector.on('end', async collected => {
                         if (collected.size > 0) {
                             client.writeServerLog(interaction.guild, `Collected ${collected.size} Interactions`);
                         }
