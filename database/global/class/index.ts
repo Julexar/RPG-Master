@@ -1,5 +1,6 @@
 import { psql } from '../../psql';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
+import { MCRequirement } from './mc_requirement';
 import { ClassProficiency } from './proficiency';
 import { ClassSave } from './save';
 import { ClassTrait } from './trait';
@@ -32,10 +33,12 @@ class Clas {
     profs: typeof ClassProficiency;
     saves: typeof ClassSave;
     traits: typeof ClassTrait;
+    mc_reqs: typeof MCRequirement;
     constructor() {
         this.profs = ClassProficiency;
         this.saves = ClassSave;
         this.traits = ClassTrait;
+        this.mc_reqs = MCRequirement;
     }
 
     async getAll() {
