@@ -81,6 +81,6 @@ export class Armor {
         const sql = 'UPDATE armors SET name = $1, description = $2, source = $3, type_id = $4, rarity_id = $5, stats = $6 WHERE id = $7';
         await query(sql, [armor.name, armor.description, armor.source, armor.type_id, armor.rarity_id, armor.stats, armor.id]);
 
-        return 'Successfully updated Armor in the Database';
+        return 'Successfully updated Armor in Database';
     }
 }
