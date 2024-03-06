@@ -66,6 +66,6 @@ export class Damagetype {
 
         await query('UPDATE dmgtype SET name = $1 WHERE id = $2', [dmgtype.name, dmgtype.id]);
 
-        return 'Successfully updated Damage Type in the Database';
+        return 'Successfully updated Damage Type in Database';
     }
 }
