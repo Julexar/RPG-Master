@@ -1,1 +1,1 @@
-import { Armor } from './global';
+import { Armor, Condition } from './global';
