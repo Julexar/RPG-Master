@@ -6,14 +6,11 @@ import { DuplicateError, NotFoundError } from '../../custom/errors';
 import { ErrorEmbed } from '../../custom/embeds';
 
 class Event {
-    name: string;
-    constructor() {
-        this.name = 'ready';
-    }
+    public readonly name = 'ready';
 
-    async run() {
+    static async run() {
         //Database Command Registration
-        this.registerDBCommands();
+        await this.registerDBCommands();
 
         client.user?.setPresence(client.config.presence as PresenceData);
 
@@ -24,7 +21,7 @@ class Event {
         await this.checkServerCache();
     }
 
-    registerDBCommands() {
+    static async registerDBCommands() {
         client.slashCommands.forEach(async (cmd) => {
             client.writeDevLog(`Attemtping to register Command /${cmd.name} in Database...`);
 
@@ -52,7 +49,7 @@ class Event {
         });
     }
 
-    async checkDBServers() {
+    static async checkDBServers() {
         client.writeDevLog('Checking existing Servers...');
         const servers = await client.database.Server.getAll()
 
@@ -87,7 +84,7 @@ class Event {
         }
     }
 
-    async checkServerLogger(server: Guild) {
+    static async checkServerLogger(server: Guild) {
         const log = await client.database.Server.logs.getLatest(server);
         const date = new Date().toISOString();
         const difference = moment(log.created_at).diff(moment(date), 'hours')
@@ -107,7 +104,7 @@ class Event {
         .catch(async err => await client.logServerError(server, err));
     }
 
-    async checkServerCache() {
+    static async checkServerCache() {
         client.writeDevLog('Beginning registration of new Servers...');
         client.guilds.cache.forEach(async guild => {
             client.writeDevLog(`Attempting to register Server \"${guild.name}\" in Database...`)
@@ -135,7 +132,7 @@ class Event {
         });
     }
 
-    async registerMembers(guild: Guild) {
+    static async registerMembers(guild: Guild) {
         await client.writeServerLog(guild, 'Beginning Member Registration - Searching Database for Members...');
 
         client.database.Server.members.getAll(guild)
@@ -170,7 +167,7 @@ class Event {
         });
     }
 
-    createInterval(guild: Guild) {
+    static createInterval(guild: Guild) {
         setInterval(async () => {
             const dbServer = await client.database.Server.getOne(guild);
 
@@ -203,7 +200,7 @@ class Event {
         }, 1000 * 60 * 60 * 24);
     }
 
-    async registerServerCommands(guild: Guild) {
+    static async registerServerCommands(guild: Guild) {
         const commandsArray = Array.from(client.slashCommands).values() as unknown as ApplicationCommandDataResolvable[];
 
         guild.commands.set(commandsArray)
@@ -252,4 +249,4 @@ class Event {
     }
 }
 
-export default new Event();
+export default Event;
