@@ -2,6 +2,7 @@ import { psql } from '../../psql';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
 import { ClassProficiency } from './proficiency';
 import { ClassSave } from './save';
+import { ClassTrait } from './trait';
 const { query } = psql;
 
 interface DBClass {
@@ -30,9 +31,11 @@ interface AddClass {
 class Clas {
     profs: typeof ClassProficiency;
     saves: typeof ClassSave;
+    traits: typeof ClassTrait;
     constructor() {
         this.profs = ClassProficiency;
         this.saves = ClassSave;
+        this.traits = ClassTrait;
     }
 
     async getAll() {
@@ -42,15 +45,17 @@ class Clas {
 
         return await Promise.all(
             results.map(async (dbClass) => {
-                const [ classProfs, classSaves ] = await Promise.all([
+                const [ classProfs, classSaves, classTraits ] = await Promise.all([
                     await this.profs.getAll(dbClass),
-                    await this.saves.getAll(dbClass)
+                    await this.saves.getAll(dbClass),
+                    await this.traits.getAll(dbClass)
                 ]);
 
                 return {
                     ...dbClass,
                     profs: classProfs,
-                    saves: classSaves
+                    saves: classSaves,
+                    traits: classTraits
                 }
             })
         );
@@ -63,15 +68,17 @@ class Clas {
             if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find the Class in the Database!');
 
             const dbClass = results[0];
-            const [ classProfs, classSaves ] = await Promise.all([
+            const [ classProfs, classSaves, classTraits ] = await Promise.all([
                 await this.profs.getAll(dbClass),
-                await this.saves.getAll(dbClass)
+                await this.saves.getAll(dbClass),
+                await this.traits.getAll(dbClass)
             ]);
 
             return {
                 ...dbClass,
                 profs: classProfs,
-                saves: classSaves
+                saves: classSaves,
+                traits: classTraits
             };
         }
 
@@ -80,15 +87,17 @@ class Clas {
         if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find a Class with that Name in the Database!');
 
         const dbClass = results[0];
-        const [ classProfs, classSaves ] = await Promise.all([
+        const [ classProfs, classSaves, classTraits ] = await Promise.all([
             await this.profs.getAll(dbClass),
-            await this.saves.getAll(dbClass)
+            await this.saves.getAll(dbClass),
+            await this.traits.getAll(dbClass)
         ]);
 
         return {
             ...dbClass,
             profs: classProfs,
-            saves: classSaves
+            saves: classSaves,
+            traits: classTraits
         };
     }
 
