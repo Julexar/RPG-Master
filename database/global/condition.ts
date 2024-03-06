@@ -65,6 +65,6 @@ export class Condition {
         const sql = 'UPDATE conditions SET name = $1, description = $2 WHERE id = $3';
         await query(sql, [condition.name, condition.description, condition.id]);
 
-        return 'Successfully updated Condition in the Database';
+        return 'Successfully updated Condition in Database';
     }
 }
