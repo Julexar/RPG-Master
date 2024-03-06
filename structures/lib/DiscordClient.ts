@@ -1,8 +1,9 @@
 import { Client, Collection, GatewayIntentBits, Guild } from "discord.js";
 import { config } from "../../config.ts";
 import * as db from '../../database';
-import moment from 'moment';
+import { loggers } from 'winston';
 import fs from 'fs';
+import { devlog } from '../../logs/dev/logger.ts';
 import { Config, Database, Error } from "../../*";
 
 class DiscordClient extends Client {
@@ -43,17 +44,24 @@ class DiscordClient extends Client {
         }
     }
 
+    chkServerLog(server: Guild) {
+        try {
+            if (!fs.existsSync(`./logs/server/${server.id}`)) fs.mkdirSync(`./logs/server/${server.id}`);
+        
+            return loggers.get(`${server.id}`);
+        } catch (err) {
+            throw err;
+        }
+    }
+
     async writeServerLog(server: Guild, content: string) {
         try {
-            const date = moment().format('YYYY-MM-DD HH:mm:ss');
-
-            if (!fs.existsSync(`./logs/server/${server.id}`)) fs.mkdirSync(`./logs/server/${server.id}`);
-
+            const logger = this.chkServerLog(server);
             const log = await this.database.Server.logs.getLatest(server)
 
-            if (!fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) fs.writeFileSync(`./logs/server/${server.id}/${log.id}.log`, '========Beginning of new Log========\n');
-
-            fs.appendFileSync(`./logs/server/${server.id}/${log.id}.log`, `${date} - ${content}\n`);
+            if (!fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) logger.info('========Beginning of new Log========\n');
+            
+            logger.info(content);
 
             this.writeDevLog(`Successfully wrote into Logfile of Server "${server.name}"`);
         } catch (err) {
@@ -63,7 +71,8 @@ class DiscordClient extends Client {
 
     async logServerError(server: Guild, err: Error) {
         try {
-            await this.writeServerLog(server, `${err}\n${err.cause}`);
+            const logger = this.chkServerLog(server);
+            logger.error(`${err} - ${err.cause}`);
         } catch (error) {
             this.logDevError(error);
         }
@@ -71,20 +80,18 @@ class DiscordClient extends Client {
 
     writeDevLog(content: string) {
         try {
-            const date = moment().format('YYYY-MM-DD HH:mm:ss');
-
             if (!fs.existsSync(`./logs/dev`)) fs.mkdirSync(`./logs/dev`);
 
-            if (!fs.existsSync('./logs/dev/devlog.log')) fs.writeFileSync('./logs/dev/devlog.log', '========Beginning of new Log========\n');
+            if (!fs.existsSync('./logs/dev/devlog.log')) devlog.info('========Beginning of new Log========\n');
 
-            fs.appendFileSync('./logs/dev/devlog.log', `${date} - ${content}\n`);
+            devlog.info(content);
         } catch (err) {
             this.logDevError(err);
         }
     }
 
     logDevError(err: Error) {
-        this.writeDevLog(`${err}\n${err.cause}`);
+        devlog.error(`${err} - ${err.cause}`);
     }
 }
 

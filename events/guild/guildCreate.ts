@@ -1,4 +1,6 @@
 import { ApplicationCommand, ApplicationCommandPermissions, Collection, Guild, GuildMember, GuildTextBasedChannel, Snowflake } from 'discord.js';
+import { loggers, format, transports } from 'winston';
+import moment from 'moment';
 import { client } from '../..';
 import { DuplicateError, NotFoundError } from '../../custom/errors';
 import { ErrorEmbed } from '../../custom/embeds';
@@ -12,6 +14,9 @@ class Event {
     async run(guild: Guild) {
         //Server Registration
         this.registerServer(guild);
+
+        //Logfile Creation
+        await this.checkServerLogger(guild);
 
         //Member Registration
         await this.registerMembers(guild);
@@ -33,10 +38,6 @@ class Event {
         client.database.Server.add(server)
         .then(client.writeDevLog)
         .catch(client.logDevError);
-        
-        client.database.Server.logs.add(guild)
-        .then(async msg => await client.writeServerLog(guild, msg))
-        .catch(async err => await client.logServerError(guild, err));
     }
 
     async registerMembers(guild: Guild) {
@@ -72,6 +73,26 @@ class Event {
         });
     }
 
+    async checkServerLogger(server: Guild) {
+        const log = await client.database.Server.logs.getLatest(server);
+        const date = new Date().toISOString();
+        const difference = moment(log.created_at).diff(moment(date), 'hours')
+
+        if (loggers.get(server.id) && difference >= 23) loggers.close(server.id);
+
+        loggers.add(server.id, {
+            format: format.combine(
+                format.timestamp(),
+                format.printf(info => `${info.message}`)
+            ),
+            transports: [new transports.File({ filename: `./logs/server/${server.id}/${date}.log` })]
+        });
+
+        client.database.Server.logs.add(server, date)
+        .then(async msg => await client.writeServerLog(server, msg))
+        .catch(async err => await client.logServerError(server, err));
+    }
+
     async createInterval(guild: Guild) {
         await client.writeServerLog(guild, 'Member registration complete - Creating Interval for Logging...')
 
@@ -100,6 +121,8 @@ class Event {
                         }
                     } else throw new NotFoundError('No Logchannel found', `This Server has no Logchannel defined, please set one with \`/server setchannel log\``)
                 }
+
+                await this.checkServerLogger(guild);
             } catch (err) {
                 await client.logServerError(guild, err)
             }
