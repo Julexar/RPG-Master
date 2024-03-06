@@ -1,0 +1,1 @@
+import { Armor } from './global';
