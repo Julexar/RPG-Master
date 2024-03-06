@@ -3,6 +3,7 @@ const Pool = pkg.Pool;
 import 'dotenv/config';
 import { InternalServerError } from '../custom/errors';
 import { client } from '..';
+import { Error } from '../*';
 
 class PSQL {
     pool: any;
@@ -16,7 +17,7 @@ class PSQL {
         });
 
         this.pool.connect((err: Error) => {
-            if (err) return client.writeDevLog(`${err}`);
+            if (err) return client.logDevError(err);
             
             client.writeDevLog('Connected to Database!');
         });

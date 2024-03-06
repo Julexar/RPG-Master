@@ -1,17 +1,17 @@
 import { Client, Collection, GatewayIntentBits, Guild } from "discord.js";
 import { config } from "../../config.ts";
-import * as db from '../../database';
+import { prisma } from '../../database/prisma.ts';
 import { loggers } from 'winston';
 import fs from 'fs';
 import { devlog } from '../../logs/dev/logger.ts';
-import { Config, Database, Error } from "../../*";
+import { Config, Error } from "../../*";
 
 class DiscordClient extends Client {
     slashCommands: Collection<string, any>;
     prefixCommands: Collection<string, any>;
     contextCommands: Collection<string, any>;
     config: Config;
-    database: Database;
+    database: typeof prisma;
 
     constructor() {
         super({
@@ -28,7 +28,7 @@ class DiscordClient extends Client {
         this.prefixCommands = new Collection();
         this.contextCommands = new Collection();
         this.config = config;
-        this.database = db;
+        this.database = prisma;
     }
 
     async start() {
@@ -54,12 +54,23 @@ class DiscordClient extends Client {
         }
     }
 
+    async getLatestServerLog(server: Guild) {
+        return await this.database.server_logs.findFirst({
+            where: {
+                server_id: server.id
+            },
+            orderBy: {
+                created_at: 'desc'
+            }
+        });
+    }
+
     async writeServerLog(server: Guild, content: string) {
         try {
             const logger = this.chkServerLog(server);
-            const log = await this.database.Server.logs.getLatest(server)
+            const log = await this.getLatestServerLog(server);
 
-            if (!fs.existsSync(`./logs/server/${server.id}/${log.id}.log`)) logger.info('========Beginning of new Log========\n');
+            if (!fs.existsSync(`./logs/server/${server.id}/${log?.created_at}.log`)) logger.info('========Beginning of new Log========\n');
             
             logger.info(content);
 
