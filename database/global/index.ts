@@ -1,5 +1,6 @@
 import { Armor } from './armor';
 import { Class } from './class';
+import { Command } from './command';
 import { Condition } from './condition';
 import { Damagetype } from './dmgtype';
 import { Feat } from './feat';
@@ -13,6 +14,7 @@ import { Stats } from './stats';
 export {
     Armor,
     Class,
+    Command,
     Condition,
     Damagetype,
     Feat,
