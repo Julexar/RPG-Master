@@ -156,7 +156,7 @@ class spell {
     }
 
     async add(spell: AddSpell) {
-        if (await this.exists(spell)) throw new DuplicateError('Spell already exists', 'That Spell already exists in the Database!');
+        if (await this.exists(spell)) throw new DuplicateError('Duplicate Spell', 'That Spell already exists in the Database!');
 
         const sql = 'INSERT INTO spells (name, description, cast_time, cast_type, cast_req, level, school_id, classes, higher_lvl, dmgtype_id, dmg_stat, save_stat, stats) VALUES ($1, $2, $3, $4, $5, $6, $7, ARRAY$8, $9::JSON, $10, $11, $12, $13)';
         await query(sql, [spell.name, spell.description, spell.cast_time, spell.cast_type, spell.cast_req, spell.level, spell.school_id, spell.classes.toString(), JSON.stringify(spell.higher_lvl), spell.dmgtype_id, spell.dmg_stat, spell.save_stat, spell.stats]);

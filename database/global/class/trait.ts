@@ -1,6 +1,5 @@
-import { psql } from "../../psql";
+import { prisma as db } from "../../prisma";
 import { NotFoundError, DuplicateError } from "../../../custom/errors";
-const { query } = psql;
 
 interface DBClassTrait {
     id: number;
@@ -20,7 +19,7 @@ interface AddClassTrait {
 
 export class ClassTrait {
     static async getAll(clas: { id: number }) {
-        const results = await query('SELECT * FROM class_traits WHERE class_id = $1', [clas.id]) as DBClassTrait[];
+        const results = await db.class_traits.findMany({ where: { class_id: clas.id } });
 
         if (results.length === 0) throw new NotFoundError('No Class Traits found', 'Could not find any Class Traits in the Database!');
 
@@ -29,55 +28,69 @@ export class ClassTrait {
 
     static async getOne(clas: { id: number }, trait: { id?: number, name?: string }) {
         if (trait.id) {
-            const results = await query('SELECT * FROM class_traits WHERE id = $1', [trait.id]) as DBClassTrait[];
+            const result = await db.class_traits.findUnique({ where: { id: trait.id } });
 
-            if (results.length === 0) throw new NotFoundError('Class Trait not found', 'Could not find that Class Trait in the Database!');
+            if (!result) throw new NotFoundError('Class Trait not found', 'Could not find that Class Trait in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM class_traits WHERE class_id = $1 AND name = $2', [clas.id, trait.name]) as DBClassTrait[];
+        const result = await db.class_traits.findFirst({ where: { class_id: clas.id, name: trait.name } });
 
-        if (results.length === 0) throw new NotFoundError('Class Trait not found', 'Could not find that Class Trait in the Database!');
+        if (!result) throw new NotFoundError('Class Trait not found', 'Could not find that Class Trait in the Database!');
 
-        return results[0];
+        return result;
     }
 
     static async exists(clas: { id: number }, trait: { id?: number, name?: string }) {
         if (trait.id) {
-            const results = await query('SELECT * FROM class_traits WHERE id = $1', [trait.id]) as DBClassTrait[];
+            const result = await db.class_traits.findUnique({ where: { id: trait.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM class_traits WHERE class_id = $1 AND name = $2', [clas.id, trait.name]) as DBClassTrait[];
+        const result = await db.class_traits.findFirst({ where: { class_id: clas.id, name: trait.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(clas: { id: number }, trait: AddClassTrait) {
-        if (await this.exists(clas, { name: trait.name })) throw new DuplicateError('Class Trait already exists', 'A Class Trait with that name already exists in the Database!');
+        if (await this.exists(clas, { name: trait.name })) throw new DuplicateError('Duplicate Class Trait', 'That Class Trait already exists in the Database!');
 
-        const sql = 'INSERT INTO class_traits (class_id, name, description, visible, options) VALUES ($1, $2, $3, $4, $5)';
-        await query(sql, [clas.id, trait.name, trait.description, trait.visible, trait.options]) as { id: number }[];
+        await db.class_traits.create({
+            data: {
+                class_id: clas.id,
+                name: trait.name,
+                description: trait.description,
+                visible: trait.visible,
+                options: JSON.parse(JSON.stringify(trait.options))
+            }
+        });
 
-        return 'Successfully added Class Trait to the Database';
+        return 'Successfully added Class Trait to Database';
     }
 
     static async remove(clas: { id: number }, trait: { id: number }) {
         if (!await this.exists(clas, trait)) throw new NotFoundError('Class Trait not found', 'Could not find that Class Trait in the Database!');
 
-        await query('DELETE FROM class_traits WHERE id = $1', [trait.id]);
+        await db.class_traits.delete({ where: { id: trait.id } });
 
-        return 'Successfully removed Class Trait from the Database';
+        return 'Successfully removed Class Trait from Database';
     }
 
     static async update(clas: { id: number }, trait: DBClassTrait) {
         if (!await this.exists(clas, { id: trait.id })) throw new NotFoundError('Class Trait not found', 'Could not find that Class Trait in the Database!');
 
-        const sql = 'UPDATE class_traits SET name = $1, description = $2, visible = $3, options = $4 WHERE id = $5';
-        await query(sql, [trait.name, trait.description, trait.visible, trait.options, trait.id]);
+        await db.class_traits.update({ 
+            where: { id: trait.id }, 
+            data: {
+                name: trait.name,
+                description: trait.description,
+                visible: trait.visible,
+                options: JSON.parse(JSON.stringify(trait.options))
+            }
+        });
 
-        return 'Successfully updated Class Trait in the Database';
+        return 'Successfully updated Class Trait in Database';
     }
 }

@@ -1,74 +1,72 @@
-import { psql } from "../psql";
+import { prisma as db } from "../prisma";
 import { NotFoundError, DuplicateError } from "../../custom/errors";
-const { query } = psql;
 
 interface DBProficiency {
     id: number;
     name: string;
-    key: string;
+    type: string;
 }
 
 interface AddProficiency {
     name: string;
-    key: string;
+    type: string;
 }
 
 export class Proficiency {
     static async getAll() {
-        const results = await query('SELECT * FROM proficiencies') as DBProficiency[];
+        const results = await db.proficiencies.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Proficiency found', 'Could not find any Proficiencies in the Database!');
 
         return results;
     }
 
-    static async getOne(proficiency: { id?: number, name?: string, key?: string }) {
+    static async getOne(proficiency: { id?: number, name?: string, type?: string }) {
         if (proficiency.id) {
-            const results = await query('SELECT * FROM proficiencies WHERE id = $1', [proficiency.id]) as DBProficiency[];
+            const result = await db.proficiencies.findUnique({ where: { id: proficiency.id } });
 
-            if (results.length === 0) throw new NotFoundError('Proficiency not found', 'Could not find that Proficiency in the Database!');
+            if (!result) throw new NotFoundError('Proficiency not found', 'Could not find that Proficiency in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        if (proficiency.key) {
-            const results = await query('SELECT * FROM proficiencies WHERE key = $1', [proficiency.key]) as DBProficiency[];
+        if (proficiency.type) {
+            const result = await db.proficiencies.findUnique({ where: { type: proficiency.type } });
 
-            if (results.length === 0) throw new NotFoundError('Proficiency not found', 'Could not find a Proficiency with that Key in the Database!');
+            if (!result) throw new NotFoundError('Proficiency not found', 'Could not find a Proficiency with that Key in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM proficiencies WHERE name = $1', [proficiency.name]) as DBProficiency[];
+        const result = await db.proficiencies.findFirst({ where: { name: proficiency.name } });
 
-        if (results.length === 0) throw new NotFoundError('Proficiency not found', 'Could not find a Proficiency with that Name in the Database!');
+        if (!result) throw new NotFoundError('Proficiency not found', 'Could not find a Proficiency with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
-    static async exists(proficiency: { id?: number, name?: string, key?: string }) {
+    static async exists(proficiency: { id?: number, name?: string, type?: string }) {
         if (proficiency.id) {
-            const results = await query('SELECT * FROM proficiencies WHERE id = $1', [proficiency.id]) as DBProficiency[];
+            const result = await db.proficiencies.findUnique({ where: { id: proficiency.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        if (proficiency.key) {
-            const results = await query('SELECT * FROM proficiencies WHERE key = $1', [proficiency.key]) as DBProficiency[];
+        if (proficiency.type) {
+            const result = await db.proficiencies.findUnique({ where: { type: proficiency.type } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM proficiencies WHERE name = $1', [proficiency.name]) as DBProficiency[];
+        const result = await db.proficiencies.findFirst({ where: { name: proficiency.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(proficiency: AddProficiency) {
-        if (await this.exists(proficiency)) throw new DuplicateError('Proficiency already exists', 'A Proficiency with that Name already exists in the Database!');
+        if (await this.exists(proficiency)) throw new DuplicateError('Duplicate Proficiency', 'That Proficiency already exists in the Database!');
 
-        const sql = 'INSERT INTO proficiencies (name, key) VALUES ($1, $2)';
-        await query(sql, [proficiency.name, proficiency.key]);
+        await db.proficiencies.create({ data: proficiency });
 
         return 'Successfully added Proficiency to the Database';
     }
@@ -76,7 +74,7 @@ export class Proficiency {
     static async remove(proficiency: { id: number }) {
         if (!await this.exists(proficiency)) throw new NotFoundError('Proficiency not found', 'Could not find that Proficiency in the Database!');
 
-        await query('DELETE FROM proficiencies WHERE id = $1', [proficiency.id]);
+        await db.proficiencies.delete({ where: { id: proficiency.id } });
 
         return 'Successfully removed Proficiency from the Database';
     }
@@ -84,8 +82,10 @@ export class Proficiency {
     static async update(proficiency: DBProficiency) {
         if (!(await this.exists({ id: proficiency.id }))) throw new NotFoundError('Proficiency not found', 'Could not find that Proficiency in the Database!');
 
-        const sql = 'UPDATE proficiencies SET name = $1, key = $2 WHERE id = $3';
-        await query(sql, [proficiency.name, proficiency.key, proficiency.id]);
+        await db.proficiencies.update({
+            where: { id: proficiency.id },
+            data: { name: proficiency.name, type: proficiency.type }
+        });
 
         return 'Successfully updated Proficiency in Database';
     }

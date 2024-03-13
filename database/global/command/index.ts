@@ -83,7 +83,7 @@ class command {
     }
 
     async add(command: AddCommand) {
-        if (await this.exists({ name: command.name, type: command.type })) throw new DuplicateError('Command already exists', 'A Command with that Name and Type already exists in the Database!');
+        if (await this.exists(command)) throw new DuplicateError('Duplicate Command', 'That Command already exists in the Database!');
 
         const type = await this.types.getOne({ key: command.type });
 

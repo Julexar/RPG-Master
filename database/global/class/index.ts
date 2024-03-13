@@ -68,7 +68,7 @@ class Clas {
         if (clas.id) {
             const results = await query('SELECT * FROM classes WHERE id = $1', [clas.id]) as DBClass[];
 
-            if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find the Class in the Database!');
+            if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
 
             const dbClass = results[0];
             const [ classProfs, classSaves, classTraits ] = await Promise.all([
@@ -117,30 +117,30 @@ class Clas {
     }
 
     async add(clas: AddClass) {
-        if (await this.exists(clas)) throw new DuplicateError('Class already exists', 'A Class with that Name already exists in the Database!');
+        if (await this.exists(clas)) throw new DuplicateError('Duplicate Class', 'That Class already exists in the Database!');
 
         const sql = 'INSERT INTO classes (name, description, hitdice, caster, castlvl, cast_stat, has_subclass, either_requirement) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)';
         await query(sql, [clas.name, clas.description, clas.hitdice, clas.caster, clas.castlvl, clas.cast_stat, clas.has_subclass, clas.either_requirement]);
 
-        return 'Successfully added Class to the Database';
+        return 'Successfully added Class to Database';
     }
 
     async remove(clas: { id: number }) {
-        if (!await this.exists(clas)) throw new NotFoundError('Class not found', 'Could not find the Class in the Database!');
+        if (!await this.exists(clas)) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
 
         const sql = 'DELETE FROM classes WHERE id = $1';
         await query(sql, [clas.id]);
 
-        return 'Successfully removed Class from the Database';
+        return 'Successfully removed Class from Database';
     }
 
     async update(clas: DBClass) {
-        if (!await this.exists({ id: clas.id })) throw new NotFoundError('Class not found', 'Could not find the Class in the Database!');
+        if (!await this.exists({ id: clas.id })) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
 
         const sql = 'UPDATE classes SET name = $1, description = $2, hitdice = $3, caster = $4, castlvl = $5, cast_stat = $6, has_subclass = $7, either_requirement = $8 WHERE id = $9';
         await query(sql, [clas.name, clas.description, clas.hitdice, clas.caster, clas.castlvl, clas.cast_stat, clas.has_subclass, clas.either_requirement, clas.id]);
 
-        return 'Successfully updated Class in the Database';
+        return 'Successfully updated Class in Database';
     }
 }
 

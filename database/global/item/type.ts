@@ -44,7 +44,7 @@ export class ItemType {
     }
 
     static async add(type: { name: string }) {
-        if (await this.exists({ name: type.name })) throw new DuplicateError('Item Type already exists', 'An Item Type with that Name already exists in the Database!');
+        if (await this.exists(type)) throw new DuplicateError('Duplicate Item Type', 'That Item Type already exists in the Database!');
 
         await db.item_types.create({ data: { name: type.name } });
 
@@ -52,7 +52,7 @@ export class ItemType {
     }
 
     static async remove(type: { id: number }) {
-        if (!await this.exists({ id: type.id })) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
+        if (!await this.exists(type)) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
 
         await db.item_types.delete({ where: { id: type.id } });
 
@@ -60,7 +60,7 @@ export class ItemType {
     }
 
     static async update(type: DBItemType) {
-        if (!await this.exists({ id: type.id })) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
+        if (!await this.exists(type)) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
 
         await db.item_types.update({ where: { id: type.id }, data: { name: type.name } });
 

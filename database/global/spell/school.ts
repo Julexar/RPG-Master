@@ -44,7 +44,7 @@ export class SpellSchool {
     }
 
     static async add(school: { name: string }) {
-        if (await this.exists(school)) throw new DuplicateError('Spell School already exists', 'That Spell School already exists in the Database!');
+        if (await this.exists(school)) throw new DuplicateError('Duplicate Spell School', 'That Spell School already exists in the Database!');
 
         await db.spell_schools.create({ data: school });
 

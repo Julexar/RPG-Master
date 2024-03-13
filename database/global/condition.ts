@@ -1,6 +1,5 @@
-import { psql } from "../psql";
+import { prisma as db } from "../prisma";
 import { NotFoundError, DuplicateError } from "../../custom/errors";
-const { query } = psql;
 
 interface DBCondition {
     id: number;
@@ -15,7 +14,7 @@ interface AddCondition {
 
 export class Condition {
     static async getAll() {
-        const results = await query('SELECT * FROM conditions') as DBCondition[];
+        const results = await db.conditions.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Condition found', 'Could not find any Conditions in the Database!');
 
@@ -24,46 +23,55 @@ export class Condition {
 
     static async getOne(condition: { id?: number, name?: string }) {
         if (condition.id) {
-            const results = await query('SELECT * FROM conditions WHERE id = $1', [condition.id]) as DBCondition[];
+            const result = await db.conditions.findUnique({ where: { id: condition.id } });
 
-            if (results.length === 0) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
+            if (!result) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM conditions WHERE name = $1', [condition.name]) as DBCondition[];
+        const result = await db.conditions.findFirst({ where: { name: condition.name } });
 
-        if (results.length === 0) throw new NotFoundError('Condition not found', 'Could not find a Condition with that Name in the Database!');
+        if (!result) throw new NotFoundError('Condition not found', 'Could not find a Condition with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
     static async exists(condition: { id?: number, name?: string }) {
         if (condition.id) {
-            const results = await query('SELECT * FROM conditions WHERE id = $1', [condition.id]) as DBCondition[];
+            const result = await db.conditions.findUnique({ where: { id: condition.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM conditions WHERE name = $1', [condition.name]) as DBCondition[];
+        const result = await db.conditions.findFirst({ where: { name: condition.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(condition: AddCondition) {
-        if (await this.exists(condition)) throw new DuplicateError('Condition already exists', 'A Condition with that Name already exists in the Database!');
+        if (await this.exists(condition)) throw new DuplicateError('Duplicate Condition', 'That Condition already exists in the Database!');
 
-        const sql = 'INSERT INTO conditions (name, description) VALUES ($1, $2)';
-        await query(sql, [condition.name, condition.description]);
+        await db.conditions.create({ data: condition });
 
-        return 'Successfully added Condition to the Database';
+        return 'Successfully added Condition to Database';
+    }
+
+    static async remove(condition: { id: number }) {
+        if (!(await this.exists({ id: condition.id }))) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
+
+        await db.conditions.delete({ where: { id: condition.id } });
+
+        return 'Successfully removed Condition from Database';
     }
 
     static async update(condition: DBCondition) {
         if (!(await this.exists({ id: condition.id }))) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
 
-        const sql = 'UPDATE conditions SET name = $1, description = $2 WHERE id = $3';
-        await query(sql, [condition.name, condition.description, condition.id]);
+        await db.conditions.update({
+            where: { id: condition.id },
+            data: condition
+        });
 
         return 'Successfully updated Condition in Database';
     }

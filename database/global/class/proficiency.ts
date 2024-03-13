@@ -1,7 +1,6 @@
-import { psql } from '../../psql';
+import { prisma as db } from '../../prisma';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
 import { Proficiency } from '..';
-const { query } = psql;
 
 interface DBClassProf {
     id: number;
@@ -19,12 +18,12 @@ interface AddClassProf {
 
 export class ClassProficiency {
     static async getAll(clas: { id: number }) {
-        const results = await query('SELECT * FROM class_proficiencies WHERE class_id = $1', [clas.id]) as DBClassProf[];
+        const results = await db.class_proficiencies.findMany({ where: { class_id: clas.id } });
 
         if (results.length === 0) throw new NotFoundError('No Class Proficiencies found', 'Could not find any Class Proficiencies in the Database!');
 
         return await Promise.all(results.map(async (prof) => {
-            const dbProf = await Proficiency.getOne({ key: prof.type });
+            const dbProf = await Proficiency.getOne({ type: prof.type });
 
             return {
                 id: prof.id,
@@ -37,13 +36,12 @@ export class ClassProficiency {
 
     static async getOne(clas: { id: number }, prof: { id?: number, name?: string }) {
         if (prof.id) {
-            const sql = 'SELECT * FROM class_proficiencies WHERE id = $1 AND class_id = $2';
-            const results = await query(sql, [prof.id, clas.id]) as DBClassProf[];
+            const result = await db.class_proficiencies.findUnique({ where: { class_id: clas.id, id: prof.id } });
 
-            if (results.length === 0) throw new NotFoundError('Class Proficiency not found', 'Could not find the Class Proficiency in the Database!');
+            if (!result) throw new NotFoundError('Class Proficiency not found', 'Could not find that Class Proficiency in the Database!');
 
-            const clasProf = results[0];
-            const dbProf = await Proficiency.getOne({ key: clasProf.type });
+            const clasProf = result;
+            const dbProf = await Proficiency.getOne({ type: clasProf.type });
 
             return {
                 id: clasProf.id,
@@ -53,13 +51,12 @@ export class ClassProficiency {
             };
         }
 
-        const sql = 'SELECT * FROM class_proficiencies WHERE class_id = $1 AND name = $2';
-        const results = await query(sql, [clas.id, prof.name]) as DBClassProf[];
+        const result = await db.class_proficiencies.findFirst({ where: { class_id: clas.id, name: prof.name } });
 
-        if (results.length === 0) throw new NotFoundError('Class Proficiency not found', 'Could not find a Class Proficiency with that Name in the Database!');
+        if (!result) throw new NotFoundError('Class Proficiency not found', 'Could not find a Class Proficiency with that Name in the Database!');
 
-        const clasProf = results[0];
-        const dbProf = await Proficiency.getOne({ key: clasProf.type });
+        const clasProf = result;
+        const dbProf = await Proficiency.getOne({ type: clasProf.type });
 
         return {
             id: clasProf.id,
@@ -71,42 +68,44 @@ export class ClassProficiency {
 
     static async exists(clas: { id: number }, prof: { id?: number, name?: string }) {
         if (prof.id) {
-            const sql = 'SELECT * FROM class_proficiencies WHERE id = $1 AND class_id = $2';
-            const results = await query(sql, [prof.id, clas.id]) as DBClassProf[];
+            const result = await db.class_proficiencies.findUnique({ where: { class_id: clas.id, id: prof.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const sql = 'SELECT * FROM class_proficiencies WHERE class_id = $1 AND name = $2';
-        const results = await query(sql, [clas.id, prof.name]) as DBClassProf[];
+        const result = await db.class_proficiencies.findFirst({ where: { class_id: clas.id, name: prof.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(clas: { id: number }, prof: AddClassProf) {
-        if (await this.exists(clas, prof)) throw new DuplicateError('Class Proficiency already exists', 'A Class Proficiency with that Name already exists in the Database!');
+        if (await this.exists(clas, prof)) throw new DuplicateError('Duplicate Class Proficiency', 'That Class Proficiency already exists in the Database!');
 
-        const sql = 'INSERT INTO class_proficiencies (class_id, type, name, expert) VALUES ($1, $2, $3, $4)';
-        await query(sql, [clas.id, prof.type, prof.name, prof.expert]) as { id: number }[];
+        await db.class_proficiencies.create({ data: { class_id: clas.id, ...prof } });
 
-        return 'Successfully added Class Proficiency to the Database';
+        return 'Successfully added Class Proficiency to Database';
     }
 
     static async remove(clas: { id: number }, prof: { id: number }) {
-        if (!(await this.exists(clas, prof))) throw new NotFoundError('Class Proficiency not found', 'Could not find the Class Proficiency in the Database!');
+        if (!(await this.exists(clas, prof))) throw new NotFoundError('Class Proficiency not found', 'Could not find that Class Proficiency in the Database!');
 
-        const sql = 'DELETE FROM class_proficiencies WHERE id = $1';
-        await query(sql, [prof.id]);
+        await db.class_proficiencies.delete({ where: { class_id: clas.id, id: prof.id } });
 
-        return 'Successfully removed Class Proficiency from the Database';
+        return 'Successfully removed Class Proficiency from Database';
     }
 
     static async update(clas: { id: number }, prof: DBClassProf) {
-        if (!(await this.exists(clas, { id: prof.id }))) throw new NotFoundError('Class Proficiency not found', 'Could not find the Class Proficiency in the Database!');
+        if (!(await this.exists(clas, { id: prof.id }))) throw new NotFoundError('Class Proficiency not found', 'Could not find that Class Proficiency in the Database!');
 
-        const sql = 'UPDATE class_proficiencies SET type = $1, name = $2, expert = $3 WHERE id = $4';
-        await query(sql, [prof.type, prof.name, prof.expert, prof.id]);
+        await db.class_proficiencies.update({ 
+            where: { class_id: clas.id, id: prof.id }, 
+            data: { 
+                type: prof.type,
+                name: prof.name,
+                expert: prof.expert
+            }
+        });
 
-        return 'Successfully updated Class Proficiency in the Database';
+        return 'Successfully updated Class Proficiency in Database';
     }
 }

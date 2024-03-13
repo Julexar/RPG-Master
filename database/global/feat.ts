@@ -1,6 +1,5 @@
-import { psql } from "../psql";
+import { prisma as db } from "../prisma";
 import { NotFoundError, DuplicateError } from "../../custom/errors";
-const { query } = psql;
 
 interface DBFeat {
     id: number;
@@ -19,7 +18,7 @@ interface AddFeat {
 
 export class Feat {
     static async getAll() {
-        const results = await query('SELECT * FROM feats') as DBFeat[];
+        const results = await db.feats.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Feat found', 'Could not find any Feats in the Database!');
 
@@ -28,54 +27,65 @@ export class Feat {
 
     static async getOne(feat: { id?: number, name?: string }) {
         if (feat.id) {
-            const results = await query('SELECT * FROM feats WHERE id = $1', [feat.id]) as DBFeat[];
+            const result = await db.feats.findUnique({ where: { id: feat.id } });
 
-            if (results.length === 0) throw new NotFoundError('Feat not found', 'Could not find that Feat in the Database!');
+            if (!result) throw new NotFoundError('Feat not found', 'Could not find that Feat in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM feats WHERE name = $1', [feat.name]) as DBFeat[];
+        const result = await db.feats.findFirst({ where: { name: feat.name } });
 
-        if (results.length === 0) throw new NotFoundError('Feat not found', 'Could not find a Feat with that Name in the Database!');
+        if (!result) throw new NotFoundError('Feat not found', 'Could not find a Feat with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
     static async exists(feat: { id?: number, name?: string }) {
         if (feat.id) {
-            const results = await query('SELECT * FROM feats WHERE id = $1', [feat.id]) as DBFeat[];
+            const result = await db.feats.findUnique({ where: { id: feat.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM feats WHERE name = $1', [feat.name]) as DBFeat[];
+        const result = await db.feats.findFirst({ where: { name: feat.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(feat: AddFeat) {
-        if (await this.exists(feat)) throw new DuplicateError('Feat already exists', 'A Feat with that Name already exists in the Database!');
+        if (await this.exists(feat)) throw new DuplicateError('Duplicate Feat', 'That Feat already exists in the Database!');
 
-        const sql = 'INSERT INTO feats (name, description, prerequisites, options) VALUES ($1, $2, $3::JSON, $4::JSON)';
-        await query(sql, [feat.name, feat.description, JSON.stringify(feat.prerequisites), JSON.stringify(feat.options)]);
+        await db.feats.create({ data: {
+            name: feat.name,
+            description: feat.description,
+            prerequisites: JSON.parse(JSON.stringify(feat.prerequisites)),
+            options: JSON.parse(JSON.stringify(feat.options))
+        }});
 
-        return 'Successfully added Feat to the Database';
+        return 'Successfully added Feat to Database';
     }
 
     static async remove(feat: { id: number }) {
         if (!await this.exists(feat)) throw new NotFoundError('Feat not found', 'Could not find that Feat in the Database!');
 
-        await query('DELETE FROM feats WHERE id = $1', [feat.id]);
+        await db.feats.delete({ where: { id: feat.id } });
 
-        return 'Successfully removed Feat from the Database';
+        return 'Successfully removed Feat from Database';
     }
 
     static async update(feat: DBFeat) {
         if (!(await this.exists({ id: feat.id }))) throw new NotFoundError('Feat not found', 'Could not find that Feat in the Database!');
 
-        const sql = 'UPDATE feats SET name = $1, description = $2, prerequisites = $3::JSON, options = $4::JSON WHERE id = $5';
-        await query(sql, [feat.name, feat.description, JSON.stringify(feat.prerequisites), JSON.stringify(feat.options), feat.id]);
+        await db.feats.update({
+            where: { id: feat.id },
+            data: {
+                name: feat.name,
+                description: feat.description,
+                prerequisites: JSON.parse(JSON.stringify(feat.prerequisites)),
+                options: JSON.parse(JSON.stringify(feat.options))
+            }
+        });
 
         return 'Successfully updated Feat in Database';
     }

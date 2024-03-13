@@ -14,7 +14,7 @@ export class Stats {
         if (stats.id) {
             const result = await db.stats.findUnique({ where: { id: stats.id } });
 
-            if (!result) throw new NotFoundError('Stats not found', 'Could not find that Stats in the Database!');
+            if (!result) throw new NotFoundError('Stats not found', 'Could not find that Stat in the Database!');
 
             return result;
         }
@@ -22,14 +22,14 @@ export class Stats {
         if (stats.key) {
             const result = await db.stats.findUnique({ where: { key: stats.key } });
 
-            if (!result) throw new NotFoundError('Stats not found', 'Could not find a Stats with that Key in the Database!');
+            if (!result) throw new NotFoundError('Stats not found', 'Could not find a Stat with that Key in the Database!');
 
             return result
         }
 
         const result = await db.stats.findFirst({ where: { name: stats.name } });
 
-        if (!result) throw new NotFoundError('Stats not found', 'Could not find a Stats with that Name in the Database!');
+        if (!result) throw new NotFoundError('Stats not found', 'Could not find a Stat with that Name in the Database!');
 
         return result;
     }
@@ -53,26 +53,26 @@ export class Stats {
     }
 
     static async add(stats: { name: string, key: string }) {
-        if (await this.exists(stats)) throw new DuplicateError('Stats already exists', 'A Stats with that Name or Key already exists in the Database!');
+        if (await this.exists(stats)) throw new DuplicateError('Duplicate Stat', 'That Stat already exists in the Database!');
 
         await db.stats.create({ data: stats });
 
-        return 'Successfully added Stats to the Database';
+        return 'Successfully added Stat to Database';
     }
 
     static async remove(stats: { id: number }) {
-        if (!await this.exists({ id: stats.id })) throw new NotFoundError('Stats not found', 'Could not find that Stats in the Database!');
+        if (!await this.exists({ id: stats.id })) throw new NotFoundError('Stat not found', 'Could not find that Stats in the Database!');
 
         await db.stats.delete({ where: { id: stats.id } });
 
-        return 'Successfully removed Stats from the Database';
+        return 'Successfully removed Stat from Database';
     }
 
     static async update(stats: { id: number, name: string, key: string }) {
-        if (!await this.exists({ id: stats.id })) throw new NotFoundError('Stats not found', 'Could not find that Stats in the Database!');
+        if (!await this.exists({ id: stats.id })) throw new NotFoundError('Stat not found', 'Could not find that Stats in the Database!');
 
         await db.stats.update({ data: { name: stats.name, key: stats.key }, where: { id: stats.id } });
 
-        return 'Successfully updated Stats in Database';
+        return 'Successfully updated Stat in Database';
     }
 }

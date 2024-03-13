@@ -53,7 +53,7 @@ export class Source {
     }
 
     static async add(source: { name: string, abrv: string }) {
-        if (await this.exists(source)) throw new DuplicateError('Source already exists', 'A Source with that Name or Abbreviation already exists in the Database!');
+        if (await this.exists(source)) throw new DuplicateError('Duplicate Source', 'That Source already exists in the Database!');
 
         await db.sources.create({ data: source });
 
@@ -69,7 +69,7 @@ export class Source {
     }
 
     static async update(source: { id: number, name: string, abrv: string }) {
-        if (!await this.exists({ id: source.id })) throw new NotFoundError('Source not found', 'Could not find that Source in the Database!');
+        if (!await this.exists(source)) throw new NotFoundError('Source not found', 'Could not find that Source in the Database!');
 
         await db.sources.update({ data: { name: source.name, abrv: source.abrv }, where: { id: source.id } });
 

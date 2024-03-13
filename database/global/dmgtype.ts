@@ -1,6 +1,5 @@
-import { psql } from "../psql";
+import { prisma as db } from "../prisma";
 import { NotFoundError, DuplicateError } from "../../custom/errors";
-const { query } = psql;
 
 interface DBDmgtype {
     id: number;
@@ -9,7 +8,7 @@ interface DBDmgtype {
 
 export class Damagetype {
     static async getAll() {
-        const results = await query('SELECT * FROM dmgtype') as DBDmgtype[];
+        const results = await db.damagetypes.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Damage Type found', 'Could not find any Damage Type in the Database!');
 
@@ -18,53 +17,55 @@ export class Damagetype {
 
     static async getOne(dmgtype: { id?: number, name?: string }) {
         if (dmgtype.id) {
-            const results = await query('SELECT * FROM dmgtype WHERE id = $1', [dmgtype.id]) as DBDmgtype[];
+            const result = await db.damagetypes.findUnique({ where: { id: dmgtype.id } });
 
-            if (results.length === 0) throw new NotFoundError('Damage Type not found', 'Could not find that Damage Type in the Database!');
+            if (!result) throw new NotFoundError('Damage Type not found', 'Could not find that Damage Type in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM dmgtype WHERE name = $1', [dmgtype.name]) as DBDmgtype[];
+        const result = await db.damagetypes.findFirst({ where: { name: dmgtype.name } });
 
-        if (results.length === 0) throw new NotFoundError('Damage Type not found', 'Could not find a Damage Type with that Name in the Database!');
+        if (!result) throw new NotFoundError('Damage Type not found', 'Could not find a Damage Type with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
     static async exists(dmgtype: { id?: number, name?: string }) {
         if (dmgtype.id) {
-            const results = await query('SELECT * FROM dmgtype WHERE id = $1', [dmgtype.id]) as DBDmgtype[];
+            const result = await db.damagetypes.findUnique({ where: { id: dmgtype.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM dmgtype WHERE name = $1', [dmgtype.name]) as DBDmgtype[];
+        const result = await db.damagetypes.findFirst({ where: { name: dmgtype.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(dmgtype: { name: string }) {
-        if (await this.exists(dmgtype)) throw new DuplicateError('Damage Type already exists', 'A Damage Type with that Name already exists in the Database!');
+        if (await this.exists(dmgtype)) throw new DuplicateError('Duplicate Damage Type', 'That Damage Type already exists in the Database!');
 
-        const sql = 'INSERT INTO dmgtype (name) VALUES ($1)';
-        await query(sql, [dmgtype.name]);
+        await db.damagetypes.create({ data: dmgtype });
 
-        return 'Successfully added Damage Type to the Database';
+        return 'Successfully added Damage Type to Database';
     }
 
     static async remove(dmgtype: { id: number }) {
         if (!await this.exists(dmgtype)) throw new NotFoundError('Damage Type not found', 'Could not find that Damage Type in the Database!');
 
-        await query('DELETE FROM dmgtype WHERE id = $1', [dmgtype.id]);
+        await db.damagetypes.delete({ where: { id: dmgtype.id } });
 
-        return 'Successfully removed Damage Type from the Database';
+        return 'Successfully removed Damage Type from Database';
     }
 
     static async update(dmgtype: DBDmgtype) {
         if (!(await this.exists({ id: dmgtype.id }))) throw new NotFoundError('Damage Type not found', 'Could not find that Damage Type in the Database!');
 
-        await query('UPDATE dmgtype SET name = $1 WHERE id = $2', [dmgtype.name, dmgtype.id]);
+        await db.damagetypes.update({
+            where: { id: dmgtype.id },
+            data: { name: dmgtype.name }
+        });
 
         return 'Successfully updated Damage Type in Database';
     }

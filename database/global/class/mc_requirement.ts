@@ -52,12 +52,12 @@ export class MCRequirement {
     }
 
     static async add(clas: { id: number }, req: AddRequirement) {
-        if (await this.exists(clas, { stat: req.stat })) throw new DuplicateError('Multiclass Requirement already exists', 'A Multiclass Requirement with that stat already exists in the Database!');
+        if (await this.exists(clas, { stat: req.stat })) throw new DuplicateError('Duplicate Multiclass Requirement', 'That Multiclass Requirement already exists in the Database!');
 
         const sql = 'INSERT INTO mc_requirements (class_id, stat, value) VALUES ($1, $2, $3)';
         await query(sql, [clas.id, req.stat, req.value]);
 
-        return 'Successfully added Multiclass Requirement to the Database';
+        return 'Successfully added Multiclass Requirement to Database';
     }
 
     static async remove(clas: { id: number }, req: { id: number }) {
@@ -66,7 +66,7 @@ export class MCRequirement {
         const sql = 'DELETE FROM mc_requirements WHERE id = $1';
         await query(sql, [req.id]);
 
-        return 'Successfully removed Multiclass Requirement from the Database';
+        return 'Successfully removed Multiclass Requirement from Database';
     }
 
     static async update(clas: { id: number }, req: { id: number, stat: string, value: number }) {
@@ -75,6 +75,6 @@ export class MCRequirement {
         const sql = 'UPDATE mc_requirements SET stat = $1, value = $2 WHERE id = $3';
         await query(sql, [req.stat, req.value, req.id]);
 
-        return 'Successfully updated Multiclass Requirement in the Database';
+        return 'Successfully updated Multiclass Requirement in Database';
     }
 }

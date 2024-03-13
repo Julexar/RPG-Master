@@ -18,8 +18,8 @@ interface AddWeapon {
     name: string;
     description: string;
     source: string;
-    type: ItemType;
-    rarity: ItemRarity;
+    type_id: number;
+    rarity_id: number;
     stats: JSON;
     props: number[];
 }
@@ -38,8 +38,8 @@ class weapon {
         return await Promise.all(
             results.map(async dbWeapon => {
                 const source = await Source.getOne({ abrv: dbWeapon.source });
-                const type = await ItemType.getOne({ id: dbWeapon.type_id });
-                const rarity = await ItemRarity.getOne({ id: dbWeapon.rarity_id });
+                const type = await ItemType.getOne({ id: dbWeapon.type_id ? dbWeapon.type_id : undefined });
+                const rarity = await ItemRarity.getOne({ id: dbWeapon.rarity_id ? dbWeapon.rarity_id : undefined });
 
                 return {
                     id: dbWeapon.id,
@@ -62,8 +62,8 @@ class weapon {
             if (!result) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
             const source = await Source.getOne({ abrv: result.source });
-            const type = await ItemType.getOne({ id: result.type_id });
-            const rarity = await ItemRarity.getOne({ id: result.rarity_id });
+            const type = await ItemType.getOne({ id: result.type_id ? result.type_id : undefined });
+            const rarity = await ItemRarity.getOne({ id: result.rarity_id ? result.rarity_id : undefined });
 
             return {
                 id: result.id,
@@ -82,8 +82,8 @@ class weapon {
         if (!result) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
         const source = await Source.getOne({ abrv: result.source });
-        const type = await ItemType.getOne({ id: result.type_id });
-        const rarity = await ItemRarity.getOne({ id: result.rarity_id });
+        const type = await ItemType.getOne({ id: result.type_id ? result.type_id : undefined });
+        const rarity = await ItemRarity.getOne({ id: result.rarity_id ? result.rarity_id : undefined});
 
         return {
             id: result.id,
@@ -110,11 +110,11 @@ class weapon {
     }
 
     async add(weapon: AddWeapon) {
-        if (await this.exists({ name: weapon.name })) throw new DuplicateError('Weapon already exists', 'That Weapon already exists in the Database!');
+        if (await this.exists({ name: weapon.name })) throw new DuplicateError('Duplicate Weapon', 'That Weapon already exists in the Database!');
 
         const source = await Source.getOne({ abrv: weapon.source });
-        const type = await ItemType.getOne({ id: weapon.type });
-        const rarity = await ItemRarity.getOne({ id: weapon.rarity });
+        const type = await ItemType.getOne({ id: weapon.type_id });
+        const rarity = await ItemRarity.getOne({ id: weapon.rarity_id });
 
         await db.weapons.create({
             data: {

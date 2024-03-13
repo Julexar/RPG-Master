@@ -44,7 +44,7 @@ export class ItemRarity {
     }
 
     static async add(rarity: { name: string }) {
-        if (await this.exists({ name: rarity.name })) throw new DuplicateError('Item Rarity already exists', 'An Item Rarity with that Name already exists in the Database!');
+        if (await this.exists(rarity)) throw new DuplicateError('Duplicate Item Rarity', 'That Item Rarity already exists in the Database!');
 
         await db.item_rarities.create({ data: { name: rarity.name } });
 
@@ -52,7 +52,7 @@ export class ItemRarity {
     }
 
     static async remove(rarity: { id: number }) {
-        if (!await this.exists({ id: rarity.id })) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
+        if (!await this.exists(rarity)) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
 
         await db.item_rarities.delete({ where: { id: rarity.id } });
 
@@ -60,7 +60,7 @@ export class ItemRarity {
     }
 
     static async update(rarity: DBItemRarity) {
-        if (!await this.exists({ id: rarity.id })) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
+        if (!await this.exists(rarity)) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
 
         await db.item_rarities.update({
             where: { id: rarity.id },

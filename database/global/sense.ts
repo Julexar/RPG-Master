@@ -1,6 +1,5 @@
-import { psql } from "../psql";
+import { prisma as db } from "../prisma";
 import { NotFoundError, DuplicateError } from "../../custom/errors";
-const { query } = psql;
 
 interface DBSense {
     id: number;
@@ -15,7 +14,7 @@ interface AddSense {
 
 export class Sense {
     static async getAll() {
-        const results = await query('SELECT * FROM senses') as DBSense[];
+        const results = await db.senses.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Sense found', 'Could not find any Senses in the Database!');
 
@@ -24,69 +23,73 @@ export class Sense {
 
     static async getOne(sense: { id?: number, name?: string, key?: string }) {
         if (sense.id) {
-            const results = await query('SELECT * FROM senses WHERE id = $1', [sense.id]) as DBSense[];
+            const result = await db.senses.findUnique({ where: { id: sense.id } });
 
-            if (results.length === 0) throw new NotFoundError('Sense not found', 'Could not find that Sense in the Database!');
+            if (!result) throw new NotFoundError('Sense not found', 'Could not find that Sense in the Database!');
 
-            return results[0];
+            return result;
         }
 
         if (sense.key) {
-            const results = await query('SELECT * FROM senses WHERE key = $1', [sense.key]) as DBSense[];
+            const result = await db.senses.findUnique({ where: { key: sense.key } });
 
-            if (results.length === 0) throw new NotFoundError('Sense not found', 'Could not find a Sense with that Key in the Database!');
+            if (!result) throw new NotFoundError('Sense not found', 'Could not find a Sense with that Key in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM senses WHERE name = $1', [sense.name]) as DBSense[];
+        const result = await db.senses.findFirst({ where: { name: sense.name } });
 
-        if (results.length === 0) throw new NotFoundError('Sense not found', 'Could not find a Sense with that Name in the Database!');
+        if (!result) throw new NotFoundError('Sense not found', 'Could not find a Sense with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
     static async exists(sense: { id?: number, name?: string, key?: string }) {
         if (sense.id) {
-            const results = await query('SELECT * FROM senses WHERE id = $1', [sense.id]) as DBSense[];
+            const result = await db.senses.findUnique({ where: { id: sense.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
         if (sense.key) {
-            const results = await query('SELECT * FROM senses WHERE key = $1', [sense.key]) as DBSense[];
+            const result = await db.senses.findUnique({ where: { key: sense.key } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM senses WHERE name = $1', [sense.name]) as DBSense[];
+        const result = await db.senses.findFirst({ where: { name: sense.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(sense: AddSense) {
-        if (await this.exists(sense)) throw new DuplicateError('Sense already exists', 'A Sense with that Name already exists in the Database!');
+        if (await this.exists(sense)) throw new DuplicateError('Duplicate Sense', 'That Sense already exists in the Database!');
 
-        const sql = 'INSERT INTO senses (name, key) VALUES ($1, $2)';
-        await query(sql, [sense.name, sense.key]);
+        await db.senses.create({ data: sense });
 
-        return 'Successfully added Sense to the Database';
+        return 'Successfully added Sense to Database';
     }
 
     static async remove(sense: { id: number }) {
         if (!await this.exists(sense)) throw new NotFoundError('Sense not found', 'Could not find that Sense in the Database!');
 
-        await query('DELETE FROM senses WHERE id = $1', [sense.id]);
+        await db.senses.delete({ where: { id: sense.id } });
 
-        return 'Successfully removed Sense from the Database';
+        return 'Successfully removed Sense from Database';
     }
 
-    static async update(sense: { id: number, name: string, key: string }) {
+    static async update(sense: DBSense) {
         if (!await this.exists({ id: sense.id })) throw new NotFoundError('Sense not found', 'Could not find that Sense in the Database!');
 
-        const sql = 'UPDATE senses SET name = $1, key = $2 WHERE id = $3';
-        await query(sql, [sense.name, sense.key, sense.id]);
+        await db.senses.update({
+            where: { id: sense.id },
+            data: {
+                name: sense.name,
+                key: sense.key
+            }
+        });
 
-        return 'Successfully updated Sense in the Database';
+        return 'Successfully updated Sense in Database';
     }
 }

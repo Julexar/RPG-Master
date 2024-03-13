@@ -50,7 +50,7 @@ export class WeaponProp {
     }
 
     static async add(prop: AddWeaponProp) {
-        if (await this.exists(prop)) throw new DuplicateError('Weapon Property already exists', 'That Weapon Property already exists in the Database!');
+        if (await this.exists(prop)) throw new DuplicateError('Duplicate Weapon Property', 'That Weapon Property already exists in the Database!');
 
         await db.weapon_props.create({ data: prop });
 
