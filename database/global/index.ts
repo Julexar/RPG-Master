@@ -5,6 +5,8 @@ import { Damagetype } from './dmgtype';
 import { Feat } from './feat';
 import { Proficiency } from './proficiency';
 import { Sense } from './sense';
+import { Source } from './source';
+import { Spell } from './spell';
 import { Stats } from './stats';
 
 export {
@@ -15,5 +17,7 @@ export {
     Feat,
     Proficiency,
     Sense,
+    Source,
+    Spell,
     Stats
 }
