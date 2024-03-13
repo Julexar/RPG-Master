@@ -5,6 +5,7 @@ import { Condition } from './condition';
 import { Damagetype } from './dmgtype';
 import { Feat } from './feat';
 import { ItemRarity, ItemType } from './item';
+import { Language } from './language';
 import { Proficiency } from './proficiency';
 import { Sense } from './sense';
 import { Source } from './source';
@@ -20,6 +21,7 @@ export {
     Feat,
     ItemRarity,
     ItemType,
+    Language,
     Proficiency,
     Sense,
     Source,
