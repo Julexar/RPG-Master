@@ -31,7 +31,7 @@ class Command extends CommandBuilder {
     async run(interaction) {
         const option = interaction.options;
         const user = interaction.user;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
         let embed, emph, row, msg, collector;
 
         const cmd = {
@@ -75,7 +75,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             if (i.customId === 'usersel') {
                                 const rest = {
                                     id: Number(i.values[0]),
@@ -95,7 +95,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -124,7 +124,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             if (i.customId === 'rolesel') {
                                 const rest = {
                                     id: Number(i.values[0]),
@@ -144,7 +144,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -178,7 +178,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             if (i.customId === 'channelsel') {
                                 const rest = {
                                     id: Number(i.values[0]),
@@ -198,7 +198,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -231,7 +231,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             if (i.customId === 'usersel') {
                                 const rest = {
                                     id: Number(i.values[0]),
@@ -250,7 +250,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -279,7 +279,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             if (i.customId === 'rolesel') {
                                 const rest = {
                                     id: Number(i.values[0]),
@@ -298,7 +298,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -332,7 +332,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             if (i.customId === 'channelsel') {
                                 const rest = {
                                     id: Number(i.values[0]),
@@ -351,7 +351,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -389,11 +389,9 @@ class Command extends CommandBuilder {
 
                     let perm = restriction.permission ? 'permitted' : 'denied';
                     let rest =
-                        restriction.type === ApplicationCommandPermissionType.User
-                            ? `<@${restriction.id}>`
-                            : restriction.type === ApplicationCommandPermissionType.Role
-                              ? `<@&${restriction.id}>`
-                              : `<#${restriction.id}>`;
+                        restriction.type === ApplicationCommandPermissionType.User ? `<@${restriction.id}>`
+                        : restriction.type === ApplicationCommandPermissionType.Role ? `<@&${restriction.id}>`
+                        : `<#${restriction.id}>`;
 
                     embeds[num].components[0].addFields({
                         name: `${rest}`,
@@ -415,7 +413,7 @@ class Command extends CommandBuilder {
 
                 collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                collector.on('collect', async (i) => {
+                collector.on('collect', async i => {
                     if (i.customId === 'next') {
                         await i.deferUpdate();
                         if (page < embeds.length - 1) {
@@ -455,7 +453,7 @@ class Command extends CommandBuilder {
                     }
                 });
 
-                collector.on('end', async (collected) => {
+                collector.on('end', async collected => {
                     if (collected.size > 0) {
                         client.writeServerLog(this.server, `Collected ${collected.size} Interactions`);
                     }
@@ -482,7 +480,7 @@ class Command extends CommandBuilder {
     }
 
     setChoices() {
-        this.server.commands.cache.forEach((cmd) => {
+        this.server.commands.cache.forEach(cmd => {
             cmds.push(cmd);
         });
     }
@@ -589,7 +587,7 @@ const command = new Command({
                     description: 'Choose a Command',
                     type: ApplicationCommandOptionType.String,
                     required: true,
-                    choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                    choices: cmds.map(cmd => ({ name: cmd.name, value: `${cmd.id}` })),
                 },
             ],
         },
@@ -608,7 +606,7 @@ const command = new Command({
                             description: 'Choose a Command',
                             type: ApplicationCommandOptionType.String,
                             required: true,
-                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                            choices: cmds.map(cmd => ({ name: cmd.name, value: `${cmd.id}` })),
                         },
                     ],
                 },
@@ -622,7 +620,7 @@ const command = new Command({
                             description: 'Choose a Command',
                             type: ApplicationCommandOptionType.String,
                             required: true,
-                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                            choices: cmds.map(cmd => ({ name: cmd.name, value: `${cmd.id}` })),
                         },
                         {
                             name: 'type',
@@ -653,7 +651,7 @@ const command = new Command({
                             description: 'Choose a Command',
                             type: ApplicationCommandOptionType.String,
                             required: true,
-                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                            choices: cmds.map(cmd => ({ name: cmd.name, value: `${cmd.id}` })),
                         },
                         {
                             name: 'type',
@@ -678,7 +676,7 @@ const command = new Command({
                             description: 'Choose a Command',
                             type: ApplicationCommandOptionType.String,
                             required: true,
-                            choices: cmds.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` })),
+                            choices: cmds.map(cmd => ({ name: cmd.name, value: `${cmd.id}` })),
                         },
                     ],
                 },

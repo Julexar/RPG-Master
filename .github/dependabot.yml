@@ -9,7 +9,7 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    target-branch: "root"
+    target-branch: "master"
     milestone: 2
     labels:
       - "dependencies"
