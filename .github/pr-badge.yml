@@ -1,5 +1,5 @@
-- imageUrl: https://github.com/Julexar/RPG-Master/actions/workflows/codeql.yml/badge.svg?branch=$branchName
-  url: https://github.com/Julexar/RPG-Master/actions/workflows/codeql.yml?query=branch:$branchName
+- imageUrl: https://github.com/$owner/$repo/actions/workflows/codeql.yml/badge.svg?branch=$branchName
+  url: https://github.com/$owner/$repo/actions/workflows/codeql.yml?query=branch:$branchName
 
 - label: "Warn"
   message: "Unchecked Tasks"
