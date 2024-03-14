@@ -21,7 +21,7 @@ class Command extends CommandBuilder {
      * @param {import("discord.js").Guild} guild
      */
     setChoices(guild) {
-        cmds = guild.commands.cache.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` }));
+        cmds = guild.commands.cache.map(cmd => ({ name: cmd.name, value: `${cmd.id}` }));
     }
 }
 

@@ -1,11 +1,11 @@
 import Ascii from 'ascii-table';
 import { client } from '../..';
-import { commands } from '../../commands/slash'
+import { commands } from '../../commands/slash';
 
 class slashHandler {
     static async run() {
         const slashCommandsTable = new Ascii('Slash Commands').setHeading('Name', 'Status', 'Reason');
-        
+
         for (const command of commands) {
             let name;
 
@@ -25,6 +25,6 @@ class slashHandler {
     }
 }
 
-const handler = slashHandler
+const handler = slashHandler;
 
 export { handler };

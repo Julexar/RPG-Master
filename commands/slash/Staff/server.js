@@ -45,7 +45,7 @@ class Command extends CommandBuilder {
                 let count,
                     num,
                     page = 0;
-                const filter = (m) => m.user.id === interaction.user.id;
+                const filter = m => m.user.id === interaction.user.id;
 
                 switch (option.getSubcommand()) {
                     case 'add':
@@ -103,7 +103,7 @@ class Command extends CommandBuilder {
                             time: 90000,
                         });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'gmsel':
                                     embed = await remGM(server, { id: Number(i.values[0]), gmRole });
@@ -164,7 +164,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -218,7 +218,7 @@ class Command extends CommandBuilder {
                                 time: 90000,
                             });
 
-                            collector.on('collect', async (i) => {
+                            collector.on('collect', async i => {
                                 await i.deferUpdate();
 
                                 switch (i.customId) {
@@ -261,7 +261,7 @@ class Command extends CommandBuilder {
                                 }
                             });
 
-                            collector.on('end', async (collected) => {
+                            collector.on('end', async collected => {
                                 if (collected.size > 0) {
                                     client.writeServerLog(server, `Collected ${collected.size} Interactions`);
                                 }
@@ -494,7 +494,10 @@ async function setStaffRole(server, role1, role2) {
         const msg1 = await client.database.Server.setStaffRole(server, 'admin', role1);
         const msg2 = await client.database.Server.setStaffRole(server, 'mod', role2);
 
-        const message = msg1 && msg2 ? `Staff Roles have been set to <@&${role1.id}> and <@&${role2.id}>!` : msg1 ? msg1 : msg2;
+        const message =
+            msg1 && msg2 ? `Staff Roles have been set to <@&${role1.id}> and <@&${role2.id}>!`
+            : msg1 ? msg1
+            : msg2;
 
         return new SuccessEmbed('Success', message);
     } catch (err) {

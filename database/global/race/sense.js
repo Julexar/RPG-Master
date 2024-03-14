@@ -12,7 +12,7 @@ class RaceSense {
         }
 
         return Promise.all(
-            results.map(async (raceSense) => {
+            results.map(async raceSense => {
                 const dbSense = await Senses.getOne({ id: raceSense.sense_id });
 
                 return {

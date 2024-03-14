@@ -12,7 +12,7 @@ class SubclassProficiency {
         }
 
         return Promise.all(
-            results.map(async (subProf) => {
+            results.map(async subProf => {
                 const dbProf = await Proficiency.getOne({ id: subProf.type });
 
                 return {

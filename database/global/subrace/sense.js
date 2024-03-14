@@ -12,7 +12,7 @@ class SubraceSense {
         }
 
         return Promise.all(
-            results.map(async (subSense) => {
+            results.map(async subSense => {
                 const dbSense = await Senses.getOne({ id: subSense.sense_id });
 
                 return {

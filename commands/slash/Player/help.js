@@ -22,7 +22,7 @@ class Command extends CommandBuilder {
         const member = interaction.member;
         const user = member.user;
         const server = interaction.guild;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
 
         if (cmd) {
             const slashCmd = await server.commands.fetch(cmd);
@@ -88,7 +88,7 @@ class Command extends CommandBuilder {
 
                         const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             await i.deferUpdate();
 
                             switch (i.customId) {
@@ -131,7 +131,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
 
                             row.components[0].setDisabled(true);
@@ -212,7 +212,7 @@ class Command extends CommandBuilder {
 
                     const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async (i) => {
+                    collector.on('collect', async i => {
                         await i.deferUpdate();
 
                         switch (i.customId) {
@@ -255,7 +255,7 @@ class Command extends CommandBuilder {
                         }
                     });
 
-                    collector.on('end', async (collected) => {
+                    collector.on('end', async collected => {
                         if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
 
                         row.components[0].setDisabled(true);
@@ -283,7 +283,7 @@ class Command extends CommandBuilder {
 
             embeds.push(menu);
 
-            server.commands.cache.forEach((cmd) => {
+            server.commands.cache.forEach(cmd => {
                 if (cmd.defaultMemberPermissions && member.permissions.has(cmd.defaultMemberPermissions)) {
                     if (count === 9) {
                         embeds.push(menu);
@@ -320,7 +320,7 @@ class Command extends CommandBuilder {
 
             const collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-            collector.on('collect', async (i) => {
+            collector.on('collect', async i => {
                 await i.deferUpdate();
 
                 switch (i.customId) {
@@ -363,7 +363,7 @@ class Command extends CommandBuilder {
                 }
             });
 
-            collector.on('end', async (collected) => {
+            collector.on('end', async collected => {
                 if (collected.size > 0) client.writeServerLog(server, `Collected ${collected.size} Interactions`);
 
                 row.components[0].setDisabled(true);
@@ -381,7 +381,7 @@ class Command extends CommandBuilder {
      * @param {import('discord.js').Guild} guild
      */
     setChoices(guild) {
-        cmds = guild.commands.cache.map((cmd) => ({ name: cmd.name, value: `${cmd.id}` }));
+        cmds = guild.commands.cache.map(cmd => ({ name: cmd.name, value: `${cmd.id}` }));
     }
 }
 

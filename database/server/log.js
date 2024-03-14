@@ -10,7 +10,7 @@ class ServerLog {
 
         if (results.length === 0) throw new NotFoundError('No Logs found', 'Could not find any Logs for that Server in the Database!');
 
-        return results.map((log) => {
+        return results.map(log => {
             if (log.deleted_at) return;
 
             return log;
@@ -68,7 +68,7 @@ class ServerLog {
 
             fs.appendFileSync(`./logs/server/${server.id}/${date}.log`, '========Beginning of new Log========\n');
 
-            throw new BadRequestError('Logfile is too new', 'Can\'t create new Log as there is a Logfile newer than 8 hours!');
+            throw new BadRequestError('Logfile is too new', "Can't create new Log as there is a Logfile newer than 8 hours!");
         } catch (err) {
             if (!(err instanceof NotFoundError)) throw err;
 
@@ -90,11 +90,12 @@ class ServerLog {
 
         if (results.length === 0) throw new NotFoundError('No Logs found', 'Could not find any Logs for that Server in the Database!');
 
-        results.map(async (log) => {
+        results.map(async log => {
             if (moment.duration(date.diff(moment(log.created_at))).asDays() > 7) {
                 await query('UPDATE server_logs SET deleted_at = $1 WHERE server_id = $2 AND id = $3', [Date.now(), server.id, log.id]);
 
-                if (fs.existsSync(`./logs/server/${server.id}/${log.created_at}.log`)) fs.unlinkSync(`./logs/server/${server.id}/${log.created_at}.log`);
+                if (fs.existsSync(`./logs/server/${server.id}/${log.created_at}.log`))
+                    fs.unlinkSync(`./logs/server/${server.id}/${log.created_at}.log`);
             }
         });
 

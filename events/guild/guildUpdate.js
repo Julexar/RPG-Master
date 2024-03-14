@@ -11,8 +11,8 @@ class Event {
      */
     async run(newGuild) {
         await client.database.Server.update(newGuild)
-        .then(msg => client.writeServerLog(newGuild, msg))
-        .catch(err => client.logServerError(newGuild, err))
+            .then(msg => client.writeServerLog(newGuild, msg))
+            .catch(err => client.logServerError(newGuild, err));
     }
 }
 

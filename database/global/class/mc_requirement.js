@@ -47,17 +47,20 @@ class MCRequirement {
 
     static async add(clas, req) {
         if (await this.exists(clas, req)) {
-            throw new DuplicateError('MC Requirement already exists', 'A MC Requirement with that Class ID and Level already exists in the Database!');
+            throw new DuplicateError(
+                'MC Requirement already exists',
+                'A MC Requirement with that Class ID and Level already exists in the Database!'
+            );
         }
 
-        const sql = 'INSERT INTO mc_requirements (class_id, stat_key, value, either_or) VALUES($1, $2, $3, $4)'
+        const sql = 'INSERT INTO mc_requirements (class_id, stat_key, value, either_or) VALUES($1, $2, $3, $4)';
         await query(sql, [clas.id, req.stat_key, req.value, req.either_or]);
 
         return 'Successfully added MC Requirement to the Database';
     }
 
     static async remove(clas, req) {
-        if (!await this.exists(clas, req)) {
+        if (!(await this.exists(clas, req))) {
             throw new NotFoundError('MC Requirement not found', 'Could not find that MC Requirement in the Database!');
         }
 

@@ -7,10 +7,14 @@ class CharacterSubraceProf {
     static async getAll(char, sub) {
         const results = await query('SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2', [char.id, sub.id]);
 
-        if (results.length === 0) throw new NotFoundError('No Character Subrace Proficiencies found', 'Could not find any Subrace Proficiencies for that Character in the Database!');
+        if (results.length === 0)
+            throw new NotFoundError(
+                'No Character Subrace Proficiencies found',
+                'Could not find any Subrace Proficiencies for that Character in the Database!'
+            );
 
         return Promise.all(
-            results.map(async (charSubProf) => {
+            results.map(async charSubProf => {
                 const dbProf = await Proficiency.getOne({ id: charSubProf.type });
 
                 if (charSubProf.deleted_at) return;
@@ -22,7 +26,7 @@ class CharacterSubraceProf {
                     type: dbProf,
                     name: charSubProf.name,
                     expert: charSubProf.expert,
-                    deleted_at: charSubProf.deleted_at
+                    deleted_at: charSubProf.deleted_at,
                 };
             })
         );
@@ -33,12 +37,20 @@ class CharacterSubraceProf {
             const sql = 'SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3';
             const results = await query(sql, [char.id, sub.id, prof.id]);
 
-            if (results.length === 0) throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find that Subrace Proficiency for that Character in the Database!');
+            if (results.length === 0)
+                throw new NotFoundError(
+                    'Character Subrace Proficiency not found',
+                    'Could not find that Subrace Proficiency for that Character in the Database!'
+                );
 
             const charSubProf = results[0];
             const dbProf = await Proficiency.getOne({ id: charSubProf.type });
 
-            if (charSubProf.deleted_at) throw new BadRequestError('Character Subrace Proficiency deleted', 'The Subrace Proficiency of that Character that you are trying to view has been deleted!');
+            if (charSubProf.deleted_at)
+                throw new BadRequestError(
+                    'Character Subrace Proficiency deleted',
+                    'The Subrace Proficiency of that Character that you are trying to view has been deleted!'
+                );
 
             return {
                 id: charSubProf.id,
@@ -47,19 +59,27 @@ class CharacterSubraceProf {
                 type: dbProf,
                 name: charSubProf.name,
                 expert: charSubProf.expert,
-                deleted_at: charSubProf.deleted_at
+                deleted_at: charSubProf.deleted_at,
             };
         }
 
         const sql = 'SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND name = $3';
         const results = await query(sql, [char.id, sub.id, prof.name]);
 
-        if (results.length === 0) throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find a Subrace Proficiency with that name for that Character in the Database!');
+        if (results.length === 0)
+            throw new NotFoundError(
+                'Character Subrace Proficiency not found',
+                'Could not find a Subrace Proficiency with that name for that Character in the Database!'
+            );
 
         const charSubProf = results[0];
         const dbProf = await Proficiency.getOne({ id: charSubProf.type });
 
-        if (charSubProf.deleted_at) throw new BadRequestError('Character Subrace Proficiency deleted', 'The Subrace Proficiency of that Character that you are trying to view has been deleted!');
+        if (charSubProf.deleted_at)
+            throw new BadRequestError(
+                'Character Subrace Proficiency deleted',
+                'The Subrace Proficiency of that Character that you are trying to view has been deleted!'
+            );
 
         return {
             id: charSubProf.id,
@@ -68,14 +88,14 @@ class CharacterSubraceProf {
             type: dbProf,
             name: charSubProf.name,
             expert: charSubProf.expert,
-            deleted_at: charSubProf.deleted_at
+            deleted_at: charSubProf.deleted_at,
         };
     }
 
     static async exists(char, sub, prof) {
         if (prof.id) {
             const sql = 'SELECT * FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3';
-            const results = await query(sql, [char.id, sub.id, prof.id])
+            const results = await query(sql, [char.id, sub.id, prof.id]);
 
             return results.length === 1;
         }
@@ -104,7 +124,11 @@ class CharacterSubraceProf {
         try {
             const charSubProf = await this.getOne(char, sub, prof);
 
-            if (prof.expert === charSubProf.expert) throw new DuplicateError('Duplicate Character Subrace Proficiency', 'That Character already has that Subrace Proficiency in the Database!');
+            if (prof.expert === charSubProf.expert)
+                throw new DuplicateError(
+                    'Duplicate Character Subrace Proficiency',
+                    'That Character already has that Subrace Proficiency in the Database!'
+                );
 
             const sql = 'UPDATE character_subrace_profs SET expert = $1, name = $2 WHERE char_id = $3 AND sub_id = $4 AND id = $5';
             await query(sql, [prof.expert, prof.name, char.id, sub.id, prof.id]);
@@ -121,9 +145,17 @@ class CharacterSubraceProf {
     }
 
     static async remove(char, sub, prof) {
-        if (!(await this.exists(char, sub, prof))) throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find that Subrace Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, sub, prof)))
+            throw new NotFoundError(
+                'Character Subrace Proficiency not found',
+                'Could not find that Subrace Proficiency for that Character in the Database!'
+            );
 
-        if (await this.isDeleted(char, sub, prof)) throw new BadRequestError('Character Subrace Proficiency deleted', 'The Subrace Proficiency of that Character that you are trying to remove has already been deleted!');
+        if (await this.isDeleted(char, sub, prof))
+            throw new BadRequestError(
+                'Character Subrace Proficiency deleted',
+                'The Subrace Proficiency of that Character that you are trying to remove has already been deleted!'
+            );
 
         const sql = 'UPDATE character_subrace_profs SET deleted_at = $1 WHERE char_id = $2 AND sub_id = $3 AND id = $4';
         await query(sql, [Date.now(), char.id, sub.id, prof.id]);
@@ -132,7 +164,11 @@ class CharacterSubraceProf {
     }
 
     static async remove_final(char, sub, prof) {
-        if (!(await this.exists(char, sub, prof))) throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find that Subrace Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, sub, prof)))
+            throw new NotFoundError(
+                'Character Subrace Proficiency not found',
+                'Could not find that Subrace Proficiency for that Character in the Database!'
+            );
 
         await query('DELETE FROM character_subrace_profs WHERE char_id = $1 AND sub_id = $2 AND id = $3', [char.id, sub.id, prof.id]);
 
@@ -140,9 +176,17 @@ class CharacterSubraceProf {
     }
 
     static async update(char, sub, prof) {
-        if (!(await this.exists(char, sub, prof))) throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find that Subrace Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, sub, prof)))
+            throw new NotFoundError(
+                'Character Subrace Proficiency not found',
+                'Could not find that Subrace Proficiency for that Character in the Database!'
+            );
 
-        if (await this.isDeleted(char, sub, prof)) throw new BadRequestError('Character Subrace Proficiency deleted', 'The Subrace Proficiency of that Character that you are trying to update has been deleted!');
+        if (await this.isDeleted(char, sub, prof))
+            throw new BadRequestError(
+                'Character Subrace Proficiency deleted',
+                'The Subrace Proficiency of that Character that you are trying to update has been deleted!'
+            );
 
         const sql = 'UPDATE character_subrace_profs SET name = $1, type = $2, expert = $3 WHERE char_id = $4 AND sub_id = $5 AND id = $6';
         await query(sql, [prof.name, prof.type, prof.expert, char.id, sub.id, prof.id]);
@@ -151,9 +195,17 @@ class CharacterSubraceProf {
     }
 
     static async restore(char, sub, prof) {
-        if (!(await this.exists(char, sub, prof))) throw new NotFoundError('Character Subrace Proficiency not found', 'Could not find that Subrace Proficiency for that Character in the Database!');
+        if (!(await this.exists(char, sub, prof)))
+            throw new NotFoundError(
+                'Character Subrace Proficiency not found',
+                'Could not find that Subrace Proficiency for that Character in the Database!'
+            );
 
-        if (!(await this.isDeleted(char, sub, prof))) throw new BadRequestError('Character Subrace Proficiency not deleted', 'The Subrace Proficiency of that Character that you are trying to restore has not been deleted!');
+        if (!(await this.isDeleted(char, sub, prof)))
+            throw new BadRequestError(
+                'Character Subrace Proficiency not deleted',
+                'The Subrace Proficiency of that Character that you are trying to restore has not been deleted!'
+            );
 
         const sql = 'UPDATE character_subrace_profs SET deleted_at = NULL WHERE char_id = $1 AND sub_id = $2 AND id = $3';
         await query(sql, [char.id, sub.id, prof.id]);

@@ -1,24 +1,22 @@
 {
-  "name": "rpg-master",
-  "version": "",
-  "type": "module",
-  "dependencies": {
-    "ascii-table": "^0.0.9",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5",
-    "glob": "^10.3.10",
-    "moment": "^2.30.1",
-    "path": "^0.12.7",
-    "pg": "^8.11.3",
-    "undici": "^6.6.2",
-    "util": "^0.12.5"
-  },
-  "scripts": {
-    "prettier": "npx prettier --write .",
-    "start": "node ./index.js",
-    "stop": "killall node"
-  },
-  "devDependencies": {
-    "prettier": "^3.2.5"
-  }
+    "name": "rpg-master",
+    "version": "",
+    "type": "module",
+    "dependencies": {
+        "ascii-table": "^0.0.9",
+        "discord.js": "^14.14.1",
+        "dotenv": "^16.4.5",
+        "glob": "^10.3.10",
+        "moment": "^2.30.1",
+        "path": "^0.12.7",
+        "pg": "^8.11.3",
+        "undici": "^6.8.0",
+        "util": "^0.12.5"
+    },
+    "scripts": {
+        "prettier": "npx prettier --write ."
+    },
+    "devDependencies": {
+        "prettier": "^3.2.5"
+    }
 }
