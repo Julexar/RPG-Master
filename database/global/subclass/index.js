@@ -25,7 +25,7 @@ class subclass {
         }
 
         return Promise.all(
-            results.map(async (dbSub) => {
+            results.map(async dbSub => {
                 const [subProfs, subSenses, subTraits] = await Promise.all([
                     this.profs.getAll(dbSub),
                     this.senses.getAll(dbSub),

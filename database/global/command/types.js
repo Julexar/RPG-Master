@@ -4,7 +4,7 @@ const query = psql.query;
 
 class CommandType {
     static async getAll() {
-        const results = await query('SELECT * FROM command_types')
+        const results = await query('SELECT * FROM command_types');
 
         if (results.length === 0) throw new NotFoundError('No Command Types found', 'Could not find any Command Types in the Database!');
 
@@ -22,7 +22,8 @@ class CommandType {
 
         const results = await query('SELECT * FROM command_types WHERE key = $1', [type || type.key]);
 
-        if (results.length === 0) throw new NotFoundError('Command Type not found', 'Could not find that Command Type based on that Key in the Database!');
+        if (results.length === 0)
+            throw new NotFoundError('Command Type not found', 'Could not find that Command Type based on that Key in the Database!');
 
         return results[0];
     }
@@ -49,7 +50,7 @@ class CommandType {
     }
 
     static async remove(type) {
-        if (!await this.exists(type)) throw new NotFoundError('Command Type not found', 'Could not find that Command Type in the Database!');
+        if (!(await this.exists(type))) throw new NotFoundError('Command Type not found', 'Could not find that Command Type in the Database!');
 
         const sql = 'DELETE FROM command_types WHERE id = $1';
         await query(sql, [type.id]);

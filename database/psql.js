@@ -13,7 +13,7 @@ class PSQL {
             port: process.env.PG_PORT,
         });
 
-        this.pool.connect((err) => {
+        this.pool.connect(err => {
             if (err) {
                 return this.writeDevLog(`${err}`);
             }

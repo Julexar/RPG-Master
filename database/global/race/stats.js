@@ -12,7 +12,7 @@ class RaceStats {
         }
 
         return Promise.all(
-            results.map(async (raceStat) => {
+            results.map(async raceStat => {
                 const dbStat = await Stats.getOne({ key: raceStat.stat });
 
                 return {

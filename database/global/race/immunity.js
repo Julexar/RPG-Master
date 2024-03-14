@@ -12,7 +12,7 @@ class RaceImmunity {
         }
 
         return Promise.all(
-            results.map(async (raceImmune) => {
+            results.map(async raceImmune => {
                 let dbImmune;
 
                 switch (raceImmune.type) {

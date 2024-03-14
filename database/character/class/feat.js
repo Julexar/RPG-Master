@@ -7,10 +7,14 @@ class CharacterClassFeat {
     static async getAll(server, char, clas) {
         const results = await query('SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2', [char.id, clas.id]);
 
-        if (results.length === 0) throw new NotFoundError('No Character (class-only) Feats found', 'Could not find any Feats granted by the Character\'s Class in the Database!');
+        if (results.length === 0)
+            throw new NotFoundError(
+                'No Character (class-only) Feats found',
+                "Could not find any Feats granted by the Character's Class in the Database!"
+            );
 
         return Promise.all(
-            results.map(async (charFeat) => {
+            results.map(async charFeat => {
                 const dbFeat = await ServerFeats.getOne(server, { id: charFeat.feat_id });
 
                 if (charFeat.deleted_at) return;
@@ -21,7 +25,7 @@ class CharacterClassFeat {
                     class_id: clas.id,
                     feat: dbFeat,
                     overwrites: charFeat.overwrites,
-                    deleted_at: charFeat.deleted_at
+                    deleted_at: charFeat.deleted_at,
                 };
             })
         );
@@ -32,12 +36,20 @@ class CharacterClassFeat {
             const sql = 'SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3';
             const results = await query(sql, [char.id, clas.id, feat.id]);
 
-            if (results.length === 0) throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+            if (results.length === 0)
+                throw new NotFoundError(
+                    'Character (class-only) Feat not found',
+                    'Could not find that Feat granted by that Class for that Character in the Database!'
+                );
 
             const charFeat = results[0];
             const dbFeat = await ServerFeats.getOne(server, { id: charFeat.feat_id });
 
-            if (charFeat.deleted_at) throw new BadRequestError('Character (class-only) Feat deleted', 'The Character (class-only) Feat you are trying to view has been deleted!');
+            if (charFeat.deleted_at)
+                throw new BadRequestError(
+                    'Character (class-only) Feat deleted',
+                    'The Character (class-only) Feat you are trying to view has been deleted!'
+                );
 
             return {
                 id: charFeat.id,
@@ -45,7 +57,7 @@ class CharacterClassFeat {
                 class_id: clas.id,
                 feat: dbFeat,
                 overwrites: charFeat.overwrites,
-                deleted_at: charFeat.deleted_at
+                deleted_at: charFeat.deleted_at,
             };
         }
 
@@ -53,12 +65,20 @@ class CharacterClassFeat {
             const sql = 'SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3';
             const results = await query(sql, [char.id, clas.id, feat.feat_id]);
 
-            if (results.length === 0) throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+            if (results.length === 0)
+                throw new NotFoundError(
+                    'Character (class-only) Feat not found',
+                    'Could not find that Feat granted by that Class for that Character in the Database!'
+                );
 
             const charFeat = results[0];
             const dbFeat = await ServerFeats.getOne(server, { id: feat.feat_id });
 
-            if (charFeat.deleted_at) throw new BadRequestError('Character (class-only) Feat deleted', 'The Character (class-only) Feat you are trying to view has been deleted!');
+            if (charFeat.deleted_at)
+                throw new BadRequestError(
+                    'Character (class-only) Feat deleted',
+                    'The Character (class-only) Feat you are trying to view has been deleted!'
+                );
 
             return {
                 id: charFeat.id,
@@ -66,7 +86,7 @@ class CharacterClassFeat {
                 class_id: clas.id,
                 feat: dbFeat,
                 overwrites: charFeat.overwrites,
-                deleted_at: charFeat.deleted_at
+                deleted_at: charFeat.deleted_at,
             };
         }
 
@@ -74,11 +94,19 @@ class CharacterClassFeat {
         const sql = 'SELECT * FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND feat_id = $3';
         const results = await query(sql, [char.id, clas.id, dbFeat.id]);
 
-        if (results.length === 0) throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+        if (results.length === 0)
+            throw new NotFoundError(
+                'Character (class-only) Feat not found',
+                'Could not find that Feat granted by that Class for that Character in the Database!'
+            );
 
         const charFeat = results[0];
 
-        if (charFeat.deleted_at) throw new BadRequestError('Character (class-only) Feat deleted', 'The Character (class-only) Feat you are trying to view has been deleted!');
+        if (charFeat.deleted_at)
+            throw new BadRequestError(
+                'Character (class-only) Feat deleted',
+                'The Character (class-only) Feat you are trying to view has been deleted!'
+            );
 
         return {
             id: charFeat.id,
@@ -86,7 +114,7 @@ class CharacterClassFeat {
             class_id: clas.id,
             feat: dbFeat,
             overwrites: charFeat.overwrites,
-            deleted_at: charFeat.deleted_at
+            deleted_at: charFeat.deleted_at,
         };
     }
 
@@ -135,7 +163,8 @@ class CharacterClassFeat {
     }
 
     static async add(server, char, clas, feat) {
-        if (await this.exists(server, char, clas, feat)) throw new DuplicateError('Duplicate Character (class-only) Feat', 'That Character already has that Feat granted by that Class!');
+        if (await this.exists(server, char, clas, feat))
+            throw new DuplicateError('Duplicate Character (class-only) Feat', 'That Character already has that Feat granted by that Class!');
 
         if (!feat.feat_id) {
             const dbFeat = await ServerFeats.getOne(server, { name: feat.name });
@@ -150,7 +179,11 @@ class CharacterClassFeat {
     }
 
     static async remove_final(server, char, clas, feat) {
-        if (!(await this.exists(server, char, clas, feat))) throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+        if (!(await this.exists(server, char, clas, feat)))
+            throw new NotFoundError(
+                'Character (class-only) Feat not found',
+                'Could not find that Feat granted by that Class for that Character in the Database!'
+            );
 
         await query('DELETE FROM character_class_feats WHERE char_id = $1 AND class_id = $2 AND id = $3', [char.id, clas.id, feat.id]);
 
@@ -158,9 +191,17 @@ class CharacterClassFeat {
     }
 
     static async remove(server, char, clas, feat) {
-        if (!(await this.exists(server, char, clas, feat))) throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+        if (!(await this.exists(server, char, clas, feat)))
+            throw new NotFoundError(
+                'Character (class-only) Feat not found',
+                'Could not find that Feat granted by that Class for that Character in the Database!'
+            );
 
-        if (await this.isDeleted(server, char, clas, feat)) throw new BadRequestError('Character (class-only) Feat deleted', 'The Character (class-only) Feat you are trying to remove has already been deleted!');
+        if (await this.isDeleted(server, char, clas, feat))
+            throw new BadRequestError(
+                'Character (class-only) Feat deleted',
+                'The Character (class-only) Feat you are trying to remove has already been deleted!'
+            );
 
         const sql = 'UPDATE character_class_feats SET deleted_at = $1 WHERE char_id = $2 AND class_id = $3 AND id = $4';
         await query(sql, [Date.now(), char.id, clas.id, feat.id]);
@@ -169,9 +210,17 @@ class CharacterClassFeat {
     }
 
     static async update(server, char, clas, feat) {
-        if (!(await this.exists(server, char, clas, feat))) throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+        if (!(await this.exists(server, char, clas, feat)))
+            throw new NotFoundError(
+                'Character (class-only) Feat not found',
+                'Could not find that Feat granted by that Class for that Character in the Database!'
+            );
 
-        if (await this.isDeleted(server, char, clas, feat)) throw new BadRequestError('Character (class-only) Feat deleted', 'The Character (class-only) Feat you are trying to update has been deleted!');
+        if (await this.isDeleted(server, char, clas, feat))
+            throw new BadRequestError(
+                'Character (class-only) Feat deleted',
+                'The Character (class-only) Feat you are trying to update has been deleted!'
+            );
 
         const sql = 'UPDATE character_class_feats SET overwrites = $1::JSON WHERE char_id = $2 AND class_id = $3 AND id = $4';
         await query(sql, [feat.overwrites, char.id, clas.id, feat.id]);
@@ -180,9 +229,17 @@ class CharacterClassFeat {
     }
 
     static async restore(server, char, clas, feat) {
-        if (!(await this.exists(server, char, clas, feat))) throw new NotFoundError('Character (class-only) Feat not found', 'Could not find that Feat granted by that Class for that Character in the Database!');
+        if (!(await this.exists(server, char, clas, feat)))
+            throw new NotFoundError(
+                'Character (class-only) Feat not found',
+                'Could not find that Feat granted by that Class for that Character in the Database!'
+            );
 
-        if (!(await this.isDeleted(server, char, clas, feat))) throw new BadRequestError('Character (class-only) Feat not deleted', 'The Character (class-only) Feat you are trying to restore is not deleted!');
+        if (!(await this.isDeleted(server, char, clas, feat)))
+            throw new BadRequestError(
+                'Character (class-only) Feat not deleted',
+                'The Character (class-only) Feat you are trying to restore is not deleted!'
+            );
 
         const sql = 'UPDATE character_class_feats SET deleted_at = NULL WHERE char_id = $2 AND class_id = $3 AND id = $4';
         await query(sql, [char.id, clas.id, feat.id]);

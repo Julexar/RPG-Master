@@ -5,7 +5,7 @@ import { commands } from '../../commands/prefix';
 class prefixHandler {
     static async run() {
         const prefixCommandsTable = new Ascii('Prefix Commands').setHeading('Name', 'Status', 'Reason');
-        
+
         for (const command of commands) {
             let name;
 

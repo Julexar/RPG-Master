@@ -18,7 +18,7 @@ class Command extends CommandBuilder {
         const option = interaction.options;
         const server = interaction.guild;
         const user = interaction.user;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
         let msg, embed, rows, row1, row2, collector, emph, count, num, page;
 
         if (!option.getSubcommandGroup()) {
@@ -64,7 +64,7 @@ class Command extends CommandBuilder {
 
                     collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                    collector.on('collect', async (i) => {
+                    collector.on('collect', async i => {
                         if (i.customId === 'charsel') {
                             const char = await client.database.Character.getOne(user, { id: Number(i.values[0]) });
 
@@ -124,7 +124,7 @@ class Command extends CommandBuilder {
                         }
                     });
 
-                    collector.on('end', async (collected) => {
+                    collector.on('end', async collected => {
                         if (collected.size === 0) {
                             await msg.edit({
                                 content: 'Character Selection has timed out.',

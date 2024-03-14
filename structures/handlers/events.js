@@ -20,7 +20,7 @@ class eventHandler {
 
             eventsTable.addRow(name, 'Success');
         }
-        
+
         console.log(eventsTable.toString());
     }
 }

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+
 const config = {
     token: process.env.BOT_TOKEN,
     default_prefix: 'r!',
@@ -13,4 +14,5 @@ const config = {
         status: 'online',
     },
 };
+
 export { config };

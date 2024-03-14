@@ -12,9 +12,10 @@ class Event {
     async run(member) {
         const server = member.guild;
 
-        await client.database.Server.members.add(server, member)
-        .then(msg => client.writeServerLog(server, msg))
-        .catch(err => client.logServerError(server, err))
+        await client.database.Server.members
+            .add(server, member)
+            .then(msg => client.writeServerLog(server, msg))
+            .catch(err => client.logServerError(server, err));
     }
 }
 

@@ -12,7 +12,7 @@ class ClassProficiency {
         }
 
         return Promise.all(
-            results.map(async (classProf) => {
+            results.map(async classProf => {
                 const dbProf = await Proficiency.getOne({ id: classProf.type });
 
                 return {

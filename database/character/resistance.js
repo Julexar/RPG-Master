@@ -12,7 +12,7 @@ class CharacterResistance {
         }
 
         return Promise.all(
-            results.map(async (charResist) => {
+            results.map(async charResist => {
                 let dbResist;
 
                 switch (charResist.type) {

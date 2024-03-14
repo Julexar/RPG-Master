@@ -24,7 +24,7 @@ class clas {
         }
 
         return Promise.all(
-            results.map(async (dbClass) => {
+            results.map(async dbClass => {
                 const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
                     await ClassProficiency.getAll(dbClass),
                     await ClassSave.getAll(dbClass),

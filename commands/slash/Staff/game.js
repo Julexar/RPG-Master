@@ -42,9 +42,10 @@ class Command extends CommandBuilder {
         }
 
         if (!allowed) {
-            const roles = server.gm_edit
-                ? `<@&${server.admin_role}>, <@&${server.mod_role}>, <@&${server.dm_role}>`
-                : `<@&${server.admin_role}>, <@&${server.mod_role}>`;
+            const roles =
+                server.gm_edit ?
+                    `<@&${server.admin_role}>, <@&${server.mod_role}>, <@&${server.dm_role}>`
+                :   `<@&${server.admin_role}>, <@&${server.mod_role}>`;
 
             const err = new ForbiddenError('Missing Permission', `You do not have Permission to use this Command!`);
 
@@ -74,7 +75,7 @@ class Command extends CommandBuilder {
         );
 
         let msg, collector, embed, emph;
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
 
         switch (option.getSubcommand()) {
             case 'armor':
@@ -174,7 +175,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             let mes, filt, mescol, col;
 
                             switch (i.customId) {
@@ -183,17 +184,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Name of the Armor!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         armor.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -251,7 +252,7 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'type') {
                                             menu.data.fields[1].value = `${j.values[0]} Armor`;
                                             armor.type = j.values[0];
@@ -259,7 +260,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -327,7 +328,7 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'rarity') {
                                             menu.data.fields[2].value = j.values[0];
                                             armor.rarity = j.values[0];
@@ -335,7 +336,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -391,7 +392,7 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'attune') {
                                             if (j.values[0] === 'Yes') {
                                                 armor.attune = true;
@@ -413,7 +414,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -469,7 +470,7 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'magical') {
                                             if (j.values[0] === 'Yes') {
                                                 armor.magical = true;
@@ -551,7 +552,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -588,11 +589,11 @@ class Command extends CommandBuilder {
                                         content: 'Reply with a Number!',
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         if (isNaN(j.content)) {
                                             let mesag = await j.deferReply();
 
@@ -610,7 +611,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -647,11 +648,11 @@ class Command extends CommandBuilder {
                                         content: 'Reply with a Number!',
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         if (isNaN(j.content)) {
                                             let mesag = await j.deferReply();
 
@@ -669,7 +670,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -706,11 +707,11 @@ class Command extends CommandBuilder {
                                         content: 'Reply with a Number!',
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         if (isNaN(j.content)) {
                                             let mesag = await j.deferReply();
 
@@ -728,7 +729,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -765,11 +766,11 @@ class Command extends CommandBuilder {
                                         content: 'Reply with a Description!',
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         armor.description = j.content;
 
                                         menu.data.fields[9].value = armor.description;
@@ -777,7 +778,7 @@ class Command extends CommandBuilder {
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -814,17 +815,17 @@ class Command extends CommandBuilder {
                                         content: 'Reply with the Attunement Requirement!',
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         armor.attune_req = j.content;
                                         menu.data.fields[3].value = `Yes (${armor.attune_req})`;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -861,11 +862,11 @@ class Command extends CommandBuilder {
                                         content: 'Reply with a Number!',
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         if (isNaN(j.content)) {
                                             let mesag = await j.deferReply();
 
@@ -902,7 +903,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -962,7 +963,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'armor':
                                     mes = await i.deferReply();
@@ -1025,7 +1026,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -1106,7 +1107,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             let mes, filt, mescol, col;
 
                             switch (i.customId) {
@@ -1115,17 +1116,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Name of the Class!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         clas.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -1187,7 +1188,7 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'hitdice') {
                                             menu.data.fields[1].value = `${j.values[0]}`;
                                             clas.hitdice_size = j.values[0];
@@ -1195,7 +1196,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -1252,7 +1253,7 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'caster') {
                                             if (j.values[0] === 'Yes') {
                                                 clas.caster = true;
@@ -1277,7 +1278,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -1350,16 +1351,19 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'cast_stat') {
-                                            const lvl = clas.cast_lvl === 1 ? 'Full Caster' : clas.cast_lvl === 0 ? 'Special Caster' : 'Half Caster';
+                                            const lvl =
+                                                clas.cast_lvl === 1 ? 'Full Caster'
+                                                : clas.cast_lvl === 0 ? 'Special Caster'
+                                                : 'Half Caster';
                                             menu.data.fields[2].value = `Yes, ${lvl} (${j.values[0]})`;
                                             clas.cast_stat = j.values[0];
                                             col.stop();
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -1396,11 +1400,11 @@ class Command extends CommandBuilder {
                                         content: 'Reply with a Number!',
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         if (isNaN(j.content)) {
                                             let mesag = await j.deferReply();
 
@@ -1413,13 +1417,16 @@ class Command extends CommandBuilder {
                                             }, 5000);
                                         } else {
                                             clas.cast_lvl = Number(j.content);
-                                            const lvl = clas.cast_lvl === 1 ? 'Full Caster' : clas.cast_lvl === 0 ? 'Special Caster' : 'Half Caster';
+                                            const lvl =
+                                                clas.cast_lvl === 1 ? 'Full Caster'
+                                                : clas.cast_lvl === 0 ? 'Special Caster'
+                                                : 'Half Caster';
                                             menu.data.fields[2].value = `Yes, ${lvl} (${clas.cast_stat})`;
                                             mescol.stop();
                                         }
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Reply collection timed out...',
@@ -1476,7 +1483,7 @@ class Command extends CommandBuilder {
 
                                     col = mes.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    col.on('collect', async (j) => {
+                                    col.on('collect', async j => {
                                         if (j.customId === 'subsel') {
                                             if (j.values[0] === 'Yes') {
                                                 clas.sub = true;
@@ -1489,7 +1496,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    col.on('end', async (collected) => {
+                                    col.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -1538,7 +1545,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -1596,7 +1603,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'class':
                                     mes = await i.deferReply();
@@ -1659,7 +1666,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -1713,7 +1720,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             let mes, filt, mescol;
 
                             switch (i.customId) {
@@ -1722,17 +1729,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Name of the Condition!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         condition.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -1757,17 +1764,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Description of the Condition!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[1].value = j.content;
                                         condition.description = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -1806,7 +1813,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -1865,7 +1872,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'condsel':
                                     mes = await i.deferReply();
@@ -1928,7 +1935,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -1982,7 +1989,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             let mes, filt, mescol;
 
                             switch (i.customId) {
@@ -1991,17 +1998,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Name of the Damage Type!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         dmgtype.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2026,17 +2033,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Description of the Damage Type!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[1].value = j.content;
                                         dmgtype.description = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2075,7 +2082,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -2134,7 +2141,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'dmgtypesel':
                                     mes = await i.deferReply();
@@ -2197,7 +2204,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -2269,7 +2276,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             let mes, filt, mescol;
 
                             switch (i.customId) {
@@ -2278,17 +2285,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Name of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         feat.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2313,17 +2320,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Description of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[3].value = j.content;
                                         feat.description = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2348,17 +2355,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Prerequisites of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[1].value = j.content;
                                         feat.prerequisites = j.content.split(',');
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2383,17 +2390,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Options of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[3].value = j.content;
                                         feat.options = j.content.split(',');
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2432,7 +2439,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -2491,7 +2498,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'featsel':
                                     mes = await i.deferReply();
@@ -2554,7 +2561,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -2631,24 +2638,24 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'name':
                                     mes = await i.followUp({
                                         content: `<@${user.id}> Please enter the Name of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         race.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2673,17 +2680,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Description of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[4].value = j.content;
                                         race.description = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -2706,11 +2713,11 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Speed of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         if (isNaN(j.content)) {
                                             let mesag = await j.deferReply();
 
@@ -2728,7 +2735,7 @@ class Command extends CommandBuilder {
                                         }
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond or entered an invalid number!`,
@@ -2772,13 +2779,13 @@ class Command extends CommandBuilder {
 
                                     mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[2].value = Boolean(j.values[0]) ? 'Yes' : 'No';
                                         race.sub = Boolean(j.values[0]);
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'You took too long to respond!',
@@ -2822,13 +2829,13 @@ class Command extends CommandBuilder {
 
                                     mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[3].value = Boolean(j.values[0]) ? 'Yes' : 'No';
                                         race.feat = Boolean(j.values[0]);
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'You took too long to respond!',
@@ -2865,7 +2872,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -2924,7 +2931,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'racesel':
                                     mes = await i.deferReply();
@@ -2987,7 +2994,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -3050,24 +3057,24 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'name':
                                     mes = await i.followUp({
                                         content: `<@${user.id}> Please enter the Name of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         subclass.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -3100,17 +3107,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Description of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[2].value = j.content;
                                         subclass.description = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -3162,17 +3169,20 @@ class Command extends CommandBuilder {
 
                                     mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         subclass.caster = Boolean(j.values[0]);
 
                                         if (subclass.caster) {
                                             const lvl =
-                                                subclass.cast_lvl === 1 ? 'Full Caster' : subclass.cast_lvl === 0 ? 'Special Caster' : 'Half Caster';
-                                            menu.data.fields[1].value = Boolean(j.values[0])
-                                                ? subclass.cast_stat
-                                                    ? `Yes, ${lvl} (${subclass.cast_stat})`
-                                                    : `Yes, ${lvl}`
-                                                : 'No';
+                                                subclass.cast_lvl === 1 ? 'Full Caster'
+                                                : subclass.cast_lvl === 0 ? 'Special Caster'
+                                                : 'Half Caster';
+                                            menu.data.fields[1].value =
+                                                Boolean(j.values[0]) ?
+                                                    subclass.cast_stat ?
+                                                        `Yes, ${lvl} (${subclass.cast_stat})`
+                                                    :   `Yes, ${lvl}`
+                                                :   'No';
                                             row2.setComponents(
                                                 new ButtonBuilder()
                                                     .setCustomId('cast_stat')
@@ -3192,7 +3202,7 @@ class Command extends CommandBuilder {
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -3260,14 +3270,17 @@ class Command extends CommandBuilder {
 
                                     mescol = msg.createMessageComponentCollector({ filter, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         const lvl =
-                                            subclass.cast_lvl === 1 ? 'Full Caster' : subclass.cast_lvl === 0 ? 'Special Caster' : 'Half Caster';
-                                        menu.data.fields[1].value = Boolean(j.values[0])
-                                            ? subclass.cast_stat
-                                                ? `Yes, ${lvl} (${subclass.cast_stat})`
-                                                : `Yes, ${lvl}`
-                                            : 'No';
+                                            subclass.cast_lvl === 1 ? 'Full Caster'
+                                            : subclass.cast_lvl === 0 ? 'Special Caster'
+                                            : 'Half Caster';
+                                        menu.data.fields[1].value =
+                                            Boolean(j.values[0]) ?
+                                                subclass.cast_stat ?
+                                                    `Yes, ${lvl} (${subclass.cast_stat})`
+                                                :   `Yes, ${lvl}`
+                                            :   'No';
 
                                         row2.setComponents(
                                             new ButtonBuilder()
@@ -3283,7 +3296,7 @@ class Command extends CommandBuilder {
                                         );
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: 'Selection timed out...',
@@ -3312,7 +3325,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -3371,7 +3384,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'subclassesel':
                                     mes = await i.deferReply();
@@ -3434,7 +3447,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -3488,24 +3501,24 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'name':
                                     mes = await i.followUp({
                                         content: `<@${user.id}> Please enter the Name of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[0].value = j.content;
                                         subrace.name = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -3530,17 +3543,17 @@ class Command extends CommandBuilder {
                                         content: `<@${user.id}> Please enter the Description of the Feat!`,
                                     });
 
-                                    filt = (m) => m.reference.messageId === mes.id && m.author.id === user.id;
+                                    filt = m => m.reference.messageId === mes.id && m.author.id === user.id;
 
                                     mescol = i.channel.createMessageCollector({ filt, time: 35000, max: 1 });
 
-                                    mescol.on('collect', async (j) => {
+                                    mescol.on('collect', async j => {
                                         menu.data.fields[1].value = j.content;
                                         subrace.description = j.content;
                                         mescol.stop();
                                     });
 
-                                    mescol.on('end', async (collected) => {
+                                    mescol.on('end', async collected => {
                                         if (collected.size === 0) {
                                             await mes.edit({
                                                 content: `<@${user.id}> You took too long to respond!`,
@@ -3577,7 +3590,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',
@@ -3636,7 +3649,7 @@ class Command extends CommandBuilder {
 
                         collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                        collector.on('collect', async (i) => {
+                        collector.on('collect', async i => {
                             switch (i.customId) {
                                 case 'subracesel':
                                     mes = await i.deferReply();
@@ -3699,7 +3712,7 @@ class Command extends CommandBuilder {
                             }
                         });
 
-                        collector.on('end', async (collected) => {
+                        collector.on('end', async collected => {
                             if (collected.size === 0) {
                                 await msg.edit({
                                     content: 'Selection timed out...',

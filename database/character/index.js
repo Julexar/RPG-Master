@@ -37,10 +37,10 @@ class character {
     }
 
     /**
-     * 
-     * @param {import('discord.js').User} user 
-     * @param {import('discord.js').Guild} server 
-     * @returns 
+     *
+     * @param {import('discord.js').User} user
+     * @param {import('discord.js').Guild} server
+     * @returns
      */
     async getAll(user, server) {
         const results = await query('SELECT * FROM characters WHERE user_id = $1', [user.id]);
@@ -48,7 +48,7 @@ class character {
         if (results.length === 0) throw new NotFoundError('No Characters found', 'Could not find any Characters in the Database!');
 
         return Promise.all(
-            results.map(async (character) => {
+            results.map(async character => {
                 if (character.deleted_at) return;
 
                 const charStats = await CharacterStats.getAll(character);
@@ -109,8 +109,8 @@ class character {
                     subrace: charSubrace,
                     multiclass: character.multiclass,
                     created_at: character.created_at,
-                    deleted_at: character.deleted_at
-                }
+                    deleted_at: character.deleted_at,
+                };
             })
         );
     }
@@ -122,7 +122,7 @@ class character {
             if (results.length === 0) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
             const character = results[0];
-            
+
             const charStats = await CharacterStats.getAll(character);
             const charFeats = await CharacterFeat.getAll(user.guild, character);
             const charImmunities = await CharacterImmunity.getAll(character);
@@ -183,8 +183,8 @@ class character {
                 subrace: charSubrace,
                 multiclass: character.multiclass,
                 created_at: character.created_at,
-                deleted_at: character.deleted_at
-            }
+                deleted_at: character.deleted_at,
+            };
         }
 
         const results = await query('SELECT * FROM characters WHERE user_id = $1 AND name = $2', [user.id, char.name]);
@@ -192,7 +192,7 @@ class character {
         if (results.length === 0) throw new NotFoundError('Character not found', 'Could not find a Character with that Name in the Database!');
 
         const character = results[0];
-        
+
         const charStats = await CharacterStats.getAll(character);
         const charFeats = await CharacterFeat.getAll(user.guild, character);
         const charImmunities = await CharacterImmunity.getAll(character);
@@ -253,8 +253,8 @@ class character {
             subrace: charSubrace,
             multiclass: JSON.parse(character.multiclass),
             created_at: character.created_at,
-            deleted_at: character.deleted_at
-        }
+            deleted_at: character.deleted_at,
+        };
     }
 
     async exists(user, char) {
@@ -282,10 +282,30 @@ class character {
     }
 
     async add(user, char) {
-        if (await this.exists(user, char)) throw new DuplicateError('Duplicate Character', 'A Character with that name already exists in the Database!');
+        if (await this.exists(user, char))
+            throw new DuplicateError('Duplicate Character', 'A Character with that name already exists in the Database!');
 
-        const sql = 'INSERT INTO characters (user_id, name, portrait, ac, level, xp, hp_current, hp_max, hp_temp, initiative, currency, race_id, subrace_id, class_id, subclass_id, class_level, multiclass) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10, $11::JSON, $12, $13, $14, $15, $16::JSON)';
-        await query(sql, [user.id, char.name, char.portrait, char.ac, char.level, char.xp, char.hp.current, char.hp.max, char.hp.temp, char.initiative, char.currency, char.race.id, char.subrace.id, char.class.id, char.subclass.id, char.class.level, char.multiclass]);
+        const sql =
+            'INSERT INTO characters (user_id, name, portrait, ac, level, xp, hp_current, hp_max, hp_temp, initiative, currency, race_id, subrace_id, class_id, subclass_id, class_level, multiclass) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10, $11::JSON, $12, $13, $14, $15, $16::JSON)';
+        await query(sql, [
+            user.id,
+            char.name,
+            char.portrait,
+            char.ac,
+            char.level,
+            char.xp,
+            char.hp.current,
+            char.hp.max,
+            char.hp.temp,
+            char.initiative,
+            char.currency,
+            char.race.id,
+            char.subrace.id,
+            char.class.id,
+            char.subclass.id,
+            char.class.level,
+            char.multiclass,
+        ]);
 
         return `Successfully added Character \"${char.name}\" for User \"${user.username}\" to Database`;
     }
@@ -293,7 +313,8 @@ class character {
     async remove(user, char) {
         if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
-        if (await this.isDeleted(user, char)) throw new BadRequestError('Character already deleted', 'The Character you are trying to delete has already been deleted!');
+        if (await this.isDeleted(user, char))
+            throw new BadRequestError('Character already deleted', 'The Character you are trying to delete has already been deleted!');
 
         await query('UPDATE characters SET deleted_at = $1 WHERE user_id = $2 AND id = $3', [Date.now(), user.id, char.id]);
 
@@ -311,7 +332,8 @@ class character {
     async update(user, char) {
         if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
-        if (await this.isDeleted(user, char)) throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
+        if (await this.isDeleted(user, char))
+            throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
 
         const charHP = char.hp.current ? char.hp.current : char.hp;
         const charHPMax = char.hp.max ? char.hp.max : char.hp_max;
@@ -322,8 +344,28 @@ class character {
         const charClassLvl = char.class ? char.class.level : char.class_level;
         const charSubClassId = char.subclass ? char.subclass.id : char.subclass_id;
 
-        const sql = 'UPDATE characters SET name = $1, ac = $2, portrait = $3, hp_current = $4, hp_max = $5, hp_temp = $6, initiative = $7, level = $8, xp = $9, currency = $10::JSON, race_id = $11, subrace_id = $12, class_id = $13, subclass_id = $14, class_level = $15, multiclass = $16::JSON WHERE user_id = $17 AND id = $18';
-        await query(sql, [char.name, char.ac, char.portrait, charHP, charHPMax, charHPTemp, char.initiative, char.level, char.xp, JSON.stringify(char.currency), charRaceId, charSubRaceId, charClassId, charSubClassId, charClassLvl, JSON.stringify(char.multiclass), user.id, char.id]);
+        const sql =
+            'UPDATE characters SET name = $1, ac = $2, portrait = $3, hp_current = $4, hp_max = $5, hp_temp = $6, initiative = $7, level = $8, xp = $9, currency = $10::JSON, race_id = $11, subrace_id = $12, class_id = $13, subclass_id = $14, class_level = $15, multiclass = $16::JSON WHERE user_id = $17 AND id = $18';
+        await query(sql, [
+            char.name,
+            char.ac,
+            char.portrait,
+            charHP,
+            charHPMax,
+            charHPTemp,
+            char.initiative,
+            char.level,
+            char.xp,
+            JSON.stringify(char.currency),
+            charRaceId,
+            charSubRaceId,
+            charClassId,
+            charSubClassId,
+            charClassLvl,
+            JSON.stringify(char.multiclass),
+            user.id,
+            char.id,
+        ]);
 
         return `Successfully updated Character \"${char.name}\" of User \"${user.username}\" in Database`;
     }
@@ -331,7 +373,8 @@ class character {
     async setXP(user, char, xp) {
         if (!(await this.exists(user, char))) throw new NotFoundError('Character not found', 'Could not find that Character in the Database!');
 
-        if (await this.isDeleted(user, char)) throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
+        if (await this.isDeleted(user, char))
+            throw new BadRequestError('Character deleted', 'The Character you are trying to update has been deleted!');
 
         await query('UPDATE characters SET xp = $1 WHERE user_id = $2 AND id = $3', [xp, user.id, char.id]);
 
@@ -375,7 +418,7 @@ class character {
             hp += dbChar.class.level - 1 * (Math.ceil(dbChar.class.hitdice_size * modifier) + charConstitution);
         } else {
             await Promise.all(
-                dbChar.multiclass.map(async (mc) => {
+                dbChar.multiclass.map(async mc => {
                     if (mc.enabled) {
                         hp += mc.level - 1 * (Math.ceil(mc.class.hitdice_size * modifier) + charConstitution);
                     }

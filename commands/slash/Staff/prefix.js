@@ -30,7 +30,7 @@ class Command extends CommandBuilder {
             new ButtonBuilder().setCustomId('cancel').setStyle(ButtonStyle.Danger).setLabel('Cancel')
         );
 
-        const filter = (m) => m.user.id === user.id;
+        const filter = m => m.user.id === user.id;
 
         switch (option.getSubcommand()) {
             case 'add':
@@ -76,7 +76,7 @@ class Command extends CommandBuilder {
 
                 collector = msg.createMessageComponentCollector({ filter, time: 90000 });
 
-                collector.on('collect', async (i) => {
+                collector.on('collect', async i => {
                     switch (i.customId) {
                         case 'prefix_select':
                             const prefix = await client.database.Server.prefixes.getOne(guild, { id: i.values[0] });
@@ -138,7 +138,7 @@ class Command extends CommandBuilder {
                     }
                 });
 
-                collector.on('end', async (collected) => {
+                collector.on('end', async collected => {
                     if (collected.size === 0) {
                         await msg.edit({
                             content: 'Selection timed out...',

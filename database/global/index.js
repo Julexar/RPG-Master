@@ -15,4 +15,21 @@ import { Subclass } from './subclass';
 import { Subrace } from './subrace';
 import { Weapon } from './weapon';
 
-export { Armor, Class, Command, Condition, Damagetype, Feats, ItemType, ItemRarity, Proficiency, Race, Senses, Stats, Spell, Subclass, Subrace, Weapon };
+export {
+    Armor,
+    Class,
+    Command,
+    Condition,
+    Damagetype,
+    Feats,
+    ItemType,
+    ItemRarity,
+    Proficiency,
+    Race,
+    Senses,
+    Stats,
+    Spell,
+    Subclass,
+    Subrace,
+    Weapon,
+};
