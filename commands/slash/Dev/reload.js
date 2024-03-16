@@ -1,3 +1,4 @@
+//TODO: Implement Command
 import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { client } from '../../..';

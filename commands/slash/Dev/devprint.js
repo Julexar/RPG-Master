@@ -1,3 +1,4 @@
+//TODO: Implement Command
 import { PermissionFlagsBits } from 'discord.js';
 import { CommandBuilder } from '../../../custom/builders';
 import { ErrorEmbed } from '../../../custom/embeds';
