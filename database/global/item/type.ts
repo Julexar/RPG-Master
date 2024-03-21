@@ -1,72 +1,69 @@
-import { psql } from '../../psql.ts';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
-const query = psql.query;
+import { prisma as db } from "../../prisma";
+import { NotFoundError, DuplicateError } from "../../../custom/errors";
 
-interface Type {
-    id: bigint,
-    name: string
-};
+interface DBItemType {
+    id: number;
+    name: string;
+}
 
-class ItemType {
+export class ItemType {
     static async getAll() {
-        const results = await query('SELECT * FROM item_types') as Type[];
+        const results = await db.item_types.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Item Types found', 'Could not find any Item Types in the Database!');
 
         return results;
     }
 
-    static async getOne(type: { id?: bigint, name?: string }) {
+    static async getOne(type: { id?: number, name?: string }) {
         if (type.id) {
-            const results = await query('SELECT * FROM item_types WHERE id = $1', [type.id]) as Type[];
+            const result = await db.item_types.findUnique({ where: { id: type.id } });
 
-            if (results.length === 0) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
+            if (!result) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM item_types WHERE name = $1', [type.name]) as Type[];
+        const result = await db.item_types.findFirst({ where: { name: type.name } });
 
-        if (results.length === 0) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
+        if (!result) throw new NotFoundError('Item Type not found', 'Could not find an Item Type with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
-    static async exists(type: { id?: bigint, name?: string }) {
+    static async exists(type: { id?: number, name?: string }) {
         if (type.id) {
-            const results = await query('SELECT * FROM item_types WHERE id = $1', [type.id]) as Type[];
+            const result = await db.item_types.findUnique({ where: { id: type.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM item_types WHERE name = $1', [type.name]) as Type[];
+        const result = await db.item_types.findFirst({ where: { name: type.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(type: { name: string }) {
-        if (await this.exists(type)) throw new DuplicateError('Item Type already exists', 'An Item Type with that name already exists in the Database!');
+        if (await this.exists(type)) throw new DuplicateError('Duplicate Item Type', 'That Item Type already exists in the Database!');
 
-        await query('INSERT INTO item_types (name) VALUES ($1)', [type.name]);
+        await db.item_types.create({ data: { name: type.name } });
 
-        return 'Successfully added Item Type to the Database';
+        return 'Successfully added Item Type to Database';
     }
 
-    static async update(type: Type) {
-        if (!(await this.exists(type))) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
+    static async remove(type: { id: number }) {
+        if (!await this.exists(type)) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
 
-        await query('UPDATE item_types SET name = $1 WHERE id = $2', [type.name, type.id]);
+        await db.item_types.delete({ where: { id: type.id } });
 
-        return 'Successfully updated Item Type in the Database';
+        return 'Successfully removed Item Type from Database';
     }
 
-    static async remove(type: { id: bigint }) {
-        if (!(await this.exists(type))) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
+    static async update(type: DBItemType) {
+        if (!await this.exists(type)) throw new NotFoundError('Item Type not found', 'Could not find that Item Type in the Database!');
 
-        await query('DELETE FROM item_types WHERE id = $1', [type.id]);
+        await db.item_types.update({ where: { id: type.id }, data: { name: type.name } });
 
-        return 'Successfully removed Item Type from the Database';
+        return 'Successfully updated Item Type in Database';
     }
 }
-
-export { ItemType };

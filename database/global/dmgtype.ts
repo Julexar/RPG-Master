@@ -1,77 +1,72 @@
-import { psql } from '../psql.ts';
-import { NotFoundError, DuplicateError } from '../../custom/errors';
-const query = psql.query;
+import { prisma as db } from "../prisma";
+import { NotFoundError, DuplicateError } from "../../custom/errors";
 
 interface DBDmgtype {
-    id: bigint;
+    id: number;
     name: string;
 }
 
-interface AddDmgtype {
-    name: string;
-    description: string;
-}
-
-class Damagetype {
+export class Damagetype {
     static async getAll() {
-        const results = await query('SELECT * FROM damagetypes') as DBDmgtype[];
+        const results = await db.damagetypes.findMany();
 
-        if (results.length === 0) throw new NotFoundError('No Damagetypes found', 'Could not find any Damagetypes in the Database!');
+        if (results.length === 0) throw new NotFoundError('No Damage Type found', 'Could not find any Damage Type in the Database!');
 
         return results;
     }
 
-    static async getOne(dmgtype: { id?: bigint; name?: string }) {
+    static async getOne(dmgtype: { id?: number, name?: string }) {
         if (dmgtype.id) {
-            const results = await query('SELECT * FROM damagetypes WHERE id = $1', [dmgtype.id]) as DBDmgtype[];
+            const result = await db.damagetypes.findUnique({ where: { id: dmgtype.id } });
 
-            if (results.length === 0) throw new NotFoundError('Damagetype not found', 'Could not find that Damagetype in the Database!');
+            if (!result) throw new NotFoundError('Damage Type not found', 'Could not find that Damage Type in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM damagetypes WHERE name = $1', [dmgtype.name]) as DBDmgtype[];
+        const result = await db.damagetypes.findFirst({ where: { name: dmgtype.name } });
 
-        if (results.length === 0) throw new NotFoundError('Damagetype not found', 'Could not find a Damagetype with that name in the Database!');
+        if (!result) throw new NotFoundError('Damage Type not found', 'Could not find a Damage Type with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
-    static async exists(dmgtype: { id?: bigint; name?: string }) {
+    static async exists(dmgtype: { id?: number, name?: string }) {
         if (dmgtype.id) {
-            const results = await query('SELECT * FROM damagetypes WHERE id = $1', [dmgtype.id]) as DBDmgtype[];
+            const result = await db.damagetypes.findUnique({ where: { id: dmgtype.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM damagetypes WHERE name = $1', [dmgtype.name]) as DBDmgtype[];
+        const result = await db.damagetypes.findFirst({ where: { name: dmgtype.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
-    static async add(dmgtype: AddDmgtype) {
-        if (await this.exists(dmgtype)) throw new DuplicateError('Duplicate Damagetype', 'That Damagetype already exists in the Database!');
+    static async add(dmgtype: { name: string }) {
+        if (await this.exists(dmgtype)) throw new DuplicateError('Duplicate Damage Type', 'That Damage Type already exists in the Database!');
 
-        await query('INSERT INTO damagetypes (name, description) VALUES($1, $2)', [dmgtype.name, dmgtype.description]);
+        await db.damagetypes.create({ data: dmgtype });
 
-        return 'Successfully added Damagetype to Database';
+        return 'Successfully added Damage Type to Database';
     }
 
-    static async remove(dmgtype: { id: bigint }) {
-        if (!(await this.exists(dmgtype))) throw new NotFoundError('Damagetype not found', 'Could not find that Damagetype in the Database!');
+    static async remove(dmgtype: { id: number }) {
+        if (!await this.exists(dmgtype)) throw new NotFoundError('Damage Type not found', 'Could not find that Damage Type in the Database!');
 
-        await query('DELETE FROM damagetypes WHERE id = $1', [dmgtype.id]);
+        await db.damagetypes.delete({ where: { id: dmgtype.id } });
 
-        return 'Successfully removed Damagetype from Database';
+        return 'Successfully removed Damage Type from Database';
     }
 
     static async update(dmgtype: DBDmgtype) {
-        if (!(await this.exists(dmgtype))) throw new NotFoundError('Damagetype not found', 'Could not find that Damagetype in the Database!');
+        if (!(await this.exists({ id: dmgtype.id }))) throw new NotFoundError('Damage Type not found', 'Could not find that Damage Type in the Database!');
 
-        await query('UPDATE damagetypes SET name = $1 WHERE id = $2', [dmgtype.name, dmgtype.id]);
+        await db.damagetypes.update({
+            where: { id: dmgtype.id },
+            data: { name: dmgtype.name }
+        });
 
-        return 'Successfully updated Damagetype in Database';
+        return 'Successfully updated Damage Type in Database';
     }
 }
-
-export { Damagetype };

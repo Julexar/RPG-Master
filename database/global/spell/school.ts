@@ -1,64 +1,69 @@
-import { psql } from '../../psql.ts';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
-const query = psql.query;
+import { prisma as db } from "../../prisma";
+import { NotFoundError, DuplicateError } from "../../../custom/errors";
 
-interface School {
-    id: bigint | null | undefined,
-    name: string
-};
+interface DBSchool {
+    id: number;
+    name: string;
+}
 
-class SpellSchool {
+export class SpellSchool {
     static async getAll() {
-        const results = await query('SELECT * FROM spell_schools') as School[];
+        const results = await db.spell_schools.findMany();
 
-        if (results.length === 0) throw new NotFoundError('No spell schools found', 'Could not find any Spell Schools in the Database!');
+        if (results.length === 0) throw new NotFoundError('No Spell Schools found', 'Could not find any Spell Schools in the Database!');
 
         return results;
     }
 
-    static async getOne(school: any) {
+    static async getOne(school: { id?: number, name?: string }) {
         if (school.id) {
-            const results = await query('SELECT * FROM spell_schools WHERE id = $1', [school.id]) as School[];
+            const result = await db.spell_schools.findUnique({ where: { id: school.id } });
 
-            if (results.length === 0) throw new NotFoundError('Spell School not found', 'Could not find that Spell School in the Database!');
+            if (!result) throw new NotFoundError('Spell School not found', 'Could not find that Spell School in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM spell_schools WHERE name = $1', [school.name]) as School[];
+        const result = await db.spell_schools.findFirst({ where: { name: school.name } });
 
-        if (results.length === 0) throw new NotFoundError('Spell School not found', 'Could not find a Spell School with that Name in the Database!');
+        if (!result) throw new NotFoundError('Spell School not found', 'Could not find that Spell School in the Database!');
 
-        return results[0];
+        return result;
     }
 
-    static async exists(school: any) {
+    static async exists(school: { id?: number, name?: string }) {
         if (school.id) {
-            const results = await query('SELECT * FROM spell_schools WHERE id = $1', [school.id]) as School[];
+            const result = await db.spell_schools.findUnique({ where: { id: school.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM spell_schools WHERE name = $1', [school.name]) as School[];
+        const result = await db.spell_schools.findFirst({ where: { name: school.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
-    static async add(schoolName: string) {
-        if (await this.exists({ id: null, name: schoolName })) throw new DuplicateError('Spell School already exists', 'A Spell School with that name already exists in the Database!');
+    static async add(school: { name: string }) {
+        if (await this.exists(school)) throw new DuplicateError('Duplicate Spell School', 'That Spell School already exists in the Database!');
 
-        await query('INSERT INTO spell_schools (name) VALUES ($1)', [schoolName]);
+        await db.spell_schools.create({ data: school });
 
         return 'Successfully added Spell School to Database';
     }
 
-    static async remove(school: any) {
+    static async remove(school: { id: number }) {
         if (!await this.exists(school)) throw new NotFoundError('Spell School not found', 'Could not find that Spell School in the Database!');
 
-        await query('DELETE FROM spell_schools WHERE id = $1', [school.id]);
+        await db.spell_schools.delete({ where: { id: school.id } });
 
         return 'Successfully removed Spell School from Database';
     }
-}
 
-export { SpellSchool };
+    static async update(school: { id: number, name: string }) {
+        if (!await this.exists(school)) throw new NotFoundError('Spell School not found', 'Could not find that Spell School in the Database!');
+
+        await db.spell_schools.update({ data: { name: school.name }, where: { id: school.id } });
+
+        return 'Successfully updated Spell School in Database';
+    }
+}

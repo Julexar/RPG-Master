@@ -1,20 +1,18 @@
-import { psql } from '../../psql.ts';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
-import { CommandType } from './types.ts';
-const query = psql.query;
+import { prisma as db } from "../../prisma";
+import { NotFoundError, DuplicateError } from "../../../custom/errors";
+import { CommandType } from "./type";
 
 interface DBCommand {
-    id: bigint;
+    id: number;
     name: string;
     description: string;
     type: string;
-    enabled: boolean;
 }
 
 interface AddCommand {
     name: string;
     description: string;
-    enabled: boolean;
+    type: string;
 }
 
 class command {
@@ -23,75 +21,92 @@ class command {
         this.types = CommandType;
     }
 
-    async getAll(type: string) {
-        const dbType = await CommandType.getOne({ key: type });
-        const results = await query('SELECT * FROM commands WHERE type = $1', [dbType.key]) as DBCommand[];
+    async getAll() {
+        const results = await db.commands.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Commands found', 'Could not find any Commands in the Database!');
 
-        return results;
+        return await Promise.all(
+            results.map(async dbCmd => {
+                const type = await this.types.getOne({ key: dbCmd.type });
+
+                return {
+                    id: dbCmd.id,
+                    name: dbCmd.name,
+                    description: dbCmd.description,
+                    type: type
+                }
+            })
+        )
     }
 
-    async getOne(command: { id?: bigint, name?: string }, type: string) {
+    async getOne(command: { id?: number, name?: string, type?: string }) {
         if (command.id) {
-            const results = await query('SELECT * FROM commands WHERE id = $1', [command.id]) as DBCommand[];
+            const result = await db.commands.findUnique({ where: { id: command.id } });
 
-            if (results.length === 0) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
+            if (!result) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
 
-            return results[0];
+            const type = await this.types.getOne({ key: result.type });
+
+            return {
+                id: result.id,
+                name: result.name,
+                description: result.description,
+                type: type
+            };
         }
 
-        const dbType = await CommandType.getOne({ key: type });
-        const results = await query('SELECT * FROM commands WHERE type_id = $1 AND name = $2', [dbType.id, command.name]) as DBCommand[];
+        const result = await db.commands.findFirst({ where: { name: command.name, type: command.type } });
 
-        if (results.length === 0) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
+        if (!result) throw new NotFoundError('Command not found', 'Could not find a Command with that Name in the Database!');
 
-        return results[0];
+        const type = await this.types.getOne({ key: result.type });
+
+        return {
+            id: result.id,
+            name: result.name,
+            description: result.description,
+            type: type
+        };
     }
 
-    async exists(command: { id?: bigint, name?: string }, type: string) {
+    async exists(command: { id?: number, name?: string, type?: string }) {
         if (command.id) {
-            const results = await query('SELECT * FROM commands WHERE id = $1', [command.id]) as DBCommand[];
+            const result = await db.commands.findUnique({ where: { id: command.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const dbType = await CommandType.getOne({ key: type });
-        const results = await query('SELECT * FROM commands WHERE type_id = $1 AND name = $2', [dbType.id, command.name]) as DBCommand[];
+        const result = await db.commands.findFirst({ where: { name: command.name, type: command.type } });
 
-        return results.length === 1;
+        return !!result;
     }
 
-    async add(command: AddCommand, type: string) {
-        if (await this.exists(command, type)) throw new DuplicateError('Duplicate Command', 'That Command already exists in the Database!');
+    async add(command: AddCommand) {
+        if (await this.exists(command)) throw new DuplicateError('Duplicate Command', 'That Command already exists in the Database!');
 
-        const dbType = await CommandType.getOne({ key: type });
-        const sql = 'INSERT INTO commands (type_id, name, description, enabled) VALUES($1, $2, $3, $4)';
-        await query(sql, [dbType.id, command.name, command.description, command.enabled]);
+        const type = await this.types.getOne({ key: command.type });
 
-        return `Successfully added ${dbType.name} \"${command.name}\" to Database`;
+        await db.commands.create({ data: { name: command.name, description: command.description, type: type.key } });
+
+        return 'Successfully added Command to Database';
     }
 
-    async remove(command: { id?: bigint, name?: string }, type: string) {
-        if (!(await this.exists(command, type))) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
+    async remove(command: { id: number }) {
+        if (!await this.exists(command)) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
 
-        const dbType = await CommandType.getOne({ key: type });
-        await query('DELETE FROM commands WHERE id = $1', [command.id]);
+        await db.commands.delete({ where: { id: command.id } });
 
-        return `Successfully removed ${dbType.name} \"${command.name}\" from Database`;
+        return 'Successfully removed Command from Database';
     }
 
-    async update(command: DBCommand, type: string) {
-        if (!(await this.exists(command, type))) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
+    async update(command: DBCommand) {
+        if (!await this.exists(command)) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
 
-        const dbType = await CommandType.getOne({ key: type });
-        const sql = 'UPDATE commands SET name = $1, description = $2, enabled = $3 WHERE id = $4';
-        await query(sql, [command.name, command.description, command.enabled, command.id]);
+        await db.commands.update({ where: { id: command.id }, data: { name: command.name, description: command.description, type: command.type } });
 
-        return `Successfully updated ${dbType.name} \"${command.name}\" in Database`;
+        return 'Successfully updated Command in Database';
     }
 }
 
-const Command = new command();
-
-export { Command };
+export const Command = new command();
