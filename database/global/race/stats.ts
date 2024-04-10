@@ -17,8 +17,8 @@ interface AddRaceStat {
 }
 
 export class RaceStats {
-  static async getAll() {
-    const results = await db.race_stats.findMany();
+  static async getAll(race: { id: number }) {
+    const results = await db.race_stats.findMany({ where: { race_id: race.id } });
 
     if (results.length === 0) throw new NotFoundError('No Race Stats found', 'Could not find any Race Stats in the Database!');
 
