@@ -1,5 +1,6 @@
 import { prisma as db } from "../../prisma";
 import { NotFoundError, DuplicateError } from "../../../custom/errors";
+import { Condition, Damagetype } from "..";
 
 interface DBRaceImmunity {
     id: number;
@@ -25,22 +26,16 @@ export class RaceImmunity {
         if (results.length === 0) throw new NotFoundError('No Race Immunities found', 'Could not find any Immunities for that Race in the Database!');
 
         return await Promise.all(
-            results.map(async raceResist => {
-                let dbResist: Resistance = { id: 0, name: '' };
-
-                switch (raceResist.type) {
-                    case 'condition':
-                        dbResist = await db.conditions.findUnique({ where: { id: raceResist.immune_id } }) as Resistance;
-                    break;
-                    case 'dmgtype':
-                        dbResist = await db.damagetypes.findUnique({ where: { id: raceResist.immune_id } }) as Resistance;
-                    break;
-                }
+            results.map(async raceImmune => {
+                const dbImmune = raceImmune.type === 'condition'
+                ? await Condition.getOne({ id: raceImmune.immune_id })
+                : await Damagetype.getOne({ id: raceImmune.immune_id })
 
                 return {
-                    id: raceResist.id,
-                    type: raceResist.type,
-                    immune: dbResist
+                    id: raceImmune.id,
+                    race_id: race.id,
+                    immunity: dbImmune,
+                    type: raceImmune.type
                 }
             })
         )
@@ -52,21 +47,16 @@ export class RaceImmunity {
 
             if (!result) throw new NotFoundError('Race Immunity not found', 'Could not find that Race Immunity in the Database!');
 
-            let dbResist: Resistance = { id: 0, name: '' };
-
-            switch (result.type) {
-                case 'condition':
-                    dbResist = await db.conditions.findUnique({ where: { id: result.immune_id } }) as Resistance;
-                break;
-                case 'dmgtype':
-                    dbResist = await db.damagetypes.findUnique({ where: { id: result.immune_id } }) as Resistance;
-                break;
-            }
+            const raceImmune = result;
+            const dbImmune = raceImmune.type === 'condition'
+            ? await Condition.getOne({ id: raceImmune.immune_id })
+            : await Damagetype.getOne({ id: raceImmune.immune_id })
 
             return {
-                id: result.id,
-                type: result.type,
-                immune: dbResist
+                id: raceImmune.id,
+                race_id: race.id,
+                immunity: dbImmune,
+                type: raceImmune.type
             }
         }
 
@@ -74,21 +64,16 @@ export class RaceImmunity {
 
         if (!result) throw new NotFoundError('Race Immunity not found', 'Could not find a Race Immunity with that Name in the Database!');
 
-        let dbResist: Resistance = { id: 0, name: '' };
-
-        switch (result.type) {
-            case 'condition':
-                dbResist = await db.conditions.findUnique({ where: { id: result.immune_id } }) as Resistance;
-            break;
-            case 'dmgtype':
-                dbResist = await db.damagetypes.findUnique({ where: { id: result.immune_id } }) as Resistance;
-            break;
-        }
+        const raceImmune = result;
+        const dbImmune = raceImmune.type === 'condition'
+        ? await Condition.getOne({ id: raceImmune.immune_id })
+        : await Damagetype.getOne({ id: raceImmune.immune_id })
 
         return {
-            id: result.id,
-            type: result.type,
-            immune: dbResist
+            id: raceImmune.id,
+            race_id: race.id,
+            immunity: dbImmune,
+            type: raceImmune.type
         }
     }
 
