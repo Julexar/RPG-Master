@@ -76,7 +76,7 @@ export class ClassLanguage {
   static async remove(clas: { id: number }, lang: { id: number }) {
     if (!await this.exists(clas, lang)) throw new NotFoundError('Class Language not found', 'Could not find that Class Language in the Database!');
 
-    await db.class_languages.delete({ where: { id: lang.id } });
+    await db.class_languages.delete({ where: { class_id: clas.id, id: lang.id } });
 
     return 'Successfully removed Class Language';
   }
