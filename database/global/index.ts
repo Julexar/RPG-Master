@@ -7,6 +7,7 @@ import { Feat } from './feat';
 import { ItemRarity, ItemType } from './item';
 import { Language } from './language';
 import { Proficiency } from './proficiency';
+import { Race } from './race';
 import { Sense } from './sense';
 import { Skill } from './skill';
 import { Source } from './source';
@@ -24,6 +25,7 @@ export {
     ItemType,
     Language,
     Proficiency,
+    Race,
     Sense,
     Skill,
     Source,
