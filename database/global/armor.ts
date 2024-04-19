@@ -1,7 +1,6 @@
-import { psql } from '../psql.ts';
+import { prisma as db } from '../prisma';
 import { NotFoundError, DuplicateError } from '../../custom/errors';
 import { ItemRarity, ItemType, Source } from '.';
-const { query } = psql;
 
 interface DBArmor {
     id: number;
@@ -24,7 +23,7 @@ interface AddArmor {
 
 export class Armor {
     static async getAll() {
-        const results = await query('SELECT * FROM armors') as DBArmor[];
+        const results = await db.armors.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Armor found', 'Could not find any Armor in the Database!');
 
@@ -49,63 +48,60 @@ export class Armor {
 
     static async getOne(armor: { id?: number, name?: string, source?: string }) {
         if (armor.id) {
-            const results = await query('SELECT * FROM armors WHERE id = $1', [armor.id]) as DBArmor[];
+            const result = await db.armors.findUnique({ where: { id: armor.id } });
 
-            if (results.length === 0) throw new NotFoundError('Armor not found', 'Could not find that Armor in the Database!');
+            if (!result) throw new NotFoundError('Armor not found', 'Could not find that Armor in the Database!');
 
-            const dbArmor = results[0];
-            const source = await Source.getOne({ abrv: dbArmor.source });
-            const type = await ItemType.getOne({ id: dbArmor.type_id });
-            const rarity = await ItemRarity.getOne({ id: dbArmor.rarity_id });
+            const source = await Source.getOne({ abrv: result.source });
+            const type = await ItemType.getOne({ id: result.type_id });
+            const rarity = await ItemRarity.getOne({ id: result.rarity_id });
 
             return {
-                id: dbArmor.id,
-                name: dbArmor.name,
-                description: dbArmor.description,
+                id: result.id,
+                name: result.name,
+                description: result.description,
                 source: source,
                 type: type,
                 rarity: rarity,
-                stats: JSON.parse(JSON.stringify(dbArmor.stats))
+                stats: JSON.parse(JSON.stringify(result.stats))
             }
         }
 
-        const results = await query('SELECT * FROM armors WHERE name = $1 AND source = $2', [armor.name, armor.source]) as DBArmor[];
+        const result = await db.armors.findFirst({ where: { name: armor.name, source: armor.source } });
 
-        if (results.length === 0) throw new NotFoundError('Armor not found', 'Could not find an Armor with that Name in the Database!');
+        if (!result) throw new NotFoundError('Armor not found', 'Could not find an Armor with that Name in the Database!');
 
-        const dbArmor = results[0];
-        const source = await Source.getOne({ abrv: dbArmor.source });
-        const type = await ItemType.getOne({ id: dbArmor.type_id });
-        const rarity = await ItemRarity.getOne({ id: dbArmor.rarity_id });
+        const source = await Source.getOne({ abrv: result.source });
+        const type = await ItemType.getOne({ id: result.type_id });
+        const rarity = await ItemRarity.getOne({ id: result.rarity_id });
 
         return {
-            id: dbArmor.id,
-            name: dbArmor.name,
-            description: dbArmor.description,
+            id: result.id,
+            name: result.name,
+            description: result.description,
             source: source,
             type: type,
             rarity: rarity,
-            stats: JSON.parse(JSON.stringify(dbArmor.stats))
+            stats: JSON.parse(JSON.stringify(result.stats))
         }
     }
 
     static async exists(armor: { id?: number, name?: string, source?: string }) {
         if (armor.id) {
-            const results = await query('SELECT * FROM armors WHERE id = $1', [armor.id]) as DBArmor[];
+            const result = await db.armors.findUnique({ where: { id: armor.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM armors WHERE name = $1 AND source = $2', [armor.name, armor.source]) as DBArmor[];
+        const result = await db.armors.findFirst({ where: { name: armor.name, source: armor.source } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(armor: AddArmor) {
         if (await this.exists(armor)) throw new DuplicateError('Duplicate Armor', 'That Armor already exists in the Database!');
 
-        const sql = 'INSERT INTO armors (name, description, source, type_id, rarity_id, stats) VALUES ($1, $2, $3, $4, $5, $6)'
-        await query(sql, [armor.name, armor.description, armor.source, armor.type_id, armor.rarity_id, armor.stats]);
+        await db.armors.create({ data: { name: armor.name, description: armor.description, source: armor.source, type_id: armor.type_id, rarity_id: armor.rarity_id, stats: JSON.stringify(armor.stats) }});
 
         return 'Successfully added Armor to Database';
     }
@@ -113,7 +109,7 @@ export class Armor {
     static async remove(armor: { id: number }) {
         if (!await this.exists(armor)) throw new NotFoundError('Armor not found', 'Could not find that Armor in the Database!');
 
-        await query('DELETE FROM armors WHERE id = $1', [armor.id]);
+        await db.armors.delete({ where: { id: armor.id } });
 
         return 'Successfully removed Armor from Database'
     }
@@ -121,8 +117,7 @@ export class Armor {
     static async update(armor: DBArmor) {
         if (!await this.exists(armor)) throw new NotFoundError('Armor not found', 'Could not find that Armor in the Database!');
 
-        const sql = 'UPDATE armors SET name = $1, description = $2, source = $3, type_id = $4, rarity_id = $5, stats = $6 WHERE id = $7';
-        await query(sql, [armor.name, armor.description, armor.source, armor.type_id, armor.rarity_id, armor.stats, armor.id]);
+        await db.armors.update({ data: { name: armor.name, description: armor.description, source: armor.source, type_id: armor.type_id, rarity_id: armor.rarity_id, stats: JSON.stringify(armor.stats) }, where: { id: armor.id } });
 
         return 'Successfully updated Armor in Database';
     }
