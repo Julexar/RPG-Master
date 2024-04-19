@@ -846,27 +846,27 @@ model spell_schools {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model spells {
-  id                            Int                         @id @default(autoincrement())
+  id                            Int                      @id @default(autoincrement())
   name                          String
   description                   String
-  cast_time                     Int                         @default(1)
-  cast_type                     String                      @default("action") @db.VarChar(12)
+  cast_time                     Int                      @default(1)
+  cast_type                     String                   @default("action") @db.VarChar(12)
   cast_req                      String?
-  level                         Int                         @default(0)
+  level                         Int                      @default(0)
   school_id                     Int?
   classes                       Int[]
-  higher_lvl                    Json?                       @db.Json
+  higher_lvl                    Json?                    @db.Json
   dmgtype_id                    Int?
-  dmg_stat                      String?                     @db.VarChar(3)
-  save_stat                     String?                     @db.VarChar(3)
-  stats                         Unsupported("spell_stats")?
+  dmg_stat                      String?                  @db.VarChar(3)
+  save_stat                     String?                  @db.VarChar(3)
+  stats                         Json                     @default("{\"range\": \"\", \"components\": \"\", \"duration\": \"\", \"concentration\": false, \"ritual\": false, \"damage\": \"\", \"save_dc\": 10, \"on_fail\": \"\", \"on_fail_dmg\": 0.5}") @db.Json
   character_class_spells        character_class_spells[]
   character_spells              character_spells[]
   server_spells                 server_spells[]
-  stats_spells_dmg_statTostats  stats?                      @relation("spells_dmg_statTostats", fields: [dmg_stat], references: [key], onUpdate: NoAction, map: "fk_dmgstat_key")
-  damagetypes                   damagetypes?                @relation(fields: [dmgtype_id], references: [id], onUpdate: NoAction, map: "fk_dmgtype_id")
-  stats_spells_save_statTostats stats?                      @relation("spells_save_statTostats", fields: [save_stat], references: [key], onUpdate: NoAction, map: "fk_savestat_key")
-  spell_schools                 spell_schools?              @relation(fields: [school_id], references: [id], onUpdate: NoAction, map: "fk_school_id")
+  stats_spells_dmg_statTostats  stats?                   @relation("spells_dmg_statTostats", fields: [dmg_stat], references: [key], onUpdate: NoAction, map: "fk_dmgstat_key")
+  damagetypes                   damagetypes?             @relation(fields: [dmgtype_id], references: [id], onUpdate: NoAction, map: "fk_dmgtype_id")
+  stats_spells_save_statTostats stats?                   @relation("spells_save_statTostats", fields: [save_stat], references: [key], onUpdate: NoAction, map: "fk_savestat_key")
+  spell_schools                 spell_schools?           @relation(fields: [school_id], references: [id], onUpdate: NoAction, map: "fk_school_id")
 }
 
 model stats {
