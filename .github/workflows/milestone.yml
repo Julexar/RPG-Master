@@ -11,9 +11,10 @@ on:
 jobs:
   add:
     name: Add Milestone
-    if: (!contains(github.events.pull_request.labels.*.name, 'dependencies')) && (!contains(github.events.issue.labels.*.name, 'dependencies'))
+    if: ! contains(github.events.pull_request.labels.*.name, 'dependencies')
     runs-on: ubuntu-latest
     steps:
+      - run: sleep 1
       - uses: Julexar/Milestone-Assigner@v1.0 
         with:
           token: ${{ secrets.WORKFLOW_TOKEN }}
