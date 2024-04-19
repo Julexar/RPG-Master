@@ -15,13 +15,10 @@ interface AddCommand {
     type: string;
 }
 
-class command {
-    types: typeof CommandType;
-    constructor() {
-        this.types = CommandType;
-    }
+export class Command {
+    static readonly types = CommandType;
 
-    async getAll() {
+    static async getAll() {
         const results = await db.commands.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Commands found', 'Could not find any Commands in the Database!');
@@ -40,7 +37,7 @@ class command {
         )
     }
 
-    async getOne(command: { id?: number, name?: string, type?: string }) {
+    static async getOne(command: { id?: number, name?: string, type?: string }) {
         if (command.id) {
             const result = await db.commands.findUnique({ where: { id: command.id } });
 
@@ -70,7 +67,7 @@ class command {
         };
     }
 
-    async exists(command: { id?: number, name?: string, type?: string }) {
+    static async exists(command: { id?: number, name?: string, type?: string }) {
         if (command.id) {
             const result = await db.commands.findUnique({ where: { id: command.id } });
 
@@ -82,7 +79,7 @@ class command {
         return !!result;
     }
 
-    async add(command: AddCommand) {
+    static async add(command: AddCommand) {
         if (await this.exists(command)) throw new DuplicateError('Duplicate Command', 'That Command already exists in the Database!');
 
         const type = await this.types.getOne({ key: command.type });
@@ -92,7 +89,7 @@ class command {
         return 'Successfully added Command to Database';
     }
 
-    async remove(command: { id: number }) {
+    static async remove(command: { id: number }) {
         if (!await this.exists(command)) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
 
         await db.commands.delete({ where: { id: command.id } });
@@ -100,7 +97,7 @@ class command {
         return 'Successfully removed Command from Database';
     }
 
-    async update(command: DBCommand) {
+    static async update(command: DBCommand) {
         if (!await this.exists(command)) throw new NotFoundError('Command not found', 'Could not find that Command in the Database!');
 
         await db.commands.update({ where: { id: command.id }, data: { name: command.name, description: command.description, type: command.type } });
@@ -108,5 +105,3 @@ class command {
         return 'Successfully updated Command in Database';
     }
 }
-
-export const Command = new command();
