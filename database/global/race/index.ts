@@ -30,39 +30,62 @@ interface AddRace {
   has_subrace: boolean;
 }
 
-class race {
-  immunity: typeof RaceImmunity;
-  lang: typeof RaceLanguage;
-  prof: typeof RaceProficiency;
-  resist: typeof RaceResistance;
-  sense: typeof RaceSense;
-  stats: typeof RaceStats;
-  trait: typeof RaceTrait;
-  constructor() {
-    this.immunity = RaceImmunity;
-    this.lang = RaceLanguage;
-    this.prof = RaceProficiency;
-    this.resist = RaceResistance;
-    this.sense = RaceSense;
-    this.stats = RaceStats;
-    this.trait = RaceTrait;
-  }
+export class Race {
+  static readonly immunity = RaceImmunity;
+  static readonly langs = RaceLanguage;
+  static readonly profs = RaceProficiency;
+  static readonly resist = RaceResistance;
+  static readonly senses = RaceSense;
+  static readonly stats = RaceStats;
+  static readonly traits = RaceTrait;
 
-  async getAll() {
-    const results = await db.races.findMany();
+  static async getAll(source?: string) {
+    if (!source) {
+      const results = await db.races.findMany();
 
-    if (results.length === 0) throw new NotFoundError('No Races found', 'Could not find any Races in the Database!');
+      if (results.length === 0) throw new NotFoundError('No Races found', 'Could not find any Races in the Database!');
+
+      return await Promise.all(
+        results.map(async dbRace => {
+          const [ RaceImmunes, RaceLangs, RaceProfs, RaceResists, RaceSenses, RaceStat, RaceTraits ] = await Promise.all([
+            await this.immunity.getAll(dbRace),
+            await this.langs.getAll(dbRace),
+            await this.profs.getAll(dbRace),
+            await this.resist.getAll(dbRace),
+            await this.senses.getAll(dbRace),
+            await this.stats.getAll(dbRace),
+            await this.traits.getAll(dbRace)
+          ]);
+
+          return {
+            ...dbRace,
+            immunity: RaceImmunes,
+            langs: RaceLangs,
+            profs: RaceProfs,
+            resist: RaceResists,
+            senses: RaceSenses,
+            stats: RaceStat,
+            traits: RaceTraits
+          }
+        })
+      )
+    }
+
+    const dbSource = await Source.getOne({ abrv: source });
+    const results = await db.races.findMany({ where: { source: dbSource.abrv } });
+
+    if (results.length === 0) throw new NotFoundError('No Races found', 'Could not find any Races from that Source in the Database!');
 
     return await Promise.all(
       results.map(async dbRace => {
         const [ RaceImmunes, RaceLangs, RaceProfs, RaceResists, RaceSenses, RaceStat, RaceTraits ] = await Promise.all([
           await this.immunity.getAll(dbRace),
-          await this.lang.getAll(dbRace),
-          await this.prof.getAll(dbRace),
+          await this.langs.getAll(dbRace),
+          await this.profs.getAll(dbRace),
           await this.resist.getAll(dbRace),
-          await this.sense.getAll(dbRace),
+          await this.senses.getAll(dbRace),
           await this.stats.getAll(dbRace),
-          await this.trait.getAll(dbRace)
+          await this.traits.getAll(dbRace)
         ]);
 
         return {
@@ -79,7 +102,7 @@ class race {
     )
   }
 
-  async getOne(race: { id?: number, name?: string }) {
+  static async getOne(race: { id?: number, name?: string, source?: string }) {
     if (race.id) {
       const result = await db.races.findUnique({ where: { id: race.id }});
 
@@ -87,12 +110,12 @@ class race {
 
       const [ RaceImmunes, RaceLangs, RaceProfs, RaceResists, RaceSenses, RaceStat, RaceTraits ] = await Promise.all([
         await this.immunity.getAll(result),
-        await this.lang.getAll(result),
-        await this.prof.getAll(result),
+        await this.langs.getAll(result),
+        await this.profs.getAll(result),
         await this.resist.getAll(result),
-        await this.sense.getAll(result),
+        await this.senses.getAll(result),
         await this.stats.getAll(result),
-        await this.trait.getAll(result)
+        await this.traits.getAll(result)
       ]);
 
       return {
@@ -107,18 +130,19 @@ class race {
       }
     }
 
-    const result = await db.races.findFirst({ where: { name: race.name } });
+    const dbSource = await Source.getOne({ abrv: race.source });
+    const result = await db.races.findFirst({ where: { name: race.name, source: dbSource.abrv } });
 
     if (!result) throw new NotFoundError('Race not found', 'Could not find a Race with that Name in the Database!');
 
     const [ RaceImmunes, RaceLangs, RaceProfs, RaceResists, RaceSenses, RaceStat, RaceTraits ] = await Promise.all([
       await this.immunity.getAll(result),
-      await this.lang.getAll(result),
-      await this.prof.getAll(result),
+      await this.langs.getAll(result),
+      await this.profs.getAll(result),
       await this.resist.getAll(result),
-      await this.sense.getAll(result),
+      await this.senses.getAll(result),
       await this.stats.getAll(result),
-      await this.trait.getAll(result)
+      await this.traits.getAll(result)
     ]);
 
     return {
@@ -133,19 +157,20 @@ class race {
     }
   }
 
-  async exists(race: { id?: number, name?: string }) {
+  static async exists(race: { id?: number, name?: string, source?: string }) {
     if (race.id) {
       const result = await db.races.findUnique({ where: { id: race.id }});
 
       return !!result
     }
 
-    const result = await db.races.findFirst({ where: { name: race.name } });
+    const dbSource = await Source.getOne({ abrv: race.source });
+    const result = await db.races.findFirst({ where: { name: race.name, source: dbSource.abrv } });
 
     return !!result;
   }
 
-  async add(race: AddRace) {
+  static async add(race: AddRace) {
     if (await this.exists(race)) throw new DuplicateError('Duplicate Race', 'That Race already exists in the Database!');
 
     await db.races.create({ data: { ...race } });
@@ -153,7 +178,7 @@ class race {
     return 'Successfully added Race to Database';
   }
 
-  async remove(race: { id: number }) {
+  static async remove(race: { id: number }) {
     if (!await this.exists(race)) throw new NotFoundError('Race not found', 'Could not find that Race in the Database!');
 
     await db.races.delete({ where: { id: race.id } });
@@ -161,7 +186,7 @@ class race {
     return 'Successfully removed Race from Database';
   }
 
-  async update(race: DBRace) {
+  static async update(race: DBRace) {
     if (!await this.exists(race)) throw new NotFoundError('Race not found', 'Could not find that Race in the Database!');
 
     await db.races.update({ data: { name: race.name, description: race.description, source: race.source, size: race.size, speed: race.speed, has_feat: race.has_feat, has_subrace: race.has_subrace }, where: { id: race.id } });
@@ -169,5 +194,3 @@ class race {
     return 'Successfully updated Race in Database';
   }
 }
-
-export const Race = new race();
