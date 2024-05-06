@@ -4,7 +4,7 @@
     "type": "module",
     "dependencies": {
         "ascii-table": "^0.0.9",
-        "discord.js": "^14.14.1",
+        "discord.js": "^14.15.2",
         "dotenv": "^16.4.5",
         "glob": "^10.3.12",
         "moment": "^2.30.1",
