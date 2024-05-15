@@ -1,137 +1,164 @@
-import { psql } from '../../psql.ts';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
-import { WeaponProperty } from './props.ts';
-const query = psql.query;
+import { prisma as db } from "../../prisma";
+import { NotFoundError, DuplicateError } from "../../../custom/errors";
+import { WeaponProp } from "./props";
+import { ItemType, ItemRarity, Source } from "..";
 
 interface DBWeapon {
-    id: bigint,
-    name: string,
-    description: string,
-    type_id: bigint,
-    rarity_id: bigint,
-    stats: JSON | null,
-    props: bigint[] | null
-};
+    id: number;
+    name: string;
+    description: string;
+    source: string;
+    type_id: number;
+    rarity_id: number;
+    stats: JSON;
+    props: number[];
+}
 
 interface AddWeapon {
-    name: string,
-    description: string,
-    type_id: bigint,
-    rarity_id: bigint,
-    stats: JSON | null,
-    props: bigint[] | null
-};
+    name: string;
+    description: string;
+    source: string;
+    type_id: number;
+    rarity_id: number;
+    stats: JSON;
+    props: number[];
+}
 
 class weapon {
-    props: typeof WeaponProperty;
+    props: typeof WeaponProp;
     constructor() {
-        this.props = WeaponProperty;
+        this.props = WeaponProp;
     }
 
     async getAll() {
-        const results = await query('SELECT * FROM weapons') as DBWeapon[];
+        const results = await db.weapons.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Weapons found', 'Could not find any Weapons in the Database!');
 
         return await Promise.all(
-            results.map(async (weapon) => {
+            results.map(async dbWeapon => {
+                const source = await Source.getOne({ abrv: dbWeapon.source });
+                const type = await ItemType.getOne({ id: dbWeapon.type_id ? dbWeapon.type_id : undefined });
+                const rarity = await ItemRarity.getOne({ id: dbWeapon.rarity_id ? dbWeapon.rarity_id : undefined });
+
                 return {
-                    id: weapon.id,
-                    name: weapon.name,
-                    description: weapon.description,
-                    type_id: weapon.type_id,
-                    rarity_id: weapon.rarity_id,
-                    stats: weapon.stats !== null ? JSON.parse(JSON.stringify(weapon.stats)) : null,
-                    props: weapon.props !== null ? await Promise.all(weapon.props.map(async (prop) => await this.props.getOne({ id: prop }))) : null
+                    id: dbWeapon.id,
+                    name: dbWeapon.name,
+                    description: dbWeapon.description,
+                    source: source,
+                    type: type,
+                    rarity: rarity,
+                    stats: JSON.parse(JSON.stringify(dbWeapon.stats)),
+                    props: await Promise.all(dbWeapon.props.map(async prop => await this.props.getOne({ id: prop })))
                 }
             })
-        );
+        )
     }
 
-    async getOne(weapon: { id?: bigint, name?: string }) {
+    async getOne(weapon: { id?: number, name?: string }) {
         if (weapon.id) {
-            const results = await query('SELECT * FROM weapons WHERE id = $1', [weapon.id]) as DBWeapon[];
+            const result = await db.weapons.findUnique({ where: { id: weapon.id } });
 
-            if (results.length === 0) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
+            if (!result) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
-            const dbWepon = results[0];
-            const dbProps = dbWepon.props?.forEach(async (prop) => await this.props.getOne({ id: prop }));
+            const source = await Source.getOne({ abrv: result.source });
+            const type = await ItemType.getOne({ id: result.type_id ? result.type_id : undefined });
+            const rarity = await ItemRarity.getOne({ id: result.rarity_id ? result.rarity_id : undefined });
 
             return {
-                id: dbWepon.id,
-                name: dbWepon.name,
-                description: dbWepon.description,
-                type_id: dbWepon.type_id,
-                rarity_id: dbWepon.rarity_id,
-                stats: dbWepon.stats !== null ? JSON.parse(JSON.stringify(dbWepon.stats)) : null,
-                props: dbWepon.props !== null ? dbProps : null
+                id: result.id,
+                name: result.name,
+                description: result.description,
+                source: source,
+                type: type,
+                rarity: rarity,
+                stats: JSON.parse(JSON.stringify(result.stats)),
+                props: await Promise.all(result.props.map(async prop => await this.props.getOne({ id: prop })))
             }
         }
 
-        const results = await query('SELECT * FROM weapons WHERE name = $1', [weapon.name]) as DBWeapon[];
+        const result = await db.weapons.findFirst({ where: { name: weapon.name } });
 
-        if (results.length === 0) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
+        if (!result) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
-        const dbWepon = results[0];
-            const dbProps = dbWepon.props?.forEach(async (prop) => await this.props.getOne({ id: prop }));
+        const source = await Source.getOne({ abrv: result.source });
+        const type = await ItemType.getOne({ id: result.type_id ? result.type_id : undefined });
+        const rarity = await ItemRarity.getOne({ id: result.rarity_id ? result.rarity_id : undefined});
 
-            return {
-                id: dbWepon.id,
-                name: dbWepon.name,
-                description: dbWepon.description,
-                type_id: dbWepon.type_id,
-                rarity_id: dbWepon.rarity_id,
-                stats: dbWepon.stats !== null ? JSON.parse(JSON.stringify(dbWepon.stats)) : null,
-                props: dbWepon.props !== null ? dbProps : null
-            }
+        return {
+            id: result.id,
+            name: result.name,
+            description: result.description,
+            source: source,
+            type: type,
+            rarity: rarity,
+            stats: JSON.parse(JSON.stringify(result.stats)),
+            props: await Promise.all(result.props.map(async prop => await this.props.getOne({ id: prop })))
+        }
     }
 
-    async exists(weapon: { id?: bigint, name?: string }) {
+    async exists(weapon: { id?: number, name?: string }) {
         if (weapon.id) {
-            const results = await query('SELECT * FROM weapons WHERE id = $1', [weapon.id]) as DBWeapon[];
+            const result = await db.weapons.findUnique({ where: { id: weapon.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM weapons WHERE name = $1', [weapon.name]) as DBWeapon[];
+        const result = await db.weapons.findFirst({ where: { name: weapon.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     async add(weapon: AddWeapon) {
-        if (await this.exists(weapon)) throw new DuplicateError('Weapon already exists', 'A Weapon with that name already exists in the Database!');
+        if (await this.exists({ name: weapon.name })) throw new DuplicateError('Duplicate Weapon', 'That Weapon already exists in the Database!');
 
-        if (weapon.props !== null) {
-            const sql = 'INSERT INTO weapons (name, description, type_id, rarity_id, stats, props) VALUES ($1, $2, $3, $4, $5::JSON, ARRAY$6)';
-            await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props.toString()]);
+        const source = await Source.getOne({ abrv: weapon.source });
+        const type = await ItemType.getOne({ id: weapon.type_id });
+        const rarity = await ItemRarity.getOne({ id: weapon.rarity_id });
 
-            return 'Successfully added Weapon to the Database';
-        }
+        await db.weapons.create({
+            data: {
+                name: weapon.name,
+                description: weapon.description,
+                source: source.abrv,
+                type_id: type.id,
+                rarity_id: rarity.id,
+                stats: JSON.stringify(weapon.stats),
+                props: weapon.props
+            }
+        });
 
-        const sql = 'INSERT INTO weapons (name, description, type_id, rarity_id, stats, props) VALUES ($1, $2, $3, $4, $5::JSON, $6)';
-        await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props]);
+        return 'Successfully added Weapon to Database';
+    }
 
-        return 'Successfully added Weapon to the Database';
+    async remove(weapon: { id: number }) {
+        if (!await this.exists(weapon)) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
+
+        await db.weapons.delete({ where: { id: weapon.id } });
+
+        return 'Successfully removed Weapon from Database';
     }
 
     async update(weapon: DBWeapon) {
-        if (!(await this.exists(weapon))) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
+        if (!await this.exists({ id: weapon.id })) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
 
-        const sql = 'UPDATE weapons SET name = $1, description = $2, type_id = $3, rarity_id = $4, stats = $5::JSON, props = $6 WHERE id = $7';
-        await query(sql, [weapon.name, weapon.description, weapon.type_id, weapon.rarity_id, JSON.stringify(weapon.stats), weapon.props, weapon.id]);
+        const source = await Source.getOne({ abrv: weapon.source });
+        const type = await ItemType.getOne({ id: weapon.type_id });
+        const rarity = await ItemRarity.getOne({ id: weapon.rarity_id });
 
-        return 'Successfully updated Weapon in the Database';
-    }
+        await db.weapons.update({
+            where: { id: weapon.id },
+            data: {
+                name: weapon.name,
+                description: weapon.description,
+                source: source.abrv,
+                type_id: type.id,
+                rarity_id: rarity.id,
+                stats: JSON.stringify(weapon.stats),
+                props: weapon.props
+            }
+        });
 
-    async remove(weapon: { id: bigint }) {
-        if (!(await this.exists(weapon))) throw new NotFoundError('Weapon not found', 'Could not find that Weapon in the Database!');
-
-        await query('DELETE FROM weapons WHERE id = $1', [weapon.id]);
-
-        return 'Successfully removed Weapon from the Database';
+        return 'Successfully updated Weapon in Database';
     }
 }
-
-const Weapon = new weapon();
-
-export { Weapon };

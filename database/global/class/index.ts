@@ -1,16 +1,16 @@
-import { psql } from '../../psql.ts';
+import { prisma as db } from '../../prisma';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
-import { ClassProficiency } from './proficiency.ts';
-import { ClassSave } from './save.ts';
-import { ClassSense } from './sense.ts';
-import { ClassTrait } from './trait.ts';
-import { MCRequirement } from './mc_requirement.ts';
-const query = psql.query;
+import { MCRequirement } from './mc_requirement';
+import { ClassLanguage } from './language';
+import { ClassProficiency } from './proficiency';
+import { ClassSave } from './save';
+import { ClassTrait } from './trait';
 
 interface DBClass {
-    id: bigint;
+    id: number;
     name: string;
     description: string;
+    source: string;
     hitdice: number;
     caster: boolean;
     castlvl: number;
@@ -22,6 +22,7 @@ interface DBClass {
 interface AddClass {
     name: string;
     description: string;
+    source: string;
     hitdice: number;
     caster: boolean;
     castlvl: number;
@@ -30,164 +31,113 @@ interface AddClass {
     either_requirement: boolean;
 }
 
-class clas {
-    profs: typeof ClassProficiency;
-    saves: typeof ClassSave;
-    senses: typeof ClassSense;
-    traits: typeof ClassTrait;
-    mc_requirements: typeof MCRequirement;
-    constructor() {
-        this.profs = ClassProficiency;
-        this.saves = ClassSave;
-        this.senses = ClassSense;
-        this.traits = ClassTrait;
-        this.mc_requirements = MCRequirement;
-    }
+export class Class {
+    static readonly langs = ClassLanguage;
+    static readonly profs = ClassProficiency;
+    static readonly saves = ClassSave;
+    static readonly traits = ClassTrait;
+    static readonly mc_reqs = MCRequirement;
 
-    async getAll() {
-        const results = await query('SELECT * FROM classes') as DBClass[];
+    static async getAll() {
+        const results = await db.classes.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Classes found', 'Could not find any Classes in the Database!');
 
-        return Promise.all(
+        return await Promise.all(
             results.map(async (dbClass) => {
-                const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
+                const [ classLangs, classProfs, classSaves, classTraits ] = await Promise.all([
+                    await this.langs.getAll(dbClass),
                     await this.profs.getAll(dbClass),
                     await this.saves.getAll(dbClass),
-                    await this.senses.getAll(dbClass),
-                    await this.traits.getAll(dbClass),
+                    await this.traits.getAll(dbClass)
                 ]);
 
                 return {
-                    id: dbClass.id,
-                    name: dbClass.name,
-                    description: dbClass.description,
-                    hitdice: dbClass.hitdice,
-                    caster: dbClass.caster,
-                    cast_lvl: dbClass.castlvl,
-                    cast_stat: dbClass.cast_stat,
-                    has_subclass: dbClass.has_subclass,
-                    either_requirement: dbClass.either_requirement,
+                    ...dbClass,
+                    langs: classLangs,
                     profs: classProfs,
                     saves: classSaves,
-                    senses: classSenses,
                     traits: classTraits
-                };
+                }
             })
         );
     }
 
-    async getOne(clas: { id?: bigint; name?: string }) {
+    static async getOne(clas: { id?: number, name?: string }) {
         if (clas.id) {
-            const results = await query('SELECT * FROM classes WHERE id = $1', [clas.id]) as DBClass[];
+            const result = await db.classes.findUnique({ where: { id: clas.id } });
 
-            if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
+            if (!result) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
 
-            const dbClass = results[0];
-            const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
-                await this.profs.getAll(dbClass),
-                await this.saves.getAll(dbClass),
-                await this.senses.getAll(dbClass),
-                await this.traits.getAll(dbClass),
+            const [ classLangs, classProfs, classSaves, classTraits ] = await Promise.all([
+                await this.langs.getAll(result),
+                await this.profs.getAll(result),
+                await this.saves.getAll(result),
+                await this.traits.getAll(result)
             ]);
 
             return {
-                id: dbClass.id,
-                name: dbClass.name,
-                description: dbClass.description,
-                hitdice: dbClass.hitdice,
-                caster: dbClass.caster,
-                cast_lvl: dbClass.castlvl,
-                cast_stat: dbClass.cast_stat,
-                sub: dbClass.has_subclass,
-                either_requirement: dbClass.either_requirement,
+                ...result,
+                langs: classLangs,
                 profs: classProfs,
                 saves: classSaves,
-                senses: classSenses,
                 traits: classTraits
             };
         }
 
-        const results = await query('SELECT * FROM classes WHERE name = $1', [clas.name]) as DBClass[];
+        const result = await db.classes.findFirst({ where: { name: clas.name } });
 
-        if (results.length === 0) throw new NotFoundError('Class not found', 'Could not find a Class with that name in the Database!');
+        if (!result) throw new NotFoundError('Class not found', 'Could not find a Class with that Name in the Database!');
 
-        const dbClass = results[0];
-        const [classProfs, classSaves, classSenses, classTraits] = await Promise.all([
-            await this.profs.getAll(dbClass),
-            await this.saves.getAll(dbClass),
-            await this.senses.getAll(dbClass),
-            await this.traits.getAll(dbClass),
+        const [ classLangs, classProfs, classSaves, classTraits ] = await Promise.all([
+            await this.langs.getAll(result),
+            await this.profs.getAll(result),
+            await this.saves.getAll(result),
+            await this.traits.getAll(result)
         ]);
 
         return {
-            id: dbClass.id,
-            name: dbClass.name,
-            description: dbClass.description,
-            hitdice: dbClass.hitdice,
-            caster: dbClass.caster,
-            cast_lvl: dbClass.castlvl,
-            cast_stat: dbClass.cast_stat,
-            sub: dbClass.has_subclass,
-            either_requirement: dbClass.either_requirement,
+            ...result,
+            langs: classLangs,
             profs: classProfs,
             saves: classSaves,
-            senses: classSenses,
             traits: classTraits
         };
     }
 
-    async exists(clas: { id?: bigint; name?: string }) {
+    static async exists(clas: { id?: number, name?: string }) {
         if (clas.id) {
-            const results = await query('SELECT * FROM classes WHERE id = $1', [clas.id]) as DBClass[];
+            const result = await db.classes.findUnique({ where: { id: clas.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM classes WHERE name = $1', [clas.name]) as DBClass[];
+        const result = await db.classes.findFirst({ where: { name: clas.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
-    async add(clas: AddClass) {
+    static async add(clas: AddClass) {
         if (await this.exists(clas)) throw new DuplicateError('Duplicate Class', 'That Class already exists in the Database!');
 
-        const sql = 'INSERT INTO classes (name, description, hitdice, caster, castlvl, cast_stat, has_subclass, either_requirement) VALUES($1, $2, $3, $4, $5, $6, $7, $8)';
-        await query(sql, [clas.name, clas.description, clas.hitdice, clas.caster, clas.castlvl, clas.cast_stat, clas.has_subclass, clas.either_requirement]);
+        await db.classes.create({ data: { ...clas } })
 
         return 'Successfully added Class to Database';
     }
 
-    async remove(clas: { id: bigint; name?: string }) {
-        if (!(await this.exists(clas))) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
+    static async remove(clas: { id: number }) {
+        if (!await this.exists(clas)) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
 
-        await query('DELETE FROM classes WHERE id = $1', [clas.id]);
+        await db.classes.delete({ where: { id: clas.id } });
 
         return 'Successfully removed Class from Database';
     }
 
-    async update(clas: DBClass) {
-        if (!(await this.exists(clas))) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
+    static async update(clas: DBClass) {
+        if (!await this.exists({ id: clas.id })) throw new NotFoundError('Class not found', 'Could not find that Class in the Database!');
 
-        const sql = 'UPDATE classes SET name = $1, description = $2, hitdice = $3, caster = $4, castlvl = $5, cast_stat = $6, has_subclass = $7, either_requirement = $8 WHERE id = $9';
-        await query(sql, [clas.name, clas.description, clas.hitdice, clas.caster, clas.castlvl, clas.cast_stat, clas.has_subclass, clas.either_requirement, clas.id]);
+        await db.classes.update({ data: { name: clas.name, description: clas.description, source: clas.source, hitdice: clas.hitdice, caster: clas.caster, castlvl: clas.castlvl, cast_stat: clas.cast_stat, has_subclass: clas.has_subclass, either_requirement: clas.either_requirement }, where: { id: clas.id } });
 
         return 'Successfully updated Class in Database';
     }
-
-    async hasSub(clas: { id?: bigint; name?: string }) {
-        if (clas.id) {
-            const results = await query('SELECT * FROM classes WHERE id = $1', [clas.id]) as DBClass[];
-
-            return results[0].has_subclass;
-        }
-
-        const results = await query('SELECT * FROM classes WHERE name = $2', [clas.name]) as DBClass[];
-
-        return results[0].has_subclass;
-    }
 }
-
-const Class = new clas();
-
-export { Class };

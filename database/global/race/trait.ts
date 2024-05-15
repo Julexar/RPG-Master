@@ -1,84 +1,80 @@
-import { psql } from '../../psql.ts';
+import { prisma as db } from '../../prisma';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
-const query = psql.query;
 
 interface DBRaceTrait {
-    id: bigint;
-    name: string;
-    description: string;
-    visible: boolean;
-    options: JSON | null;
+  id: number;
+  race_id: number;
+  name: string;
+  description: string;
+  visible: boolean;
+  options: JSON;
 }
 
 interface AddRaceTrait {
-    name: string;
-    description: string;
-    visible: boolean;
-    options: JSON | null;
+  name: string;
+  description: string;
+  visible: boolean;
+  options: JSON;
 }
 
-class RaceTrait {
-    static async getAll(race: { id: bigint }) {
-        const results = await query('SELECT * FROM race_traits WHERE race_id = $1', [race.id]) as DBRaceTrait[];
+export class RaceTrait {
+  static async getAll(race: { id: number }) {
+    const results = await db.race_traits.findMany({ where: { race_id: race.id } });
 
-        if (results.length === 0) throw new NotFoundError('No Race Traits found', 'Could not find any Traits for that Race in the Database!');
+    if (results.length === 0) throw new NotFoundError('No Race Traits found', 'Could not find any Race Traits in the Database!');
 
-        return results;
+    return results;
+  }
+
+  static async getOne(race: { id: number }, trait: { id?: number, name?: string }) {
+    if (trait.id) {
+      const result = await db.race_traits.findUnique({ where: { race_id: race.id, id: trait.id } });
+
+      if (!result) throw new NotFoundError('Race Trait not found', 'Could not find that Race Trait in the Database!');
+
+      return result;
     }
 
-    static async getOne(race: { id: bigint }, trait: { id?: bigint; name?: string }) {
-        if (trait.id) {
-            const results = await query('SELECT * FROM race_traits WHERE race_id = $1 AND id = $2', [race.id, trait.id]) as DBRaceTrait[];
+    const result = await db.race_traits.findFirst({ where: { race_id: race.id, name: trait.name } });
 
-            if (results.length === 0) throw new NotFoundError('Race Trait not found', 'Could not find that Trait for that Race in the Database!');
+    if (!result) throw new NotFoundError('Race Trait not found', 'Could not find a Race Trait with that Name in the Database!');
 
-            return results[0];
-        }
+    return result;
+  }
 
-        const results = await query('SELECT * FROM race_traits WHERE race_id = $1 AND name = $2', [race.id, trait.name]) as DBRaceTrait[];
+  static async exists(race: { id: number }, trait: { id?: number, name?: string }) {
+    if (trait.id) {
+      const result = await db.race_traits.findUnique({ where: { race_id: race.id, id: trait.id } });
 
-        if (results.length === 0) throw new NotFoundError('Race Trait not found', 'Could not find a Trait with that name for that Race in the Database!');
-
-        return results[0];
+      return !!result;
     }
 
-    static async exists(race: { id: bigint }, trait: { id?: bigint; name?: string }) {
-        if (trait.id) {
-            const results = await query('SELECT * FROM race_traits WHERE race_id = $1 AND id = $2', [race.id, trait.id]) as DBRaceTrait[];
+    const result = await db.race_traits.findFirst({ where: { race_id: race.id, name: trait.name } });
 
-            return results.length === 1;
-        }
+    return !!result;
+  }
 
-        const results = await query('SELECT * FROM race_traits WHERE race_id = $1 AND name = $2', [race.id, trait.name]) as DBRaceTrait[];
+  static async add(race: { id: number }, trait: AddRaceTrait) {
+    if (await this.exists(race, trait)) throw new DuplicateError('Duplicate Race Trait', 'That Race Trait already exists in the Database!');
 
-        return results.length === 1;
-    }
+    await db.race_traits.create({ data: { race_id: race.id, name: trait.name, description: trait.description, visible: trait.visible, options: JSON.stringify(trait.options) } });
 
-    static async add(race: { id: bigint }, trait: AddRaceTrait) {
-        if (await this.exists(race, trait)) throw new DuplicateError('Duplicate Race Trait', 'That Trait is already linked to that Race in the Database!');
+    return 'Successfully added Race Trait to Database';
+  }
 
-        const sql = 'INSERT INTO race_traits (race_id, name, description, visible, options) VALUES($1, $2, $3, $4, $5::JSON)';
-        await query(sql, [race.id, trait.name, trait.description, trait.visible, trait.options]);
+  static async remove(race: { id: number }, trait: { id: number }) {
+    if (!await this.exists(race, trait)) throw new NotFoundError('Race Trait not found', 'Could not find that Race Trait in the Database!');
 
-        return 'Successfully added Race Trait to Database';
-    }
+    await db.race_traits.delete({ where: { race_id: race.id, id: trait.id } });
 
-    static async remove(race: { id: bigint }, trait: { id: bigint, name?: string }) {
-        if (!(await this.exists(race, trait))) throw new NotFoundError('Race Trait not found', 'Could not find that Trait for that Race in the Database!');
+    return 'Successfully removed Race Trait from Database';
+  }
 
-        await query('DELETE FROM race_traits WHERE race_id = $1 AND id = $2', [race.id, trait.id]);
+  static async update(race: { id: number }, trait: DBRaceTrait) {
+    if (!await this.exists(race, trait)) throw new NotFoundError('Race Trait not found', 'Could not find that Race Trait in the Database!');
 
-        return 'Successfully removed Race Trait from Database';
-    }
+    await db.race_traits.update({ data: { name: trait.name, description: trait.description, visible: trait.visible, options: JSON.stringify(trait.options) }, where: { race_id: race.id, id: trait.id } });
 
-    static async update(race: { id: bigint }, trait: DBRaceTrait) {
-        if (!(await this.exists(race, trait))) throw new NotFoundError('Race Trait not found', 'Could not find that Trait for that Race in the Database!');
-
-        const sql = 'UPDATE race_traits SET name = $1, description = $2, visible = $3, options = $4::JSON WHERE race_id = $5 AND id = $6';
-        await query(sql, [trait.name, trait.description, trait.visible, trait.options, race.id, trait.id]);
-
-        return 'Successfully updated Race Trait in Database';
-    }
+    return 'Successfully updated Race Trait in Database';
+  }
 }
-
-export { RaceTrait };

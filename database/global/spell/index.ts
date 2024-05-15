@@ -1,146 +1,154 @@
-import { psql } from '../../psql.ts';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
-import { SpellSchool } from './school.ts';
-const query = psql.query;
+import { prisma as db } from "../../prisma";
+import { NotFoundError, DuplicateError } from "../../../custom/errors";
+import { SpellSchool } from './school';
 
 interface DBSpell {
-    id: bigint,
-    name: string,
-    description: string,
-    level: number,
-    school_id: bigint | null,
-    classes: bigint[] | null,
-    higher_lvl: JSON | null,
-    dmgtype_id: bigint | null,
-    dmg_stat: string | null,
-    save_stat: string | null,
-    stats: JSON | null
-};
+    id: number;
+    name: string;
+    description: string;
+    cast_time: number;
+    cast_type: string;
+    cast_req: string;
+    level: number;
+    school_id: number;
+    classes: number[];
+    higher_lvl: JSON | null;
+    dmgtype_id: number | null;
+    dmg_stat: string | null;
+    save_stat: string | null;
+    stats: JSON;
+}
 
 interface AddSpell {
-    name: string,
-    description: string,
-    level: number,
-    school_id: bigint | null,
-    classes: bigint[] | null,
-    higher_lvl: JSON | null,
-    dmgtype_id: bigint | null,
-    dmg_stat: string | null,
-    save_stat: string | null,
-    stats: JSON | null
-};
+    name: string;
+    description: string;
+    cast_time: number;
+    cast_type: string;
+    cast_req: string;
+    level: number;
+    school_id: number;
+    classes: number[];
+    higher_lvl: JSON | null;
+    dmgtype_id: number | null;
+    dmg_stat: string | null;
+    save_stat: string | null;
+    stats: JSON;
+}
 
-class spell {
-    school: typeof SpellSchool;
-    constructor() {
-        this.school = SpellSchool;
-    }
+export class Spell {
+    static readonly schools: typeof SpellSchool = SpellSchool;
 
-    async getAll() {
-        const results = await query('SELECT * FROM spells') as DBSpell[];
+    static async getAll() {
+        const results = await db.spells.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Spells found', 'Could not find any Spells in the Database!');
 
-        return results.map(spell => {
-            return {
-                id: spell.id,
-                name: spell.name,
-                description: spell.description,
-                level: spell.level,
-                school: spell.school_id ? SpellSchool.getOne({ id: spell.school_id }) : null,
-                classes: spell.classes,
-                higher_lvl: spell.higher_lvl ? JSON.parse(JSON.stringify(spell.higher_lvl)) : null,
-                dmgtype: spell.dmgtype_id,
-                dmg_stat: spell.dmg_stat,
-                save_stat: spell.save_stat,
-                stats: spell.stats ? JSON.parse(JSON.stringify(spell.stats)) : null
-            }
-        });
-    }
-
-    async getOne(spell: any) {
-        if (spell.id) {
-            const results = await query('SELECT * FROM spells WHERE id = $1', [spell.id]) as DBSpell[];
-
-            if (results.length === 0) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
-
-            return results.map(spell => {
+        return await Promise.all(
+            results.map(async (dbSpell) => {
+                const school = await this.schools.getOne({ id: dbSpell.school_id as number });
                 return {
-                    id: spell.id,
-                    name: spell.name,
-                    description: spell.description,
-                    level: spell.level,
-                    school: spell.school_id ? SpellSchool.getOne({ id: spell.school_id }) : null,
-                    classes: spell.classes,
-                    higher_lvl: spell.higher_lvl ? JSON.parse(JSON.stringify(spell.higher_lvl)) : null,
-                    dmgtype: spell.dmgtype_id,
-                    dmg_stat: spell.dmg_stat,
-                    save_stat: spell.save_stat,
-                    stats: spell.stats ? JSON.parse(JSON.stringify(spell.stats)) : null
+                    id: dbSpell.id,
+                    name: dbSpell.name,
+                    description: dbSpell.description,
+                    cast_time: dbSpell.cast_time,
+                    cast_type: dbSpell.cast_type,
+                    cast_req: dbSpell.cast_req,
+                    level: dbSpell.level,
+                    school: school,
+                    classes: dbSpell.classes,
+                    higher_lvl: dbSpell.higher_lvl,
+                    dmgtype_id: dbSpell.dmgtype_id,
+                    dmg_stat: dbSpell.dmg_stat,
+                    save_stat: dbSpell.save_stat,
+                    stats: JSON.parse(JSON.stringify(dbSpell.stats))
                 }
-            })[0];
-        }
-
-        const results = await query('SELECT * FROM spells WHERE name = $1', [spell.name]) as DBSpell[];
-
-        if (results.length === 0) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
-
-        return results.map(spell => {
-            return {
-                id: spell.id,
-                name: spell.name,
-                description: spell.description,
-                level: spell.level,
-                school: spell.school_id ? SpellSchool.getOne({ id: spell.school_id }) : null,
-                classes: spell.classes,
-                higher_lvl: spell.higher_lvl ? JSON.parse(JSON.stringify(spell.higher_lvl)) : null,
-                dmgtype: spell.dmgtype_id,
-                dmg_stat: spell.dmg_stat,
-                save_stat: spell.save_stat,
-                stats: spell.stats ? JSON.parse(JSON.stringify(spell.stats)) : null
-            }
-        })[0];
+            })
+        )
     }
 
-    async exists(spell: any) {
+    static async getOne(spell: { id?: number, name?: string }) {
         if (spell.id) {
-            const results = await query('SELECT * FROM spells WHERE id = $1', [spell.id]) as DBSpell[];
+            const result = await db.spells.findUnique({ where: { id: spell.id } });
 
-            return results.length === 1;
+            if (!result) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
+
+            const school = await this.schools.getOne({ id: result.school_id as number });
+
+            return {
+                id: result.id,
+                name: result.name,
+                description: result.description,
+                cast_time: result.cast_time,
+                cast_type: result.cast_type,
+                cast_req: result.cast_req,
+                level: result.level,
+                school: school,
+                classes: result.classes,
+                higher_lvl: result.higher_lvl,
+                dmgtype_id: result.dmgtype_id,
+                dmg_stat: result.dmg_stat,
+                save_stat: result.save_stat,
+                stats: result.stats
+            }
         }
 
-        const results = await query('SELECT * FROM spells WHERE name = $1', [spell.name]) as DBSpell[];
+        const result = await db.spells.findFirst({ where: { name: spell.name } });
 
-        return results.length === 1;
+        if (!result) throw new NotFoundError('Spell not found', 'Could not find a Spell with that Name in the Database!');
+
+        const school = await this.schools.getOne({ id: result.school_id as number });
+
+        return {
+            id: result.id,
+            name: result.name,
+            description: result.description,
+            cast_time: result.cast_time,
+            cast_type: result.cast_type,
+            cast_req: result.cast_req,
+            level: result.level,
+            school: school,
+            classes: result.classes,
+            higher_lvl: result.higher_lvl,
+            dmgtype_id: result.dmgtype_id,
+            dmg_stat: result.dmg_stat,
+            save_stat: result.save_stat,
+            stats: result.stats
+        }
     }
 
-    async add(spell: AddSpell) {
-        if (await this.exists(spell)) throw new DuplicateError('Spell already exists', 'A Spell with that Name already exists in the Database!');
+    static async exists(spell: { id?: number, name?: string }) {
+        if (spell.id) {
+            const result = await db.spells.findUnique({ where: { id: spell.id } });
 
-        const sql = 'INSERT INTO spells (name, description, level, school_id, classes, higher_lvl, dmgtype_id, dmg_stat, save_stat, stats) VALUES ($1, $2, $3, $4, ARRAY$5, $6, $7, $8, $9, $10::JSON)';
-        await query(sql, [spell.name, spell.description, spell.level, spell.school_id, spell.classes, spell.higher_lvl, spell.dmgtype_id, spell.dmg_stat, spell.save_stat, spell.stats]);
+            return !!result;
+        }
+
+        const result = await db.spells.findFirst({ where: { name: spell.name } });
+
+        return !!result;
+    }
+
+    static async add(spell: AddSpell) {
+        if (await this.exists(spell)) throw new DuplicateError('Duplicate Spell', 'That Spell already exists in the Database!');
+
+        await db.spells.create({ data: { name: spell.name, description: spell.description, cast_time: spell.cast_time, cast_type: spell.cast_type, cast_req: spell.cast_req, level: spell.level, school_id: spell.school_id, classes: spell.classes, higher_lvl: JSON.stringify(spell.higher_lvl), dmgtype_id: spell.dmgtype_id, dmg_stat: spell.dmg_stat, save_stat: spell.save_stat, stats: JSON.stringify(spell.stats) } });
 
         return 'Successfully added Spell to Database';
     }
 
-    async remove(spell: any) {
+    static async remove(spell: { id: number }) {
         if (!await this.exists(spell)) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
 
-        await query('DELETE FROM spells WHERE id = $1', [spell.id]);
+        await db.spells.delete({ where: { id: spell.id } });
 
         return 'Successfully removed Spell from Database';
     }
 
-    async update(spell: DBSpell) {
+    static async update(spell: DBSpell) {
         if (!await this.exists(spell)) throw new NotFoundError('Spell not found', 'Could not find that Spell in the Database!');
 
-        const sql = 'UPDATE spells SET name = $1, description = $2, level = $3, school_id = $4, classes = ARRAY$5, higher_lvl = $6, dmgtype_id = $7, dmg_stat = $8, save_stat = $9, stats = $10::JSON WHERE id = $11';
-        await query(sql, [spell.name, spell.description, spell.level, spell.school_id, spell.classes, spell.higher_lvl, spell.dmgtype_id, spell.dmg_stat, spell.save_stat, spell.stats, spell.id]);
+        await db.spells.update({ data: { name: spell.name, description: spell.description, cast_time: spell.cast_time, cast_type: spell.cast_type, cast_req: spell.cast_req, level: spell.level, school_id: spell.school_id, classes: spell.classes, higher_lvl: JSON.stringify(spell.higher_lvl), dmgtype_id: spell.dmgtype_id, dmg_stat: spell.dmg_stat, save_stat: spell.save_stat, stats: JSON.stringify(spell.stats) }, where: { id: spell.id } } );
 
         return 'Successfully updated Spell in Database';
     }
 }
-
-const Spell = new spell();
-
-export { Spell };

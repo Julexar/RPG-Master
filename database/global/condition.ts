@@ -1,9 +1,8 @@
-import { psql } from '../psql.ts';
-import { NotFoundError, DuplicateError } from '../../custom/errors';
-const query = psql.query;
+import { prisma as db } from "../prisma";
+import { NotFoundError, DuplicateError } from "../../custom/errors";
 
 interface DBCondition {
-    id: bigint;
+    id: number;
     name: string;
     description: string;
 }
@@ -13,67 +12,67 @@ interface AddCondition {
     description: string;
 }
 
-class Condition {
+export class Condition {
     static async getAll() {
-        const results = await query('SELECT * FROM conditions') as DBCondition[];
+        const results = await db.conditions.findMany();
 
-        if (results.length === 0) throw new NotFoundError('No conditions found', 'Could not find any Conditions in the Database!');
+        if (results.length === 0) throw new NotFoundError('No Condition found', 'Could not find any Conditions in the Database!');
 
         return results;
     }
 
-    static async getOne(condition: { id?: bigint; name?: string }) {
+    static async getOne(condition: { id?: number, name?: string }) {
         if (condition.id) {
-            const results = await query('SELECT * FROM conditions WHERE id = $1', [condition.id]) as DBCondition[];
+            const result = await db.conditions.findUnique({ where: { id: condition.id } });
 
-            if (results.length === 0) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
+            if (!result) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM conditions WHERE name = $1', [condition.name]) as DBCondition[];
+        const result = await db.conditions.findFirst({ where: { name: condition.name } });
 
-        if (results.length === 0) throw new NotFoundError('Condition not found', 'Could not find a Condition with that name in the Database!');
+        if (!result) throw new NotFoundError('Condition not found', 'Could not find a Condition with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
-    static async exists(condition: { id?: bigint; name?: string }) {
+    static async exists(condition: { id?: number, name?: string }) {
         if (condition.id) {
-            const results = await query('SELECT * FROM conditions WHERE id = $1', [condition.id]) as DBCondition[];
+            const result = await db.conditions.findUnique({ where: { id: condition.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM conditions WHERE name = $1', [condition.name]) as DBCondition[];
+        const result = await db.conditions.findFirst({ where: { name: condition.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(condition: AddCondition) {
         if (await this.exists(condition)) throw new DuplicateError('Duplicate Condition', 'That Condition already exists in the Database!');
 
-        await query('INSERT INTO conditions (name, description) VALUES($1, $2)', [condition.name, condition.description]);
+        await db.conditions.create({ data: condition });
 
         return 'Successfully added Condition to Database';
     }
 
-    static async remove(condition: { id: bigint }) {
-        if (!(await this.exists(condition))) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
+    static async remove(condition: { id: number }) {
+        if (!(await this.exists({ id: condition.id }))) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
 
-        await query('DELETE FROM conditions WHERE id = $1', [condition.id]);
+        await db.conditions.delete({ where: { id: condition.id } });
 
         return 'Successfully removed Condition from Database';
     }
 
     static async update(condition: DBCondition) {
-        if (!(await this.exists(condition))) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
+        if (!(await this.exists({ id: condition.id }))) throw new NotFoundError('Condition not found', 'Could not find that Condition in the Database!');
 
-        const sql = 'UPDATE conditions SET name = $1, description = $2 WHERE id = $3';
-        await query(sql, [condition.name, condition.description, condition.id]);
+        await db.conditions.update({
+            where: { id: condition.id },
+            data: condition
+        });
 
         return 'Successfully updated Condition in Database';
     }
 }
-
-export { Condition };

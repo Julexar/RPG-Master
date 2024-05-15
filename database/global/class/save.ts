@@ -1,81 +1,100 @@
-import { psql } from '../../psql.ts';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
-const query = psql.query;
+import { prisma as db } from "../../prisma";
+import { NotFoundError, DuplicateError } from "../../../custom/errors";
+import { Stats } from "..";
 
 interface DBClassSave {
-    id: bigint;
-    class_id: bigint;
-    stat_key: string;
-    level: number;
+    id: number;
+    class_id: number;
+    stat: string;
 }
 
 interface AddClassSave {
-    stat_key: string;
+    stat: string;
     level: number;
 }
 
-class ClassSave {
-    static async getAll(clas: { id: bigint }) {
-        const results = await query('SELECT * FROM class_saves WHERE class_id = $1', [clas.id]) as DBClassSave[];
+export class ClassSave {
+    static async getAll(clas: { id: number }) {
+        const results = await db.class_saves.findMany({ where: { class_id: clas.id } })
 
-        if (results.length === 0) throw new NotFoundError('No Class Saves found', 'Could not find any Saves for that Class in the Database!');
+        if (results.length === 0) throw new NotFoundError('No Class Saves found', 'Could not find any Class Saves in the Database!');
 
-        return results;
+        return await Promise.all(
+            results.map(async (dbClasSave) => {
+                const dbStat = await Stats.getOne({ key: dbClasSave.stat });
+
+                return {
+                    id: dbClasSave.id,
+                    class_id: clas.id,
+                    stat: dbStat
+                }
+            })
+        );
     }
 
-    static async getOne(clas: { id: bigint }, save: { id?: bigint, stat_key?: string }) {
+    static async getOne(clas: { id: number }, save: { id?: number, stat?: string }) {
         if (save.id) {
-            const results = await query('SELECT * FROM class_saves WHERE class_id = $1 AND id = $2', [clas.id, save.id]) as DBClassSave[];
+            const result = await db.class_saves.findUnique({ where: { id: save.id } });
 
-            if (results.length === 0) throw new NotFoundError('Class Save not found', 'Could not find that Save for that Class in the Database!');
+            if (!result) throw new NotFoundError('Class Save not found', 'Could not find that Class Save in the Database!');
 
-            return results[0];
+            const clasSave = result;
+            const dbStat = await Stats.getOne({ key: clasSave.stat });
+
+            return {
+                id: clasSave.id,
+                class_id: clas.id,
+                stat: dbStat
+            }
         }
 
-        const results = await query('SELECT * FROM class_saves WHERE class_id = $1 AND stat = $2', [clas.id, save.stat_key]) as DBClassSave[];
+        const result = await db.class_saves.findFirst({ where: { class_id: clas.id, stat: save.stat } });
 
-        if (results.length === 0) throw new NotFoundError('Class Save not found', 'That Class does not have a Save for that Stat!');
+        if (!result) throw new NotFoundError('Class Save not found', 'Could not find that Class Save in the Database!');
 
-        return results[0];
+        const clasSave = result;
+        const dbStat = await Stats.getOne({ key: clasSave.stat });
+
+        return {
+            id: clasSave.id,
+            class_id: clas.id,
+            stat: dbStat
+        }
     }
 
-    static async exists(clas: { id: bigint }, save: { id?: bigint, stat_key?: string }) {
+    static async exists(clas: { id: number }, save: { id?: number, stat?: string }) {
         if (save.id) {
-            const results = await query('SELECT * FROM class_saves WHERE class_id = $1 AND id = $2', [clas.id, save.id]) as DBClassSave[];
+            const result = await db.class_saves.findUnique({ where: { id: save.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM class_saves WHERE class_id = $1 AND stat = $2', [clas.id, save.stat_key]) as DBClassSave[];
+        const result = await db.class_saves.findFirst({ where: { class_id: clas.id, stat: save.stat } });
 
-        return results.length === 1;
+        return !!result;
     }
 
-    static async add(clas: { id: bigint }, save: AddClassSave) {
-        if (await this.exists(clas, save)) throw new DuplicateError('Duplicate Class Save', 'That Class already has a Save for that Stat in the Database!');
+    static async add(clas: { id: number }, save: AddClassSave) {
+        if (await this.exists(clas, save)) throw new DuplicateError('Duplicate Class Save', 'That Class Save already exists in the Database!');
 
-        const sql = 'INSERT INTO class_saves (class_id, stat_key, level) VALUES($1, $2, $3)';
-        await query(sql, [clas.id, save.stat_key, save.level]);
+        await db.class_saves.create({ data: { class_id: clas.id, ...save } });
 
         return 'Successfully added Class Save to Database';
     }
 
-    static async remove(clas: { id: bigint }, save: { id: bigint, stat_key?: string }) {
-        if (!(await this.exists(clas, save))) throw new NotFoundError('Class Save not found', 'Could not find that Save for that Class in the Database!');
+    static async remove(clas: { id: number }, save: { id: number }) {
+        if (!await this.exists(clas, save)) throw new NotFoundError('Class Save not found', 'Could not find that Class Save in the Database!');
 
-        await query('DELETE FROM class_saves WHERE class_id = $1 AND id = $2', [clas.id, save.id]);
+        await db.class_saves.delete({ where: { class_id: clas.id, id: save.id } });
 
-        return 'Successfully removed Class Save from Database';
+        return 'Successfully removed Class Save fromDatabase';
     }
 
-    static async update(clas: { id: bigint }, save: DBClassSave) {
-        if (!(await this.exists(clas, save))) throw new NotFoundError('Class Save not found', 'Could not find that Save for that Class in the Database!');
+    static async update(clas: { id: number }, save: DBClassSave) {
+        if (!await this.exists(clas, save)) throw new NotFoundError('Class Save not found', 'Could not find that Class Save in the Database!');
 
-        const sql = 'UPDATE class_saves SET stat = $1, level = $2 WHERE class_id = $3 AND id = $4';
-        await query(sql, [save.stat_key, save.level, clas.id, save.id]);
+        await db.class_saves.update({ where: { class_id: clas.id, id: save.id }, data: { ...save } });
 
         return 'Successfully updated Class Save in Database';
     }
 }
-
-export { ClassSave };

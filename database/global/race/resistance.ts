@@ -1,140 +1,111 @@
-import { psql } from '../../psql.ts';
+import { prisma as db } from '../../prisma';
 import { NotFoundError, DuplicateError } from '../../../custom/errors';
 import { Condition, Damagetype } from '..';
-const query = psql.query;
 
-interface DBRaceResistance {
-    id: bigint;
-    race_id: bigint;
-    resist_id: bigint;
-    type: string;
+interface DBRaceResist {
+  id: number;
+  race_id: number;
+  resist_id: number;
+  type: string;
 }
 
-interface AddResistance {
-    resist_id: bigint;
-    type: string;
-}
+export class RaceResistance {
+  static async getAll(race: { id: number }) {
+    const results = await db.race_resistances.findMany({ where: { race_id: race.id } });
 
-class RaceResistance {
-    static async getAll(race: { id: bigint }) {
-        const results = await query('SELECT * FROM race_resistances WHERE race_id = $1', [race.id]) as DBRaceResistance[];
+    if (results.length === 0) throw new NotFoundError('No Race Resistances found', 'Could not find any Race Resistances in the Database!');
 
-        if (results.length === 0) throw new NotFoundError('No Race Resistances found', 'Could not find any Resistances for that Race in the Database!');
-
-        return Promise.all(
-            results.map(async (raceResist) => {
-                let dbResist: {id: bigint, name: string} = {id: BigInt(0), name: ''};
-
-                switch (raceResist.type) {
-                    case 'damagetype':
-                        dbResist = await Damagetype.getOne({ id: raceResist.resist_id });
-                    break;
-                    case 'condition':
-                        dbResist = await Condition.getOne({ id: raceResist.resist_id });
-                    break;
-                }
-
-                return {
-                    id: raceResist.id,
-                    race_id: race.id,
-                    type: raceResist.type,
-                    resist: dbResist
-                };
-            })
-        );
-    }
-
-    static async getOne(race: { id: bigint }, resist: { id?: bigint, name?: string, type: string }) {
-        if (resist.id) {
-            const results = await query('SELECT * FROM race_resistances WHERE race_id = $1 AND id = $2', [race.id, resist.id]) as DBRaceResistance[];
-
-            if (results.length === 0) throw new NotFoundError('Race Resistance not found', 'Could not find that Resistance for that Race in the Database!');
-
-            const raceResist = results[0];
-
-            let dbResist: {id: bigint, name: string} = {id: BigInt(0), name: ''};
-
-            switch (raceResist.type) {
-                case 'damagetype':
-                    dbResist = await Damagetype.getOne({ id: raceResist.resist_id });
-                break;
-                case 'condition':
-                    dbResist = await Condition.getOne({ id: raceResist.resist_id });
-                break;
-            }
-
-            return {
-                id: raceResist.id,
-                race_id: race.id,
-                type: raceResist.type,
-                resist: dbResist
-            };
-        }
-
-        let dbResist: {id: bigint, name: string} = {id: BigInt(0), name: ''};
-
-        switch (resist.type) {
-            case 'damagetype':
-                dbResist = await Damagetype.getOne({ name: resist.name });
-            break;
-            case 'condition':
-                dbResist = await Condition.getOne({ name: resist.name });
-            break;
-        }
-
-        const results = await query('SELECT * FROM race_resistances WHERE race_id = $1 AND res_id = $2', [race.id, dbResist.id]) as DBRaceResistance[];
-
-        if (results.length === 0) throw new NotFoundError('Race Resistance not found', 'Could not find a Resistance with that name for that Race in the Database!');
-
-        const raceResist = results[0];
+    return await Promise.all(
+      results.map(async raceResist => {
+        const dbResist = raceResist.type === 'condition'
+        ? await Condition.getOne({ id: raceResist.resist_id })
+        : await Damagetype.getOne({ id: raceResist.resist_id })
 
         return {
-            id: raceResist.id,
-            race_id: race.id,
-            type: raceResist.type,
-            resist: dbResist
-        };
-    }
-
-    static async exists(race: { id: bigint }, resist: { id?: bigint, name?: string, type: string }) {
-        if (resist.id) {
-            const results = await query('SELECT * FROM race_resistances WHERE race_id = $1 AND id = $2', [race.id, resist.id]) as DBRaceResistance[];
-
-            return results.length === 1;
+          id: raceResist.id,
+          race_id: race.id,
+          resistance: dbResist,
+          type: raceResist.type
         }
+      })
+    )
+  }
 
-        let dbResist: {id: bigint, name: string} = {id: BigInt(0), name: ''};
+  static async getOne(race: { id: number }, resist: { id?: number, name?: string, type?: string }) {
+    if (resist.id) {
+      const result = await db.race_resistances.findUnique({ where: { race_id: race.id, id: resist.id } });
 
-        switch (resist.type) {
-            case 'damagetype':
-                dbResist = await Damagetype.getOne({ name: resist.name });
-            break;
-            case 'condition':
-                dbResist = await Condition.getOne({ name: resist.name });
-            break;
-        }
+      if (!result) throw new NotFoundError('Race Resistance not found', 'Could not find that Race Resistance in the Database!');
 
-        const results = await query('SELECT * FROM race_resistances WHERE race_id = $1 AND res_id = $2', [race.id, dbResist.id]) as DBRaceResistance[];
+      const dbResist = result.type === 'condition'
+      ? await Condition.getOne({ id: result.resist_id })
+      : await Damagetype.getOne({ id: result.resist_id })
 
-        return results.length === 1;
+      return {
+        id: result.id,
+        race_id: race.id,
+        resistance: dbResist,
+        type: result.type
+      }
     }
 
-    static async add(race: { id: bigint }, resist: AddResistance) {
-        if (await this.exists(race, resist)) throw new DuplicateError('Duplicate Race Resistace', 'That Race already has that Resistance in the Database!');
+    const dbResist = resist.type === 'condition'
+    ? await Condition.getOne({ name: resist.name })
+    : await Damagetype.getOne({ name: resist.name })
 
-        const sql = 'INSERT INTO race_resistances (race_id, resist_id, type) VALUES($1, $2, $3)';
-        await query(sql, [race.id, resist.resist_id, resist.type]);
+    const result = await db.race_resistances.findFirst({ where: { race_id: race.id, resist_id: dbResist.id } });
 
-        return 'Successfully added Race Resistance to Database';
+    if (!result) throw new NotFoundError('Race Resistance not found', 'Could not find a Race Resistance with that Name in the Database!');
+
+    return {
+      id: result.id,
+      race_id: race.id,
+      resistance: dbResist,
+      type: result.type
+    }
+  }
+
+  static async exists(race: { id: number }, resist: { id?: number, name?: string, type?: string }) {
+    if (resist.id) {
+      const result = await db.race_resistances.findUnique({ where: { race_id: race.id, id: resist.id } });
+
+      return !!result;
     }
 
-    static async remove(race: { id: bigint }, resist: { id?: bigint, name?: string, type: string }) {
-        if (!(await this.exists(race, resist))) throw new NotFoundError('Race Resistance not found', 'Could not find that Resistance for that Race in the Database!');
+    const dbResist = resist.type === 'condition'
+    ? await Condition.getOne({ name: resist.name })
+    : await Damagetype.getOne({ name: resist.name })
 
-        await query('DELETE FROM race_resistances WHERE race_id = $1 AND id = $2', [race.id, resist.id]);
+    const result = await db.race_resistances.findFirst({ where: { race_id: race.id, resist_id: dbResist.id } });
 
-        return 'Successfully removed Race Resistance from Database';
-    }
+    return !!result;
+  }
+
+  static async add(race: { id: number }, resist: { name: string, type: string }) {
+    if (await this.exists(race, resist)) throw new DuplicateError('Duplicate Race Resistance', 'That Race Resistance already exists in the Database!');
+
+    const dbResist = resist.type === 'condition'
+    ? await Condition.getOne({ name: resist.name })
+    : await Damagetype.getOne({ name: resist.name })
+
+    await db.race_resistances.create({ data: { race_id: race.id, resist_id: dbResist.id, type: resist.type } });
+
+    return 'Successfully added Race Resistance to Database';
+  }
+
+  static async remove(race: { id: number }, resist: { id: number }) {
+    if (!await this.exists(race, resist)) throw new NotFoundError('Race Resistance not found', 'Could not find that Race Resistance in the Database!');
+
+    await db.race_resistances.delete({ where: { race_id: race.id, id: resist.id } });
+
+    return 'Successfully removed Race Resistance from Database';
+  }
+
+  static async update(race: { id: number }, resist: DBRaceResist) {
+    if (!await this.exists(race, resist)) throw new NotFoundError('Race Resistance not found', 'Could not find that Race Resistance in the Database!');
+
+    await db.race_resistances.update({ data: { resist_id: resist.resist_id, type: resist.type }, where: { race_id: race.id, id: resist.id } });
+
+    return 'Successfully updated Race Resistance in Database';
+  }
 }
-
-export { RaceResistance };

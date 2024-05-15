@@ -1,72 +1,72 @@
-import { psql } from '../../psql.ts';
-import { NotFoundError, DuplicateError } from '../../../custom/errors';
-const query = psql.query;
+import { prisma as db } from "../../prisma";
+import { NotFoundError, DuplicateError } from "../../../custom/errors";
 
-interface Rarity {
-    id: bigint,
-    name: string
-};
+interface DBItemRarity {
+    id: number;
+    name: string;
+}
 
-class ItemRarity {
+export class ItemRarity {
     static async getAll() {
-        const results = await query('SELECT * FROM item_rarities') as Rarity[];
+        const results = await db.item_rarities.findMany();
 
         if (results.length === 0) throw new NotFoundError('No Item Rarities found', 'Could not find any Item Rarities in the Database!');
 
         return results;
     }
 
-    static async getOne(rarity: { id?: bigint, name?: string }) {
+    static async getOne(rarity: { id?: number, name?: string }) {
         if (rarity.id) {
-            const results = await query('SELECT * FROM item_rarities WHERE id = $1', [rarity.id]) as Rarity[];
+            const result = await db.item_rarities.findUnique({ where: { id: rarity.id } });
 
-            if (results.length === 0) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
+            if (!result) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
 
-            return results[0];
+            return result;
         }
 
-        const results = await query('SELECT * FROM item_rarities WHERE name = $1', [rarity.name]) as Rarity[];
+        const result = await db.item_rarities.findFirst({ where: { name: rarity.name } });
 
-        if (results.length === 0) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
+        if (!result) throw new NotFoundError('Item Rarity not found', 'Could not find an Item Rarity with that Name in the Database!');
 
-        return results[0];
+        return result;
     }
 
-    static async exists(rarity: { id?: bigint, name?: string }) {
+    static async exists(rarity: { id?: number, name?: string }) {
         if (rarity.id) {
-            const results = await query('SELECT * FROM item_rarities WHERE id = $1', [rarity.id]) as Rarity[];
+            const result = await db.item_rarities.findUnique({ where: { id: rarity.id } });
 
-            return results.length === 1;
+            return !!result;
         }
 
-        const results = await query('SELECT * FROM item_rarities WHERE name = $1', [rarity.name]) as Rarity[];
+        const result = await db.item_rarities.findFirst({ where: { name: rarity.name } });
 
-        return results.length === 1;
+        return !!result;
     }
 
     static async add(rarity: { name: string }) {
-        if (await this.exists(rarity)) throw new DuplicateError('Item Rarity already exists', 'An Item Rarity with that name already exists in the Database!');
+        if (await this.exists(rarity)) throw new DuplicateError('Duplicate Item Rarity', 'That Item Rarity already exists in the Database!');
 
-        await query('INSERT INTO item_rarities (name) VALUES ($1)', [rarity.name]);
+        await db.item_rarities.create({ data: { name: rarity.name } });
 
         return 'Successfully added Item Rarity to Database';
     }
 
-    static async update(rarity: Rarity) {
-        if (!(await this.exists(rarity))) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
+    static async remove(rarity: { id: number }) {
+        if (!await this.exists(rarity)) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
 
-        await query('UPDATE item_rarities SET name = $1 WHERE id = $2', [rarity.name, rarity.id]);
-
-        return 'Successfully updated Item Rarity in Database';
-    }
-
-    static async remove(rarity: { id: bigint }) {
-        if (!(await this.exists(rarity))) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
-
-        await query('DELETE FROM item_rarities WHERE id = $1', [rarity.id]);
+        await db.item_rarities.delete({ where: { id: rarity.id } });
 
         return 'Successfully removed Item Rarity from Database';
     }
-}
 
-export { ItemRarity };
+    static async update(rarity: DBItemRarity) {
+        if (!await this.exists(rarity)) throw new NotFoundError('Item Rarity not found', 'Could not find that Item Rarity in the Database!');
+
+        await db.item_rarities.update({
+            where: { id: rarity.id },
+            data: { name: rarity.name }
+        });
+
+        return 'Successfully updated Item Rarity in Database';
+    }
+}
