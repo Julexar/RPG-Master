@@ -4,19 +4,19 @@
     "type": "module",
     "dependencies": {
         "ascii-table": "^0.0.9",
-        "discord.js": "^14.15.2",
+        "discord.js": "^14.15.3",
         "dotenv": "^16.4.5",
-        "glob": "^10.4.1",
+        "glob": "^11.0.0",
         "moment": "^2.30.1",
         "path": "^0.12.7",
-        "pg": "^8.11.5",
-        "undici": "^6.18.1",
+        "pg": "^8.12.0",
+        "undici": "^6.19.8",
         "util": "^0.12.5"
     },
     "scripts": {
         "prettier": "npx prettier --write ."
     },
     "devDependencies": {
-        "prettier": "^3.2.5"
+        "prettier": "^3.3.3"
     }
 }
